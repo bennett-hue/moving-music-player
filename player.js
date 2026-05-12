@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.1.1
+ * Moving Music Player v0.1.2
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  */
@@ -127,10 +127,11 @@
     }
     .mmp-card-play {
       position: absolute;
-      top: 8px; left: 8px;
+      top: 50%; left: 0;
+      transform: translateY(-50%);
       z-index: 10;
       display: inline-flex; align-items: center; justify-content: center;
-      width: 36px; height: 36px;
+      width: 32px; height: 32px;
       background: transparent;
       color: #111;
       border: 0; padding: 0; margin: 0;
@@ -142,8 +143,14 @@
     body.mm-signed-in .mmp-card-play { color: ${CONFIG.accentColor}; }
     .mmp-card-play.is-current { color: #333; }
     .mmp-card-play.is-locked { color: #999; }
-    .mmp-card-play:hover { transform: scale(1.12); }
-    .mmp-card-play svg { width: 28px; height: 28px; fill: currentColor; }
+    .mmp-card-play:hover { transform: translateY(-50%) scale(1.12); }
+    .mmp-card-play svg { width: 24px; height: 24px; fill: currentColor; }
+    /* Make room for the absolute-positioned button on feed/post cards */
+    body.mmp-active article.feed,
+    body.mmp-active article.post-card,
+    body.mmp-active article.feed.post {
+      padding-left: 40px !important;
+    }
     .mmp-bar.is-loading .mmp-btn-play svg { animation: mmp-spin 1s linear infinite; }
     @keyframes mmp-spin { to { transform: rotate(360deg); } }
     @media (max-width: 600px) {
