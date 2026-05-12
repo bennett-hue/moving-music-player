@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.1.7
+ * Moving Music Player v0.1.8
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  */
@@ -185,10 +185,14 @@
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
-  // Auth state — checked LAZILY at render time because Ghost portal adds the
-  // signal asynchronously (after our script has already initialized).
+  // Auth state — checked LAZILY at render time. Ghost portal + Bennett's nav
+  // injection add the signal asynchronously; on this site `a.mm-loggedin`
+  // (the gold "Logged In" link Bennett swaps in for signed-in members) is
+  // the most reliable indicator because his body-class poller times out
+  // before Ghost portal finishes initializing.
   function isSignedIn() {
     return document.body.classList.contains('mm-signed-in')
+      || !!document.querySelector('a.mm-loggedin')
       || !!document.querySelector('[data-portal="account"]');
   }
   function lockedFor(t) {
@@ -299,7 +303,8 @@
 
     // Feed pages: article.feed.post (or .feed) cards
     $$('article.feed.post, article.post-card, article.feed').forEach(card => {
-      if (!card.classList.contains('tag-songs')) return;
+      // Accept both `tag-songs` and the duplicate-tag artifact `tag-songs-2`
+      if (!card.matches('.tag-songs, .tag-songs-2')) return;
       const link = card.querySelector('a[href]');
       const titleEl = card.querySelector('.feed-title, .post-card-title, h2, h3, .gh-card-title');
       if (!link || !titleEl) return;
@@ -685,10 +690,12 @@
     if (state.queue.length === 0) return;
     showBar();
 
-    // Restore the saved current track so the bar shows it across pages.
-    // If playback was active recently, attempt to resume (autoplay may be
-    // blocked — in that case the bar stays paused at the saved position).
-    if (saved && saved.slug) {
+    // Per "if a song is playing then it just keeps playing; if not, it
+    // waits", restore the saved track ONLY when playback was actively
+    // happening at the moment of the previous page's unload. Otherwise the
+    // bar starts idle (no selection, no title).
+    const age = saved ? Date.now() - (saved.savedAt || 0) : Infinity;
+    if (saved && saved.slug && saved.isPlaying && age < 10 * 1000) {
       const idx = state.queue.findIndex(t => t.slug === saved.slug);
       if (idx >= 0) {
         state.currentIdx = idx;
@@ -704,11 +711,7 @@
         renderTrack();
         renderQueue();
         renderCardButtons();
-
-        const age = Date.now() - (saved.savedAt || 0);
-        if (saved.isPlaying && age < 10 * 1000 && t.audioUrl) {
-          audio.play().catch(() => { /* autoplay blocked is fine */ });
-        }
+        if (t.audioUrl) audio.play().catch(() => { /* autoplay blocked is fine */ });
       }
     }
 
