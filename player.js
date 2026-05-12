@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.1.6
+ * Moving Music Player v0.1.7
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  */
@@ -185,6 +185,22 @@
   const $ = (sel, root) => (root || document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
+  // Auth state — checked LAZILY at render time because Ghost portal adds the
+  // signal asynchronously (after our script has already initialized).
+  function isSignedIn() {
+    return document.body.classList.contains('mm-signed-in')
+      || !!document.querySelector('[data-portal="account"]');
+  }
+  function lockedFor(t) {
+    if (!t) return false;
+    if (t.lockedFromFetch) return true;
+    if (isSignedIn()) return false;
+    return !!(t.isPaid || t.isMembers);
+  }
+  function hasStartedPlayback() {
+    return !!audio && audio.played && audio.played.length > 0;
+  }
+
   function slugFromHref(href) {
     if (!href) return null;
     try {
@@ -220,11 +236,14 @@
     }
   }
 
-  // ----- state persistence -----
+  // ----- state persistence (cross-page) -----
   function saveState() {
     const now = Date.now();
     if (now - lastSaveAt < 2000) return;
     lastSaveAt = now;
+    persistStateNow();
+  }
+  function persistStateNow() {
     try {
       const t = state.queue[state.currentIdx];
       if (!t) return;
@@ -233,7 +252,13 @@
         title: t.title,
         audioUrl: t.audioUrl,
         position: audio ? audio.currentTime : 0,
-        savedAt: now,
+        isPlaying: !!(audio && !audio.paused),
+        queue: state.queue.map(q => ({
+          slug: q.slug, title: q.title,
+          isPaid: !!q.isPaid, isMembers: !!q.isMembers,
+          audioUrl: q.audioUrl || null,
+        })),
+        savedAt: Date.now(),
       }));
     } catch (e) {}
   }
@@ -243,7 +268,7 @@
       const raw = localStorage.getItem(CONFIG.storageKey);
       if (!raw) return null;
       const s = JSON.parse(raw);
-      if (!s || !s.audioUrl) return null;
+      if (!s || !s.slug) return null;
       if (Date.now() - (s.savedAt || 0) > 1000 * 60 * 60 * 24) return null;
       return s;
     } catch (e) { return null; }
@@ -253,7 +278,6 @@
   function buildQueue() {
     const items = [];
     const seen = new Set();
-    const signedIn = document.body.classList.contains('mm-signed-in');
 
     // Single-post page: real audio card (already-decoded URL, no fetch needed)
     $$('.kg-audio-card').forEach(card => {
@@ -267,7 +291,7 @@
         slug,
         title: (t && t.textContent.trim()) || document.title,
         audioUrl: a.src,
-        locked: false,
+        isPaid: false, isMembers: false,
         loaded: true,
         cardEl: card,
       });
@@ -275,7 +299,6 @@
 
     // Feed pages: article.feed.post (or .feed) cards
     $$('article.feed.post, article.post-card, article.feed').forEach(card => {
-      // Only include song posts (universal "songs" tag) — drops about/info pages
       if (!card.classList.contains('tag-songs')) return;
       const link = card.querySelector('a[href]');
       const titleEl = card.querySelector('.feed-title, .post-card-title, h2, h3, .gh-card-title');
@@ -283,16 +306,12 @@
       const slug = slugFromHref(link.getAttribute('href'));
       if (!slug || seen.has(slug)) return;
       seen.add(slug);
-      // Signed-out users can't access paid/members content — mark locked so
-      // skip/advance hops over them and the card button triggers signup.
-      const isPaid = !!card.querySelector('.feed-visibility-paid');
-      const isMembers = !!card.querySelector('.feed-visibility-members');
-      const locked = (isPaid || isMembers) && !signedIn;
       items.push({
         slug,
         title: titleEl.textContent.trim(),
         audioUrl: null,
-        locked,
+        isPaid: !!card.querySelector('.feed-visibility-paid'),
+        isMembers: !!card.querySelector('.feed-visibility-members'),
         loaded: false,
         cardEl: card,
       });
@@ -334,11 +353,10 @@
         return advance(+1, idx);
       }
       if (result.locked) {
-        track.locked = true;
+        track.lockedFromFetch = true;
         track.loaded = true;
         renderQueue();
         renderCardButtons();
-        // Pause anything currently playing
         audio.pause();
         triggerSignup();
         return;
@@ -349,7 +367,7 @@
       renderTrack();
     }
 
-    if (track.locked) {
+    if (lockedFor(track)) {
       triggerSignup();
       return advance(+1, idx);
     }
@@ -366,11 +384,11 @@
   }
 
   function advance(delta, fromIdx) {
-    // Treat unset currentIdx as a boundary so first prev/next lands on edge
+    // Idle bar: prev/next do nothing until user starts something
+    if (state.currentIdx < 0 && fromIdx == null) return;
     let start = (fromIdx == null ? state.currentIdx : fromIdx);
-    if (start < 0) start = (delta > 0 ? -1 : state.queue.length);
     let i = start + delta;
-    while (i >= 0 && i < state.queue.length && state.queue[i].locked) {
+    while (i >= 0 && i < state.queue.length && lockedFor(state.queue[i])) {
       i += delta;
     }
     if (i < 0 || i >= state.queue.length) {
@@ -382,13 +400,13 @@
 
   function togglePlay() {
     if (state.currentIdx < 0) {
-      const idx = state.queue.findIndex(t => !t.locked);
+      // Idle bar: a press on the centre play button starts the first track
+      const idx = state.queue.findIndex(t => !lockedFor(t));
       if (idx >= 0) playIdx(idx);
       return;
     }
     const t = state.queue[state.currentIdx];
-    if (t && t.locked) { triggerSignup(); return; }
-    // If src not yet loaded for the current track, run playIdx (which fetches)
+    if (lockedFor(t)) { triggerSignup(); return; }
     if (!t || !t.audioUrl || audio.src !== t.audioUrl) {
       playIdx(state.currentIdx);
       return;
@@ -513,10 +531,11 @@
     const list = $('.mmp-queue-list', barEl);
     if (!list) return;
     list.innerHTML = state.queue.map((t, i) => {
+      const locked = lockedFor(t);
       const classes = ['mmp-queue-item'];
       if (i === state.currentIdx) classes.push('is-current');
-      if (t.locked) classes.push('is-locked');
-      const iconHtml = t.locked ? ICONS.lock : '';
+      if (locked) classes.push('is-locked');
+      const iconHtml = locked ? ICONS.lock : '';
       return `<div class="${classes.join(' ')}" data-idx="${i}">
         <div class="mmp-queue-num">${i + 1}</div>
         <div class="mmp-queue-title">${escapeHtml(t.title)}</div>
@@ -527,7 +546,7 @@
       el.addEventListener('click', () => {
         const idx = parseInt(el.dataset.idx, 10);
         const t = state.queue[idx];
-        if (t.locked) { triggerSignup(); return; }
+        if (lockedFor(t)) { triggerSignup(); return; }
         playIdx(idx);
       });
     });
@@ -546,7 +565,7 @@
     const idx = parseInt(btn.dataset.idx, 10);
     const track = state.queue[idx];
     if (!track) return;
-    if (track.locked) { triggerSignup(); return; }
+    if (lockedFor(track)) { triggerSignup(); return; }
     if (idx === state.currentIdx) { togglePlay(); return; }
     playIdx(idx);
   }
@@ -575,11 +594,12 @@
       } else {
         btn.dataset.idx = String(i);
       }
+      const locked = lockedFor(t);
       btn.classList.toggle('is-current', i === state.currentIdx);
-      btn.classList.toggle('is-locked', !!t.locked);
+      btn.classList.toggle('is-locked', locked);
       btn.innerHTML = (i === state.currentIdx && audio && !audio.paused)
         ? ICONS.pause
-        : (t.locked ? ICONS.lock : ICONS.play);
+        : (locked ? ICONS.lock : ICONS.play);
     });
   }
 
@@ -588,21 +608,24 @@
   function rebuildFromDom() {
     const currentSlug = (state.queue[state.currentIdx] || {}).slug;
     const newQueue = buildQueue();
-    // Carry over loaded/locked/audioUrl from prior queue entries by slug
+    // Carry over only the per-track *runtime* facts (URL we fetched, fetch-lock flag)
     const prior = new Map(state.queue.map(t => [t.slug, t]));
     newQueue.forEach(t => {
       const p = prior.get(t.slug);
-      if (p) { t.audioUrl = p.audioUrl || t.audioUrl; t.loaded = p.loaded || t.loaded; t.locked = p.locked || t.locked; }
+      if (p) {
+        if (p.audioUrl) { t.audioUrl = p.audioUrl; t.loaded = true; }
+        if (p.lockedFromFetch) t.lockedFromFetch = true;
+      }
     });
     state.queue = newQueue;
     state.currentIdx = currentSlug ? newQueue.findIndex(t => t.slug === currentSlug) : -1;
     renderQueue();
     renderCardButtons();
   }
+
   function startObserver() {
     const target = document.querySelector('main, .gh-main, .gh-content') || document.body;
     const obs = new MutationObserver((mutations) => {
-      // Ignore mutations caused by us inserting our own buttons
       const meaningful = mutations.some(m => Array.from(m.addedNodes).concat(Array.from(m.removedNodes))
         .some(n => n.nodeType === 1 && !n.classList?.contains('mmp-card-play')));
       if (!meaningful) return;
@@ -610,6 +633,19 @@
       observeDebounce = setTimeout(rebuildFromDom, 150);
     });
     obs.observe(target, { childList: true, subtree: true });
+
+    // Ghost portal adds [data-portal="account"] / body.mm-signed-in asynchronously.
+    // When that flips, re-render so paid tracks unlock for the signed-in user.
+    let lastAuth = isSignedIn();
+    const authObs = new MutationObserver(() => {
+      const now = isSignedIn();
+      if (now !== lastAuth) {
+        lastAuth = now;
+        renderQueue();
+        renderCardButtons();
+      }
+    });
+    authObs.observe(document.body, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
   }
 
   // ----- init -----
@@ -620,31 +656,65 @@
     initAudio();
     createBar();
     state.queue = buildQueue();
+
+    // If a saved cross-page queue is larger than what this page sees (e.g. we
+    // were on /tag/library/ with 80+ songs and clicked through to one post
+    // which only renders one .kg-audio-card), prefer the saved queue and
+    // attach card refs where slugs match.
+    const saved = loadSavedTrack();
+    if (saved && Array.isArray(saved.queue) && saved.queue.length > state.queue.length) {
+      const localBySlug = new Map(state.queue.map(t => [t.slug, t]));
+      state.queue = saved.queue.map(sq => {
+        const local = localBySlug.get(sq.slug);
+        return {
+          slug: sq.slug,
+          title: sq.title,
+          isPaid: !!sq.isPaid,
+          isMembers: !!sq.isMembers,
+          audioUrl: (local && local.audioUrl) || sq.audioUrl || null,
+          loaded: !!((local && local.audioUrl) || sq.audioUrl),
+          cardEl: local ? local.cardEl : null,
+        };
+      });
+    }
+
     renderQueue();
     renderCardButtons();
     startObserver();
 
     if (state.queue.length === 0) return;
-
-    // Bar is always visible when there is a queue, even before playback starts
     showBar();
 
-    // Pick initial track: saved one if it's in the queue, else first non-locked
-    const saved = loadSavedTrack();
-    let idx = saved ? state.queue.findIndex(t => t.slug === saved.slug) : -1;
-    if (idx < 0) idx = state.queue.findIndex(t => !t.locked);
-    if (idx < 0) return;
+    // Restore the saved current track so the bar shows it across pages.
+    // If playback was active recently, attempt to resume (autoplay may be
+    // blocked — in that case the bar stays paused at the saved position).
+    if (saved && saved.slug) {
+      const idx = state.queue.findIndex(t => t.slug === saved.slug);
+      if (idx >= 0) {
+        state.currentIdx = idx;
+        const t = state.queue[idx];
+        if (saved.audioUrl) {
+          t.audioUrl = saved.audioUrl;
+          t.loaded = true;
+          try {
+            audio.src = saved.audioUrl;
+            audio.currentTime = saved.position || 0;
+          } catch (e) {}
+        }
+        renderTrack();
+        renderQueue();
+        renderCardButtons();
 
-    state.currentIdx = idx;
-    const t = state.queue[idx];
-    if (saved && t.slug === saved.slug && saved.audioUrl) {
-      t.audioUrl = saved.audioUrl;
-      t.loaded = true;
-      try { audio.src = saved.audioUrl; audio.currentTime = saved.position || 0; } catch (e) {}
+        const age = Date.now() - (saved.savedAt || 0);
+        if (saved.isPlaying && age < 10 * 1000 && t.audioUrl) {
+          audio.play().catch(() => { /* autoplay blocked is fine */ });
+        }
+      }
     }
-    renderTrack();
-    renderQueue();
-    renderCardButtons();
+
+    // Save state when the user navigates away so the next page can resume.
+    window.addEventListener('pagehide', persistStateNow);
+    window.addEventListener('beforeunload', persistStateNow);
   }
 
   if (document.readyState === 'loading') {
