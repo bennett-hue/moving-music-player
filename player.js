@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.1.8
+ * Moving Music Player v0.1.9
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  */
@@ -301,10 +301,13 @@
       });
     });
 
-    // Feed pages: article.feed.post (or .feed) cards
+    // Feed pages: article.feed.post (or .feed) cards.
+    // `tag-library` is the canonical "all songs" tag on this site — present
+    // on every song, regardless of whether the universal `tag-songs` got
+    // detached during the duplicate-tag cleanup. Filtering by library is
+    // safer than filtering by songs.
     $$('article.feed.post, article.post-card, article.feed').forEach(card => {
-      // Accept both `tag-songs` and the duplicate-tag artifact `tag-songs-2`
-      if (!card.matches('.tag-songs, .tag-songs-2')) return;
+      if (!card.matches('.tag-library, .tag-songs, .tag-songs-2')) return;
       const link = card.querySelector('a[href]');
       const titleEl = card.querySelector('.feed-title, .post-card-title, h2, h3, .gh-card-title');
       if (!link || !titleEl) return;
