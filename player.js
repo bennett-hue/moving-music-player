@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.1.0
+ * Moving Music Player v0.1.1
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  */
@@ -126,21 +126,24 @@
       padding-right: 8px;
     }
     .mmp-card-play {
+      position: absolute;
+      top: 8px; left: 8px;
+      z-index: 10;
       display: inline-flex; align-items: center; justify-content: center;
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: ${CONFIG.accentColor}; color: #fff;
-      border: 0; cursor: pointer;
-      margin-right: 8px;
-      flex: 0 0 28px;
-      vertical-align: middle;
+      width: 36px; height: 36px;
+      background: transparent;
+      color: #111;
+      border: 0; padding: 0; margin: 0;
+      cursor: pointer;
       touch-action: manipulation;
+      pointer-events: auto;
       transition: transform 0.15s;
     }
-    .mmp-card-play:hover { transform: scale(1.08); }
-    .mmp-card-play svg { width: 14px; height: 14px; fill: currentColor; }
-    .mmp-card-play.is-current { background: #333; }
-    .mmp-card-play.is-locked { background: #999; }
+    body.mm-signed-in .mmp-card-play { color: ${CONFIG.accentColor}; }
+    .mmp-card-play.is-current { color: #333; }
+    .mmp-card-play.is-locked { color: #999; }
+    .mmp-card-play:hover { transform: scale(1.12); }
+    .mmp-card-play svg { width: 28px; height: 28px; fill: currentColor; }
     .mmp-bar.is-loading .mmp-btn-play svg { animation: mmp-spin 1s linear infinite; }
     @keyframes mmp-spin { to { transform: rotate(360deg); } }
     @media (max-width: 600px) {
@@ -516,29 +519,36 @@
   }
 
   // ----- card play buttons -----
+  function handleCardPlayClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    const btn = e.currentTarget;
+    const idx = parseInt(btn.dataset.idx, 10);
+    const track = state.queue[idx];
+    if (!track) return;
+    if (track.locked) { triggerSignup(); return; }
+    if (idx === state.currentIdx) { togglePlay(); return; }
+    playIdx(idx);
+  }
+
   function renderCardButtons() {
     state.queue.forEach((t, i) => {
       if (!t.cardEl) return;
-      let btn = t.cardEl.querySelector('.mmp-card-play');
+      let btn = t.cardEl.querySelector(':scope > .mmp-card-play');
       if (!btn) {
         btn = document.createElement('button');
         btn.className = 'mmp-card-play';
         btn.type = 'button';
         btn.setAttribute('aria-label', 'Play');
         btn.dataset.idx = String(i);
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const idx = parseInt(btn.dataset.idx, 10);
-          const track = state.queue[idx];
-          if (track.locked) { triggerSignup(); return; }
-          if (idx === state.currentIdx) { togglePlay(); return; }
-          playIdx(idx);
-        });
-        // Place at start of the title (or, on audio cards, near the title)
-        const titleEl = t.cardEl.querySelector('.feed-title, .post-card-title, .kg-audio-title, h2, h3');
-        if (titleEl) titleEl.insertBefore(btn, titleEl.firstChild);
-        else t.cardEl.insertBefore(btn, t.cardEl.firstChild);
+        btn.addEventListener('click', handleCardPlayClick);
+        // Make the card a positioning context so the absolute button sits over it
+        if (getComputedStyle(t.cardEl).position === 'static') {
+          t.cardEl.style.position = 'relative';
+        }
+        // Insert as a direct child of the card, OUTSIDE any <a> link wrapper inside
+        t.cardEl.insertBefore(btn, t.cardEl.firstChild);
       } else {
         btn.dataset.idx = String(i);
       }
