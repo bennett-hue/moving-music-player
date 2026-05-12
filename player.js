@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.3.4
+ * Moving Music Player v0.3.5
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -288,7 +288,9 @@
       // up a specific song inside one long Library of Congress recording.
       const ytMatch = html.match(/(?:(?:m\.|www\.)?youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?[^"'<>]*v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})([^"'<> ]*)/i);
       if (ytMatch) {
-        const trailing = ytMatch[2] || '';
+        // Ghost serves the iframe src with HTML-entity-encoded ampersands
+        // (`&amp;start=1650`), so decode before parsing query params.
+        const trailing = (ytMatch[2] || '').replace(/&amp;/g, '&');
         const startMatch = trailing.match(/[?&](?:start|t)=(\d+)/);
         const endMatch = trailing.match(/[?&]end=(\d+)/);
         const result = {
