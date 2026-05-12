@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.1.4
+ * Moving Music Player v0.1.5
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  */
@@ -125,9 +125,11 @@
       margin-left: auto;
       padding-right: 8px;
     }
+    /* .u-permalink overlay on feed cards is z-index:50 — sit above it */
+    body.mmp-active .feed-title { position: relative; z-index: 60; }
     .mmp-card-play {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px;
+      width: 28px; height: 28px;
       background: transparent;
       color: #111;
       border: 0; padding: 0;
@@ -136,7 +138,7 @@
       cursor: pointer;
       touch-action: manipulation;
       position: relative;
-      z-index: 10;
+      z-index: 100;
       pointer-events: auto;
       transition: transform 0.15s;
     }
