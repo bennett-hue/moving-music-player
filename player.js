@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.3.2
+ * Moving Music Player v0.3.3
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -130,10 +130,15 @@
       margin-left: auto;
       padding-right: 8px;
     }
-    /* The + button needs to sit above the .u-permalink card overlay (z:50)
-       to receive clicks. We DON'T raise .feed-title itself — that would
-       swallow clicks on the title text and break post navigation. The
-       button's own position:relative + z-index:100 is enough. */
+    /* Source theme gives .feed-title { opacity: 0.8 }, which creates a
+       stacking context that traps our button's z-index — without an
+       explicit z-index on .feed-title, our button can't actually beat
+       .u-permalink (z:50). So we raise .feed-title to z:60 AND make it
+       pointer-events: none so title-text clicks fall through to the
+       overlay link (post navigation), while the button re-enables
+       pointer-events: auto so it still receives its own clicks. */
+    body.mmp-active .feed-title { position: relative; z-index: 60; pointer-events: none; }
+    body.mmp-active .feed-title a { pointer-events: auto; }
     .mmp-card-play {
       display: inline-flex; align-items: center; justify-content: center;
       width: 40px; height: 40px;
@@ -155,6 +160,7 @@
     .mmp-card-play.is-locked { color: #999; }
     .mmp-card-play:hover { background: rgba(212, 160, 25, 0.15); }
     .mmp-card-play:active { transform: scale(0.92); }
+    .mmp-card-play, body.mmp-active .feed-title .mmp-card-play { pointer-events: auto; }
     .mmp-card-play svg { width: 24px; height: 24px; fill: currentColor; vertical-align: middle; pointer-events: none; }
     .mmp-queue-empty {
       padding: 18px 16px; color: #777; font-size: 13px; font-style: italic;
