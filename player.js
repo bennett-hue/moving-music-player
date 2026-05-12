@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.3.1
+ * Moving Music Player v0.3.2
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -130,8 +130,10 @@
       margin-left: auto;
       padding-right: 8px;
     }
-    /* .u-permalink overlay on feed cards is z-index:50 — sit above it */
-    body.mmp-active .feed-title { position: relative; z-index: 60; }
+    /* The + button needs to sit above the .u-permalink card overlay (z:50)
+       to receive clicks. We DON'T raise .feed-title itself — that would
+       swallow clicks on the title text and break post navigation. The
+       button's own position:relative + z-index:100 is enough. */
     .mmp-card-play {
       display: inline-flex; align-items: center; justify-content: center;
       width: 40px; height: 40px;
