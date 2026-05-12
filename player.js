@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.1.2
+ * Moving Music Player v0.1.3
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  */
@@ -126,31 +126,25 @@
       padding-right: 8px;
     }
     .mmp-card-play {
-      position: absolute;
-      top: 50%; left: 0;
-      transform: translateY(-50%);
-      z-index: 10;
       display: inline-flex; align-items: center; justify-content: center;
-      width: 32px; height: 32px;
+      width: 24px; height: 24px;
       background: transparent;
       color: #111;
-      border: 0; padding: 0; margin: 0;
+      border: 0; padding: 0;
+      margin: 0 10px 0 0;
+      vertical-align: middle;
       cursor: pointer;
       touch-action: manipulation;
+      position: relative;
+      z-index: 10;
       pointer-events: auto;
       transition: transform 0.15s;
     }
     body.mm-signed-in .mmp-card-play { color: ${CONFIG.accentColor}; }
     .mmp-card-play.is-current { color: #333; }
     .mmp-card-play.is-locked { color: #999; }
-    .mmp-card-play:hover { transform: translateY(-50%) scale(1.12); }
-    .mmp-card-play svg { width: 24px; height: 24px; fill: currentColor; }
-    /* Make room for the absolute-positioned button on feed/post cards */
-    body.mmp-active article.feed,
-    body.mmp-active article.post-card,
-    body.mmp-active article.feed.post {
-      padding-left: 40px !important;
-    }
+    .mmp-card-play:hover { transform: scale(1.15); }
+    .mmp-card-play svg { width: 20px; height: 20px; fill: currentColor; vertical-align: middle; }
     .mmp-bar.is-loading .mmp-btn-play svg { animation: mmp-spin 1s linear infinite; }
     @keyframes mmp-spin { to { transform: rotate(360deg); } }
     @media (max-width: 600px) {
@@ -542,7 +536,7 @@
   function renderCardButtons() {
     state.queue.forEach((t, i) => {
       if (!t.cardEl) return;
-      let btn = t.cardEl.querySelector(':scope > .mmp-card-play');
+      let btn = t.cardEl.querySelector('.mmp-card-play');
       if (!btn) {
         btn = document.createElement('button');
         btn.className = 'mmp-card-play';
@@ -550,12 +544,16 @@
         btn.setAttribute('aria-label', 'Play');
         btn.dataset.idx = String(i);
         btn.addEventListener('click', handleCardPlayClick);
-        // Make the card a positioning context so the absolute button sits over it
-        if (getComputedStyle(t.cardEl).position === 'static') {
-          t.cardEl.style.position = 'relative';
+        // Block the .u-permalink overlay anchor from getting these touches/clicks
+        btn.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+        btn.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
+        // Insert inline at the start of the title element
+        const titleEl = t.cardEl.querySelector('.feed-title, .post-card-title, .kg-audio-title, h2, h3');
+        if (titleEl) {
+          titleEl.insertBefore(btn, titleEl.firstChild);
+        } else {
+          t.cardEl.insertBefore(btn, t.cardEl.firstChild);
         }
-        // Insert as a direct child of the card, OUTSIDE any <a> link wrapper inside
-        t.cardEl.insertBefore(btn, t.cardEl.firstChild);
       } else {
         btn.dataset.idx = String(i);
       }
