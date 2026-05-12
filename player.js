@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.3.3
+ * Moving Music Player v0.3.4
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -281,10 +281,21 @@
         audioUrlCache.set(slug, result);
         return result;
       }
-      // Comprehensive YouTube ID extraction: embed, watch, shorts, youtu.be
-      const ytMatch = html.match(/(?:(?:m\.|www\.)?youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?[^"'<>]*v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i);
+      // Comprehensive YouTube ID extraction: embed, watch, shorts, youtu.be.
+      // Also captures any trailing URL characters so we can parse `start`,
+      // `t`, and `end` parameters (Ghost converts `?t=120` on a YouTube URL
+      // into `?start=120` on the embed iframe). Lots of Bennett's posts cue
+      // up a specific song inside one long Library of Congress recording.
+      const ytMatch = html.match(/(?:(?:m\.|www\.)?youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?[^"'<>]*v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})([^"'<> ]*)/i);
       if (ytMatch) {
-        const result = { youtubeId: ytMatch[1] };
+        const trailing = ytMatch[2] || '';
+        const startMatch = trailing.match(/[?&](?:start|t)=(\d+)/);
+        const endMatch = trailing.match(/[?&]end=(\d+)/);
+        const result = {
+          youtubeId: ytMatch[1],
+          startSeconds: startMatch ? parseInt(startMatch[1], 10) : 0,
+          endSeconds: endMatch ? parseInt(endMatch[1], 10) : null,
+        };
         audioUrlCache.set(slug, result);
         return result;
       }
@@ -330,6 +341,8 @@
           isPaid: !!q.isPaid, isMembers: !!q.isMembers,
           audioUrl: q.audioUrl || null,
           youtubeId: q.youtubeId || null,
+          ytStart: q.ytStart || 0,
+          ytEnd: q.ytEnd || null,
         })),
         savedAt: Date.now(),
       }));
@@ -592,6 +605,8 @@
       }
       if (result.youtubeId) {
         track.youtubeId = result.youtubeId;
+        track.ytStart = result.startSeconds || 0;
+        track.ytEnd = result.endSeconds || null;
       } else if (result.audioUrl) {
         track.audioUrl = result.audioUrl;
       }
@@ -617,7 +632,10 @@
       try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (e) {}
       await ensureYtPlayer();
       try {
-        ytPlayer.loadVideoById(track.youtubeId);
+        const opts = { videoId: track.youtubeId };
+        if (track.ytStart) opts.startSeconds = track.ytStart;
+        if (track.ytEnd) opts.endSeconds = track.ytEnd;
+        ytPlayer.loadVideoById(opts);
         ytPlayer.playVideo();
       } catch (e) { console.warn('[mmp] yt play rejected', e); }
     }
@@ -907,6 +925,22 @@
       }
     });
     authObs.observe(document.body, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
+
+    // Mobile/touch: navigating to a post page kills the audio element and
+    // browser autoplay rules prevent us from auto-resuming. If audio is
+    // actively playing when the user taps a card link, open the post in a
+    // new tab instead so the original tab keeps playing.
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('a.u-permalink');
+      if (!link) return;
+      const playing = (audio && !audio.paused && audio.currentTime > 0) || isYtPlaying();
+      if (!playing) return;
+      const isTouch = window.matchMedia('(pointer: coarse)').matches;
+      if (!isTouch) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.open(link.href, '_blank', 'noopener');
+    }, true);
   }
 
   // ----- init -----
@@ -928,6 +962,10 @@
         const card = cardBySlug.get(sq.slug);
         const audioUrl = (card && card.audioUrl) || sq.audioUrl || null;
         const youtubeId = sq.youtubeId || null;
+        // YT tracks from pre-v0.3.4 don't have ytStart/ytEnd, so refetch on
+        // first play to get the timestamp. HTML5 audio URLs are complete on
+        // their own.
+        const hasYtTimestamp = youtubeId && (sq.ytStart != null);
         return {
           slug: sq.slug,
           title: sq.title,
@@ -935,7 +973,9 @@
           isMembers: !!sq.isMembers,
           audioUrl,
           youtubeId,
-          loaded: !!(audioUrl || youtubeId),
+          ytStart: sq.ytStart || 0,
+          ytEnd: sq.ytEnd || null,
+          loaded: !!audioUrl || hasYtTimestamp,
           cardEl: card ? card.cardEl : null,
         };
       });
