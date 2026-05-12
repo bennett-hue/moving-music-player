@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.1.3
+ * Moving Music Player v0.1.4
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  */
@@ -565,6 +565,35 @@
     });
   }
 
+  // ----- DOM observer: rebuild queue + buttons when feed sort/pagination changes -----
+  let observeDebounce = null;
+  function rebuildFromDom() {
+    const currentSlug = (state.queue[state.currentIdx] || {}).slug;
+    const newQueue = buildQueue();
+    // Carry over loaded/locked/audioUrl from prior queue entries by slug
+    const prior = new Map(state.queue.map(t => [t.slug, t]));
+    newQueue.forEach(t => {
+      const p = prior.get(t.slug);
+      if (p) { t.audioUrl = p.audioUrl || t.audioUrl; t.loaded = p.loaded || t.loaded; t.locked = p.locked || t.locked; }
+    });
+    state.queue = newQueue;
+    state.currentIdx = currentSlug ? newQueue.findIndex(t => t.slug === currentSlug) : -1;
+    renderQueue();
+    renderCardButtons();
+  }
+  function startObserver() {
+    const target = document.querySelector('main, .gh-main, .gh-content') || document.body;
+    const obs = new MutationObserver((mutations) => {
+      // Ignore mutations caused by us inserting our own buttons
+      const meaningful = mutations.some(m => Array.from(m.addedNodes).concat(Array.from(m.removedNodes))
+        .some(n => n.nodeType === 1 && !n.classList?.contains('mmp-card-play')));
+      if (!meaningful) return;
+      clearTimeout(observeDebounce);
+      observeDebounce = setTimeout(rebuildFromDom, 150);
+    });
+    obs.observe(target, { childList: true, subtree: true });
+  }
+
   // ----- init -----
   function init() {
     if (window.__mmpInited) return;
@@ -575,6 +604,7 @@
     state.queue = buildQueue();
     renderQueue();
     renderCardButtons();
+    startObserver();
 
     // Resume saved track if found and present in queue
     const saved = loadSavedTrack();
