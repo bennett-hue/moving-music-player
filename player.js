@@ -1,7 +1,12 @@
 /*!
- * Moving Music Player v0.1.10
+ * Moving Music Player v0.2.0
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
+ *
+ * v0.2.0 model: cards have a `+` button that ADDS songs to a user-curated
+ * playlist (persists in localStorage across pages). Once added, the icon
+ * flips to ✓ — click again to remove. The bar plays through the playlist;
+ * skip/prev navigates it. The first add auto-starts playback.
  */
 (() => {
   'use strict';
@@ -143,10 +148,22 @@
       transition: transform 0.15s;
     }
     body.mm-signed-in .mmp-card-play { color: ${CONFIG.accentColor}; }
-    .mmp-card-play.is-current { color: #333; }
+    .mmp-card-play.is-added { color: ${CONFIG.accentColor}; }
     .mmp-card-play.is-locked { color: #999; }
     .mmp-card-play:hover { transform: scale(1.15); }
-    .mmp-card-play svg { width: 20px; height: 20px; fill: currentColor; vertical-align: middle; }
+    .mmp-card-play svg { width: 22px; height: 22px; fill: currentColor; vertical-align: middle; }
+    .mmp-queue-empty {
+      padding: 18px 16px; color: #777; font-size: 13px; font-style: italic;
+    }
+    .mmp-queue-remove {
+      flex: 0 0 auto;
+      width: 28px; height: 28px;
+      background: transparent; border: 0; padding: 0;
+      color: #999; cursor: pointer; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .mmp-queue-remove:hover { color: #333; background: rgba(0,0,0,0.06); }
+    .mmp-queue-remove svg { width: 14px; height: 14px; fill: currentColor; }
     .mmp-bar.is-loading .mmp-btn-play svg { animation: mmp-spin 1s linear infinite; }
     @keyframes mmp-spin { to { transform: rotate(360deg); } }
     @media (max-width: 600px) {
@@ -169,11 +186,17 @@
     close: '<svg viewBox="0 0 24 24"><path d="M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg>',
     note: '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>',
     lock: '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>',
+    plus: '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>',
+    check: '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>',
+    remove: '<svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14z"/></svg>',
   };
 
   // ----- state -----
   let state = {
-    queue: [],          // [{slug, title, audioUrl, locked, loaded}]
+    // queue = user-curated playlist (persisted in localStorage)
+    queue: [],
+    // cardsOnPage = scan of current DOM for rendering the per-card + buttons
+    cardsOnPage: [],
     currentIdx: -1,
     expanded: false,
   };
@@ -259,12 +282,11 @@
   }
   function persistStateNow() {
     try {
-      const t = state.queue[state.currentIdx];
-      if (!t) return;
+      const t = state.currentIdx >= 0 ? state.queue[state.currentIdx] : null;
       localStorage.setItem(CONFIG.storageKey, JSON.stringify({
-        slug: t.slug,
-        title: t.title,
-        audioUrl: t.audioUrl,
+        slug: t ? t.slug : null,
+        title: t ? t.title : null,
+        audioUrl: t ? t.audioUrl : null,
         position: audio ? audio.currentTime : 0,
         isPlaying: !!(audio && !audio.paused),
         queue: state.queue.map(q => ({
@@ -288,8 +310,11 @@
     } catch (e) { return null; }
   }
 
-  // ----- queue building -----
-  function buildQueue() {
+  // ----- card scan (separate from the user's playlist) -----
+  // Scans the current DOM for song cards so we know where to render the
+  // `+` / `✓` buttons. Does NOT populate the playback queue — the user's
+  // playlist (state.queue) is curated by clicking those buttons.
+  function scanCards() {
     const items = [];
     const seen = new Set();
 
@@ -336,6 +361,58 @@
     });
 
     return items;
+  }
+
+  // ----- playlist mutations -----
+  function inPlaylist(slug) {
+    return state.queue.findIndex(t => t.slug === slug);
+  }
+
+  function addToPlaylist(card) {
+    if (!card || inPlaylist(card.slug) >= 0) return;
+    const wasEmpty = state.queue.length === 0;
+    state.queue.push({
+      slug: card.slug,
+      title: card.title,
+      isPaid: !!card.isPaid,
+      isMembers: !!card.isMembers,
+      audioUrl: card.audioUrl || null,
+      loaded: !!card.audioUrl,
+      cardEl: card.cardEl,
+    });
+    persistStateNow();
+    renderQueue();
+    renderCardButtons();
+    if (wasEmpty) {
+      // First add: auto-play immediately (this click is a user gesture so
+      // browser autoplay rules are satisfied).
+      playIdx(0);
+    }
+  }
+
+  function removeFromPlaylist(slug) {
+    const idx = inPlaylist(slug);
+    if (idx < 0) return;
+    const wasCurrent = state.currentIdx === idx;
+    state.queue.splice(idx, 1);
+    if (wasCurrent) {
+      if (audio) audio.pause();
+      state.currentIdx = state.queue.length > 0 ? Math.min(idx, state.queue.length - 1) : -1;
+      if (state.currentIdx >= 0) renderTrack();
+      else {
+        const titleEl = $('.mmp-title', barEl);
+        if (titleEl) {
+          titleEl.textContent = 'Empty playlist';
+          titleEl.classList.add('mmp-title-empty');
+        }
+        renderPlayPause();
+      }
+    } else if (state.currentIdx > idx) {
+      state.currentIdx--;
+    }
+    persistStateNow();
+    renderQueue();
+    renderCardButtons();
   }
 
   // ----- audio -----
@@ -469,7 +546,7 @@
       </div>
       <div class="mmp-mini">
         <div class="mmp-thumb">${ICONS.note}</div>
-        <div class="mmp-title mmp-title-empty">Nothing playing</div>
+        <div class="mmp-title mmp-title-empty">Tap + on a song to start</div>
         <div class="mmp-time-display"><span class="mmp-time-cur">0:00</span> / <span class="mmp-time-dur">0:00</span></div>
         <div class="mmp-controls">
           <button class="mmp-btn mmp-btn-prev" aria-label="Previous">${ICONS.prev}</button>
@@ -523,7 +600,9 @@
     const t = state.queue[state.currentIdx];
     const titleEl = $('.mmp-title', barEl);
     if (!t) {
-      titleEl.textContent = 'Nothing playing';
+      titleEl.textContent = state.queue.length === 0
+        ? 'Tap + on a song to start'
+        : 'Tap play to begin';
       titleEl.classList.add('mmp-title-empty');
     } else {
       titleEl.textContent = t.title;
@@ -548,20 +627,29 @@
   function renderQueue() {
     const list = $('.mmp-queue-list', barEl);
     if (!list) return;
+    if (state.queue.length === 0) {
+      list.innerHTML = `<div class="mmp-queue-empty">Add songs with the + button on any track.</div>`;
+      return;
+    }
     list.innerHTML = state.queue.map((t, i) => {
       const locked = lockedFor(t);
       const classes = ['mmp-queue-item'];
       if (i === state.currentIdx) classes.push('is-current');
       if (locked) classes.push('is-locked');
-      const iconHtml = locked ? ICONS.lock : '';
       return `<div class="${classes.join(' ')}" data-idx="${i}">
         <div class="mmp-queue-num">${i + 1}</div>
         <div class="mmp-queue-title">${escapeHtml(t.title)}</div>
-        <div class="mmp-queue-icon">${iconHtml}</div>
+        <button class="mmp-queue-remove" data-slug="${escapeHtml(t.slug)}" aria-label="Remove">${ICONS.close}</button>
       </div>`;
     }).join('');
     $$('.mmp-queue-item', list).forEach(el => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        const remBtn = e.target.closest('.mmp-queue-remove');
+        if (remBtn) {
+          e.stopPropagation();
+          removeFromPlaylist(remBtn.dataset.slug);
+          return;
+        }
         const idx = parseInt(el.dataset.idx, 10);
         const t = state.queue[idx];
         if (lockedFor(t)) { triggerSignup(); return; }
@@ -574,70 +662,59 @@
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  // ----- card play buttons -----
-  function handleCardPlayClick(e) {
+  // ----- card buttons (+ / ✓ / lock) -----
+  function handleCardClick(e) {
     e.preventDefault();
     e.stopPropagation();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-    const btn = e.currentTarget;
-    const idx = parseInt(btn.dataset.idx, 10);
-    const track = state.queue[idx];
-    if (!track) return;
-    if (lockedFor(track)) { triggerSignup(); return; }
-    if (idx === state.currentIdx) { togglePlay(); return; }
-    playIdx(idx);
+    const slug = e.currentTarget.dataset.slug;
+    const card = state.cardsOnPage.find(c => c.slug === slug);
+    if (!card) return;
+    if (lockedFor(card)) { triggerSignup(); return; }
+    if (inPlaylist(slug) >= 0) {
+      removeFromPlaylist(slug);
+    } else {
+      addToPlaylist(card);
+    }
   }
 
   function renderCardButtons() {
-    state.queue.forEach((t, i) => {
-      if (!t.cardEl) return;
-      let btn = t.cardEl.querySelector('.mmp-card-play');
+    state.cardsOnPage.forEach(card => {
+      if (!card.cardEl) return;
+      let btn = card.cardEl.querySelector('.mmp-card-play');
       if (!btn) {
         btn = document.createElement('button');
         btn.className = 'mmp-card-play';
         btn.type = 'button';
-        btn.setAttribute('aria-label', 'Play');
-        btn.dataset.idx = String(i);
-        btn.addEventListener('click', handleCardPlayClick);
-        // Block the .u-permalink overlay anchor from getting these touches/clicks
+        btn.dataset.slug = card.slug;
+        btn.addEventListener('click', handleCardClick);
         btn.addEventListener('mousedown', (e) => { e.stopPropagation(); });
         btn.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
-        // Insert inline at the start of the title element
-        const titleEl = t.cardEl.querySelector('.feed-title, .post-card-title, .kg-audio-title, h2, h3');
-        if (titleEl) {
-          titleEl.insertBefore(btn, titleEl.firstChild);
-        } else {
-          t.cardEl.insertBefore(btn, t.cardEl.firstChild);
-        }
+        const titleEl = card.cardEl.querySelector('.feed-title, .post-card-title, .kg-audio-title, h2, h3');
+        if (titleEl) titleEl.insertBefore(btn, titleEl.firstChild);
+        else card.cardEl.insertBefore(btn, card.cardEl.firstChild);
       } else {
-        btn.dataset.idx = String(i);
+        btn.dataset.slug = card.slug;
       }
-      const locked = lockedFor(t);
-      btn.classList.toggle('is-current', i === state.currentIdx);
+      const locked = lockedFor(card);
+      const added = !locked && inPlaylist(card.slug) >= 0;
       btn.classList.toggle('is-locked', locked);
-      btn.innerHTML = (i === state.currentIdx && audio && !audio.paused)
-        ? ICONS.pause
-        : (locked ? ICONS.lock : ICONS.play);
+      btn.classList.toggle('is-added', added);
+      btn.setAttribute('aria-label', locked ? 'Locked' : (added ? 'Remove from playlist' : 'Add to playlist'));
+      btn.innerHTML = locked ? ICONS.lock : (added ? ICONS.check : ICONS.plus);
     });
   }
 
-  // ----- DOM observer: rebuild queue + buttons when feed sort/pagination changes -----
+  // ----- DOM observer: refresh per-page card scan when sort/pagination changes -----
   let observeDebounce = null;
   function rebuildFromDom() {
-    const currentSlug = (state.queue[state.currentIdx] || {}).slug;
-    const newQueue = buildQueue();
-    // Carry over only the per-track *runtime* facts (URL we fetched, fetch-lock flag)
-    const prior = new Map(state.queue.map(t => [t.slug, t]));
-    newQueue.forEach(t => {
-      const p = prior.get(t.slug);
-      if (p) {
-        if (p.audioUrl) { t.audioUrl = p.audioUrl; t.loaded = true; }
-        if (p.lockedFromFetch) t.lockedFromFetch = true;
-      }
+    state.cardsOnPage = scanCards();
+    // Re-attach fresh cardEl refs onto matching playlist entries
+    const cardBySlug = new Map(state.cardsOnPage.map(c => [c.slug, c]));
+    state.queue.forEach(t => {
+      const c = cardBySlug.get(t.slug);
+      if (c) t.cardEl = c.cardEl;
     });
-    state.queue = newQueue;
-    state.currentIdx = currentSlug ? newQueue.findIndex(t => t.slug === currentSlug) : -1;
-    renderQueue();
     renderCardButtons();
   }
 
@@ -673,26 +750,24 @@
     injectStyles();
     initAudio();
     createBar();
-    state.queue = buildQueue();
 
-    // Cross-page queue continuity ONLY when this page has effectively no
-    // queue of its own (i.e. a single post page — the .kg-audio-card and
-    // nothing else). Any tag/list page should reflect *its* tracks, even
-    // if the previous page's saved queue was bigger.
+    // The user's playlist is the persisted source of truth — load it,
+    // then scan the current page just to render the per-card +/✓ icons.
     const saved = loadSavedTrack();
-    if (state.queue.length <= 1 && saved && Array.isArray(saved.queue)
-        && saved.queue.length > state.queue.length) {
-      const localBySlug = new Map(state.queue.map(t => [t.slug, t]));
+    state.cardsOnPage = scanCards();
+    const cardBySlug = new Map(state.cardsOnPage.map(c => [c.slug, c]));
+
+    if (saved && Array.isArray(saved.queue)) {
       state.queue = saved.queue.map(sq => {
-        const local = localBySlug.get(sq.slug);
+        const card = cardBySlug.get(sq.slug);
         return {
           slug: sq.slug,
           title: sq.title,
           isPaid: !!sq.isPaid,
           isMembers: !!sq.isMembers,
-          audioUrl: (local && local.audioUrl) || sq.audioUrl || null,
-          loaded: !!((local && local.audioUrl) || sq.audioUrl),
-          cardEl: local ? local.cardEl : null,
+          audioUrl: (card && card.audioUrl) || sq.audioUrl || null,
+          loaded: !!((card && card.audioUrl) || sq.audioUrl),
+          cardEl: card ? card.cardEl : null,
         };
       });
     }
@@ -701,13 +776,10 @@
     renderCardButtons();
     startObserver();
 
-    if (state.queue.length === 0) return;
     showBar();
 
-    // Per "if a song is playing then it just keeps playing; if not, it
-    // waits", restore the saved track ONLY when playback was actively
-    // happening at the moment of the previous page's unload. Otherwise the
-    // bar starts idle (no selection, no title).
+    // If the user was actively playing when they navigated, resume that
+    // exact track at the saved position (must be in the persisted playlist).
     const age = saved ? Date.now() - (saved.savedAt || 0) : Infinity;
     if (saved && saved.slug && saved.isPlaying && age < 10 * 1000) {
       const idx = state.queue.findIndex(t => t.slug === saved.slug);
@@ -727,9 +799,11 @@
         renderCardButtons();
         if (t.audioUrl) audio.play().catch(() => { /* autoplay blocked is fine */ });
       }
+    } else {
+      // Idle: just show the empty/standby state of the bar
+      renderTrack();
     }
 
-    // Save state when the user navigates away so the next page can resume.
     window.addEventListener('pagehide', persistStateNow);
     window.addEventListener('beforeunload', persistStateNow);
   }
