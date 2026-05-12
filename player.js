@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.2.0
+ * Moving Music Player v0.2.1
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -343,11 +343,15 @@
     // safer than filtering by songs.
     $$('article.feed.post, article.post-card, article.feed').forEach(card => {
       if (!card.matches('.tag-library, .tag-songs, .tag-songs-2')) return;
-      const link = card.querySelector('a[href]');
+      // Source theme's `.u-permalink` is the canonical post link covering
+      // each card. Using a bare `a[href]` selector grabs the first link in
+      // the article, which may be an inline tag link (e.g. /tag/originals/)
+      // and gives a wrong slug.
+      const link = card.querySelector('a.u-permalink') || card.querySelector('a[href]:not([href*="/tag/"]):not([href*="/author/"])');
       const titleEl = card.querySelector('.feed-title, .post-card-title, h2, h3, .gh-card-title');
       if (!link || !titleEl) return;
       const slug = slugFromHref(link.getAttribute('href'));
-      if (!slug || seen.has(slug)) return;
+      if (!slug || slug.startsWith('tag/') || slug.startsWith('author/') || seen.has(slug)) return;
       seen.add(slug);
       items.push({
         slug,
