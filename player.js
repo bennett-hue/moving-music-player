@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.1.9
+ * Moving Music Player v0.1.10
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  */
@@ -220,6 +220,16 @@
     return `${m}:${s.toString().padStart(2, '0')}`;
   }
 
+  // Album-tag pages append a `.album-tier-badge` ("No account needed" /
+  // "Full access with membership" / "Free to all this week!") to .feed-title.
+  // Read the title without that suffix (and without the visibility-icon block).
+  function cleanTitle(titleEl) {
+    if (!titleEl) return '';
+    const clone = titleEl.cloneNode(true);
+    clone.querySelectorAll('.album-tier-badge, .feed-visibility, .mmp-card-play').forEach(b => b.remove());
+    return clone.textContent.trim();
+  }
+
   // ----- audio URL resolution -----
   // Fetch the rendered post HTML directly so the member session cookie is
   // honored. The Content API serves only public previews, which means paid
@@ -316,7 +326,7 @@
       seen.add(slug);
       items.push({
         slug,
-        title: titleEl.textContent.trim(),
+        title: cleanTitle(titleEl),
         audioUrl: null,
         isPaid: !!card.querySelector('.feed-visibility-paid'),
         isMembers: !!card.querySelector('.feed-visibility-members'),
@@ -665,12 +675,13 @@
     createBar();
     state.queue = buildQueue();
 
-    // If a saved cross-page queue is larger than what this page sees (e.g. we
-    // were on /tag/library/ with 80+ songs and clicked through to one post
-    // which only renders one .kg-audio-card), prefer the saved queue and
-    // attach card refs where slugs match.
+    // Cross-page queue continuity ONLY when this page has effectively no
+    // queue of its own (i.e. a single post page — the .kg-audio-card and
+    // nothing else). Any tag/list page should reflect *its* tracks, even
+    // if the previous page's saved queue was bigger.
     const saved = loadSavedTrack();
-    if (saved && Array.isArray(saved.queue) && saved.queue.length > state.queue.length) {
+    if (state.queue.length <= 1 && saved && Array.isArray(saved.queue)
+        && saved.queue.length > state.queue.length) {
       const localBySlug = new Map(state.queue.map(t => [t.slug, t]));
       state.queue = saved.queue.map(sq => {
         const local = localBySlug.get(sq.slug);
