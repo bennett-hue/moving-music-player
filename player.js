@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.2.1
+ * Moving Music Player v0.2.2
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -134,24 +134,26 @@
     body.mmp-active .feed-title { position: relative; z-index: 60; }
     .mmp-card-play {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 28px; height: 28px;
+      width: 40px; height: 40px;
       background: transparent;
       color: #111;
-      border: 0; padding: 0;
-      margin: 0 10px 0 0;
+      border: 0; padding: 8px;
+      margin: 0 6px 0 -8px;
       vertical-align: middle;
       cursor: pointer;
       touch-action: manipulation;
       position: relative;
       z-index: 100;
       pointer-events: auto;
-      transition: transform 0.15s;
+      border-radius: 50%;
+      transition: background 0.15s, transform 0.1s;
     }
     body.mm-signed-in .mmp-card-play { color: ${CONFIG.accentColor}; }
     .mmp-card-play.is-added { color: ${CONFIG.accentColor}; }
     .mmp-card-play.is-locked { color: #999; }
-    .mmp-card-play:hover { transform: scale(1.15); }
-    .mmp-card-play svg { width: 22px; height: 22px; fill: currentColor; vertical-align: middle; }
+    .mmp-card-play:hover { background: rgba(212, 160, 25, 0.15); }
+    .mmp-card-play:active { transform: scale(0.92); }
+    .mmp-card-play svg { width: 24px; height: 24px; fill: currentColor; vertical-align: middle; pointer-events: none; }
     .mmp-queue-empty {
       padding: 18px 16px; color: #777; font-size: 13px; font-style: italic;
     }
