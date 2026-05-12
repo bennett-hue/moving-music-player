@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.3.0
+ * Moving Music Player v0.3.1
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -273,13 +273,15 @@
         audioUrlCache.set(slug, result);
         return result;
       }
-      const ytMatch = html.match(/(?:youtube(?:-nocookie)?\.com\/(?:embed|watch\?v=)|youtu\.be\/)([A-Za-z0-9_-]{11})/i);
+      // Comprehensive YouTube ID extraction: embed, watch, shorts, youtu.be
+      const ytMatch = html.match(/(?:(?:m\.|www\.)?youtube(?:-nocookie)?\.com\/(?:embed\/|watch\?[^"'<>]*v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i);
       if (ytMatch) {
         const result = { youtubeId: ytMatch[1] };
         audioUrlCache.set(slug, result);
         return result;
       }
-      const result = { locked: true };
+      console.warn('[mmp] no audio or YouTube in', slug);
+      const result = { unplayable: true };
       audioUrlCache.set(slug, result);
       return result;
     } catch (e) {
@@ -559,12 +561,24 @@
         console.warn('[mmp] could not fetch', track.slug, result.error);
         return advance(+1, idx);
       }
+      if (result.unplayable) {
+        // No audio AND no YouTube in the post HTML. Skip silently — do NOT
+        // pop the Ghost portal modal because that interrupts everything and
+        // is the wrong UX when the user clicked + on a track that just
+        // happens to lack playable media (e.g. legacy post with neither).
+        console.warn('[mmp] track has no playable media, skipping:', track.slug);
+        track.unplayable = true;
+        track.loaded = true;
+        renderQueue();
+        renderCardButtons();
+        return advance(+1, idx);
+      }
       if (result.locked) {
         track.lockedFromFetch = true;
         track.loaded = true;
         renderQueue();
         renderCardButtons();
-        audio.pause();
+        try { audio.pause(); } catch (e) {}
         triggerSignup();
         return;
       }
