@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.1.5
+ * Moving Music Player v0.1.6
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  */
@@ -200,21 +200,21 @@
     return `${m}:${s.toString().padStart(2, '0')}`;
   }
 
-  // ----- content api -----
+  // ----- audio URL resolution -----
+  // Fetch the rendered post HTML directly so the member session cookie is
+  // honored. The Content API serves only public previews, which means paid
+  // posts come back without the <audio> tag even for paying members.
+  const audioUrlCache = new Map();
   async function fetchAudioUrl(slug) {
-    const url = `${CONFIG.apiBase}/posts/slug/${encodeURIComponent(slug)}/?key=${CONFIG.contentApiKey}&fields=html,visibility,title`;
+    if (audioUrlCache.has(slug)) return audioUrlCache.get(slug);
     try {
-      const r = await fetch(url, { credentials: 'include' });
+      const r = await fetch(`/${encodeURIComponent(slug)}/`, { credentials: 'same-origin' });
       if (!r.ok) return { error: `http_${r.status}` };
-      const data = await r.json();
-      const post = data.posts && data.posts[0];
-      if (!post) return { error: 'not_found' };
-      const html = post.html || '';
+      const html = await r.text();
       const m = html.match(/<audio[^>]+src=["']([^"']+)["']/i);
-      if (!m) {
-        return { locked: true, visibility: post.visibility, title: post.title };
-      }
-      return { audioUrl: m[1], visibility: post.visibility, title: post.title };
+      const result = m ? { audioUrl: m[1] } : { locked: true };
+      audioUrlCache.set(slug, result);
+      return result;
     } catch (e) {
       return { error: e.message || String(e) };
     }
@@ -253,8 +253,9 @@
   function buildQueue() {
     const items = [];
     const seen = new Set();
+    const signedIn = document.body.classList.contains('mm-signed-in');
 
-    // Single-post page: real audio card
+    // Single-post page: real audio card (already-decoded URL, no fetch needed)
     $$('.kg-audio-card').forEach(card => {
       const a = card.querySelector('audio');
       const t = card.querySelector('.kg-audio-title');
@@ -274,17 +275,24 @@
 
     // Feed pages: article.feed.post (or .feed) cards
     $$('article.feed.post, article.post-card, article.feed').forEach(card => {
+      // Only include song posts (universal "songs" tag) — drops about/info pages
+      if (!card.classList.contains('tag-songs')) return;
       const link = card.querySelector('a[href]');
       const titleEl = card.querySelector('.feed-title, .post-card-title, h2, h3, .gh-card-title');
       if (!link || !titleEl) return;
       const slug = slugFromHref(link.getAttribute('href'));
       if (!slug || seen.has(slug)) return;
       seen.add(slug);
+      // Signed-out users can't access paid/members content — mark locked so
+      // skip/advance hops over them and the card button triggers signup.
+      const isPaid = !!card.querySelector('.feed-visibility-paid');
+      const isMembers = !!card.querySelector('.feed-visibility-members');
+      const locked = (isPaid || isMembers) && !signedIn;
       items.push({
         slug,
         title: titleEl.textContent.trim(),
         audioUrl: null,
-        locked: false,
+        locked,
         loaded: false,
         cardEl: card,
       });
@@ -358,13 +366,15 @@
   }
 
   function advance(delta, fromIdx) {
-    // Skip locked tracks in the given direction
-    let i = (fromIdx == null ? state.currentIdx : fromIdx) + delta;
+    // Treat unset currentIdx as a boundary so first prev/next lands on edge
+    let start = (fromIdx == null ? state.currentIdx : fromIdx);
+    if (start < 0) start = (delta > 0 ? -1 : state.queue.length);
+    let i = start + delta;
     while (i >= 0 && i < state.queue.length && state.queue[i].locked) {
       i += delta;
     }
     if (i < 0 || i >= state.queue.length) {
-      audio.pause();
+      if (audio) audio.pause();
       return;
     }
     playIdx(i);
@@ -372,9 +382,15 @@
 
   function togglePlay() {
     if (state.currentIdx < 0) {
-      // Nothing loaded; play first non-locked item
       const idx = state.queue.findIndex(t => !t.locked);
       if (idx >= 0) playIdx(idx);
+      return;
+    }
+    const t = state.queue[state.currentIdx];
+    if (t && t.locked) { triggerSignup(); return; }
+    // If src not yet loaded for the current track, run playIdx (which fetches)
+    if (!t || !t.audioUrl || audio.src !== t.audioUrl) {
+      playIdx(state.currentIdx);
       return;
     }
     if (audio.paused) audio.play().catch(() => {});
@@ -608,25 +624,27 @@
     renderCardButtons();
     startObserver();
 
-    // Resume saved track if found and present in queue
+    if (state.queue.length === 0) return;
+
+    // Bar is always visible when there is a queue, even before playback starts
+    showBar();
+
+    // Pick initial track: saved one if it's in the queue, else first non-locked
     const saved = loadSavedTrack();
-    if (saved) {
-      const idx = state.queue.findIndex(t => t.slug === saved.slug);
-      if (idx >= 0) {
-        const t = state.queue[idx];
-        if (saved.audioUrl) { t.audioUrl = saved.audioUrl; t.loaded = true; }
-        state.currentIdx = idx;
-        showBar();
-        renderTrack();
-        renderQueue();
-        renderCardButtons();
-        // Don't autoplay on load; user can tap play. Just preload position.
-        if (t.audioUrl) {
-          audio.src = t.audioUrl;
-          audio.currentTime = saved.position || 0;
-        }
-      }
+    let idx = saved ? state.queue.findIndex(t => t.slug === saved.slug) : -1;
+    if (idx < 0) idx = state.queue.findIndex(t => !t.locked);
+    if (idx < 0) return;
+
+    state.currentIdx = idx;
+    const t = state.queue[idx];
+    if (saved && t.slug === saved.slug && saved.audioUrl) {
+      t.audioUrl = saved.audioUrl;
+      t.loaded = true;
+      try { audio.src = saved.audioUrl; audio.currentTime = saved.position || 0; } catch (e) {}
     }
+    renderTrack();
+    renderQueue();
+    renderCardButtons();
   }
 
   if (document.readyState === 'loading') {
