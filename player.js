@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.3
+ * Moving Music Player v0.4.4
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -41,10 +41,24 @@
       position: absolute; top: 0; left: 0; right: 0;
       height: 3px; background: rgba(0,0,0,0.08);
       cursor: pointer;
+      touch-action: none;
     }
     .mmp-progress-fill {
       height: 100%; background: ${CONFIG.accentColor};
       width: 0%;
+    }
+    .mmp-progress-thumb {
+      position: absolute; top: 50%; left: 0;
+      width: 16px; height: 16px;
+      margin-left: -8px;
+      transform: translateY(-50%);
+      background: ${CONFIG.accentColor};
+      border: 2px solid #fff;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
     }
     .mmp-mini {
       display: flex; align-items: center; gap: 10px;
@@ -185,6 +199,20 @@
       .mmp-mini { padding: 8px 8px; gap: 6px; }
       .mmp-btn { width: 32px; height: 32px; padding: 6px; }
       .mmp-time-display { display: none; }
+      .mmp-progress { height: 14px; background: transparent; }
+      .mmp-progress::before {
+        content: ''; position: absolute;
+        left: 0; right: 0; top: 50%;
+        height: 4px; transform: translateY(-50%);
+        background: rgba(0,0,0,0.12);
+        border-radius: 2px;
+      }
+      .mmp-progress-fill {
+        position: absolute; top: 50%;
+        height: 4px; transform: translateY(-50%);
+        border-radius: 2px;
+      }
+      .mmp-progress-thumb { opacity: 1; }
     }
     /* Hide native Ghost audio card play button — we hijack it */
     body.mmp-active .kg-audio-card .kg-audio-play-icon { display: none; }
@@ -661,9 +689,7 @@
       const cur = ytPlayer.getCurrentTime();
       const dur = ytPlayer.getDuration();
       if (dur > 0) {
-        const pct = (cur / dur) * 100;
-        const fill = $('.mmp-progress-fill', barEl);
-        if (fill) fill.style.width = pct + '%';
+        setProgressPct((cur / dur) * 100);
         const c = $('.mmp-time-cur', barEl);
         const d = $('.mmp-time-dur', barEl);
         if (c) c.textContent = fmtTime(cur);
@@ -798,10 +824,16 @@
     else audio.pause();
   }
 
+  function setProgressPct(pct) {
+    const fill = $('.mmp-progress-fill', barEl);
+    if (fill) fill.style.width = pct + '%';
+    const thumb = $('.mmp-progress-thumb', barEl);
+    if (thumb) thumb.style.left = pct + '%';
+  }
   function onTimeUpdate() {
     if (!audio.duration) return;
     const pct = (audio.currentTime / audio.duration) * 100;
-    $('.mmp-progress-fill', barEl).style.width = pct + '%';
+    setProgressPct(pct);
     renderTimes();
     saveState();
   }
@@ -831,6 +863,7 @@
     barEl.innerHTML = `
       <div class="mmp-progress" role="slider" aria-label="Seek">
         <div class="mmp-progress-fill"></div>
+        <div class="mmp-progress-thumb"></div>
       </div>
       <div class="mmp-mini">
         <div class="mmp-thumb">${ICONS.note}</div>
@@ -857,12 +890,16 @@
     $('.mmp-btn-next', barEl).addEventListener('click', () => advance(+1));
     $('.mmp-btn-expand', barEl).addEventListener('click', toggleExpanded);
     $('.mmp-btn-close', barEl).addEventListener('click', closeBar);
-    $('.mmp-progress', barEl).addEventListener('click', onProgressClick);
+    const progressEl = $('.mmp-progress', barEl);
+    progressEl.addEventListener('pointerdown', onProgressPointerDown);
+    progressEl.addEventListener('pointermove', onProgressPointerMove);
+    progressEl.addEventListener('pointerup', onProgressPointerUp);
+    progressEl.addEventListener('pointercancel', onProgressPointerUp);
   }
 
-  function onProgressClick(e) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
+  let isScrubbing = false;
+  function seekToPct(pct) {
+    pct = Math.max(0, Math.min(1, pct));
     if (currentSourceIsYt()) {
       if (!ytPlayer || !ytReady) return;
       try {
@@ -872,6 +909,24 @@
     } else if (audio.duration) {
       audio.currentTime = pct * audio.duration;
     }
+  }
+  function pctFromEvent(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return (e.clientX - rect.left) / rect.width;
+  }
+  function onProgressPointerDown(e) {
+    isScrubbing = true;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    seekToPct(pctFromEvent(e));
+  }
+  function onProgressPointerMove(e) {
+    if (!isScrubbing) return;
+    seekToPct(pctFromEvent(e));
+  }
+  function onProgressPointerUp(e) {
+    if (!isScrubbing) return;
+    isScrubbing = false;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
   }
 
   function showBar() { barEl.classList.add('is-visible'); }
