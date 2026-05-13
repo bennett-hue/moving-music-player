@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.19
+ * Moving Music Player v0.4.20
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -13,6 +13,9 @@
  */
 (() => {
   'use strict';
+
+  const SCRIPT_SRC = (document.currentScript && document.currentScript.src) || '';
+  const ASSET_BASE = SCRIPT_SRC.replace(/\/player\.js.*$/, '');
 
   const CONFIG = {
     contentApiKey: '4bb24d5f52e1f7397cb4fe24a5',
@@ -312,7 +315,7 @@
     expand: '<svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>',
     collapse: '<svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>',
     close: '<svg viewBox="0 0 24 24"><path d="M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg>',
-    note: '<svg viewBox="0 0 24 24"><ellipse cx="7.5" cy="18.5" rx="3.5" ry="3" transform="rotate(-15 7.5 18.5)"/><path d="M9 5C9 3.5 10 2 12 1.5C14 1 16 2 17 3C18 4 17.5 5.5 16 6C15 6.5 14 6.5 13 6C12.5 5.5 12 5 11 5L11 18.5L9 18.5Z"/></svg>',
+    note: `<img src="${ASSET_BASE}/assets/note.png" alt="" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">`,
     lock: '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>',
     plus: '<svg viewBox="0 0 24 24"><path d="M14 6H2v2h12V6zM14 10H2v2h12v-2zM2 16h8v-2H2v2zM16 12v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>',
     trash: '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
