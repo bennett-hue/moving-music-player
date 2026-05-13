@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.7
+ * Moving Music Player v0.4.8
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -128,10 +128,11 @@
     }
     .mmp-queue-clear:hover { color: #b8451f; border-color: #b8451f; }
     .mmp-queue-clear:disabled { opacity: 0.35; cursor: default; }
+    .mmp-add-all-wrap { margin: 0 0 16px; }
     .mmp-add-all {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 5px 12px;
-      margin: 0 0 16px;
+      margin: 0;
       background: transparent;
       color: ${CONFIG.accentColor};
       border: 1px solid ${CONFIG.accentColor};
@@ -706,12 +707,33 @@
     if (!state.cardsOnPage || state.cardsOnPage.length < 2) return;
     const existing = document.querySelector('.mmp-add-all');
     if (existing) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'mmp-add-all-wrap';
     const btn = document.createElement('button');
     btn.className = 'mmp-add-all';
     btn.type = 'button';
     btn.innerHTML = ICONS.plus + '<span>Add all to playlist</span>';
     btn.addEventListener('click', addAllToPlaylist);
-    feed.parentNode.insertBefore(btn, feed);
+    wrap.appendChild(btn);
+    // Insert as first child of .post-feed so it inherits the same canvas
+    // centering/padding as the article cards.
+    feed.insertBefore(wrap, feed.firstChild);
+    // Align horizontally with the first card's feed-title (Source theme
+    // indents the title by the feed-calendar column width).
+    requestAnimationFrame(() => alignAddAllButton(wrap, btn));
+  }
+
+  function alignAddAllButton(wrap, btn) {
+    const firstArticle = document.querySelector('.post-feed article.feed');
+    if (!firstArticle) return;
+    const title = firstArticle.querySelector('.feed-title');
+    if (!title) return;
+    const wrapRect = wrap.getBoundingClientRect();
+    const titleRect = title.getBoundingClientRect();
+    const offset = titleRect.left - wrapRect.left;
+    if (offset > 0 && offset < 400) {
+      btn.style.marginLeft = Math.round(offset) + 'px';
+    }
   }
 
   let toastEl = null;
