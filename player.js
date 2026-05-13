@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.8
+ * Moving Music Player v0.4.9
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -213,7 +213,7 @@
     body.mm-signed-in .mmp-card-play { color: ${CONFIG.accentColor}; }
     .mmp-card-play.is-added { color: ${CONFIG.accentColor}; }
     .mmp-card-play.is-locked { color: #999; }
-    .mmp-card-play:hover { background: rgba(212, 160, 25, 0.15); }
+    .mmp-card-play:hover { background: rgba(159, 198, 0, 0.14); }
     .mmp-card-play:active { transform: scale(0.92); }
     .mmp-card-play, body.mmp-active .feed-title .mmp-card-play { pointer-events: auto; }
     .mmp-card-play svg { width: 24px; height: 24px; fill: currentColor; vertical-align: middle; pointer-events: none; }
