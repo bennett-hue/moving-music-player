@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.3.5
+ * Moving Music Player v0.4.0
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -7,6 +7,9 @@
  * playlist (persists in localStorage across pages). Once added, the icon
  * flips to ✓ — click again to remove. The bar plays through the playlist;
  * skip/prev navigates it. The first add auto-starts playback.
+ *
+ * v0.4.0: signed-in members' playlists sync across devices via a Cloudflare
+ * Worker keyed by Ghost member UUID. Signed-out users get localStorage only.
  */
 (() => {
   'use strict';
@@ -17,6 +20,7 @@
     storageKey: 'mmp-state-v1',
     accentColor: '#d4a019',
     panelBg: '#f3f1ec',
+    syncUrl: 'https://mmp-sync.bennett-727.workers.dev',
   };
 
   const CSS = `
@@ -362,6 +366,114 @@
     } catch (e) { return null; }
   }
 
+  // ----- cross-device sync (Cloudflare Worker + KV) -----
+  // Signed-in members' playlists sync via a tiny KV-backed Worker keyed by
+  // Ghost member UUID. Signed-out users get localStorage only.
+  let memberUuid = null;
+  let memberUuidFetched = false;
+  let pushTimer = null;
+
+  async function fetchMemberUuid() {
+    if (memberUuidFetched) return memberUuid;
+    memberUuidFetched = true;
+    try {
+      const r = await fetch('/members/api/member/', { credentials: 'same-origin' });
+      if (r.status === 204 || !r.ok) return null;
+      const d = await r.json();
+      memberUuid = (d && d.uuid) || null;
+      return memberUuid;
+    } catch (e) { return null; }
+  }
+
+  async function fetchRemotePlaylist(uuid) {
+    try {
+      const r = await fetch(`${CONFIG.syncUrl}/playlist/${uuid}`);
+      if (!r.ok) return null;
+      const txt = await r.text();
+      if (!txt || txt === 'null') return null;
+      return JSON.parse(txt);
+    } catch (e) { return null; }
+  }
+
+  function buildSyncPayload() {
+    return {
+      queue: state.queue.map(q => ({
+        slug: q.slug, title: q.title,
+        isPaid: !!q.isPaid, isMembers: !!q.isMembers,
+        audioUrl: q.audioUrl || null,
+        youtubeId: q.youtubeId || null,
+        ytStart: q.ytStart || 0,
+        ytEnd: q.ytEnd || null,
+      })),
+      savedAt: Date.now(),
+    };
+  }
+
+  function pushPlaylistNow() {
+    if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
+    if (!memberUuid) return;
+    try {
+      fetch(`${CONFIG.syncUrl}/playlist/${memberUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildSyncPayload()),
+        keepalive: true,
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  function schedulePush() {
+    if (!memberUuid) return;
+    if (pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushPlaylistNow, 2000);
+  }
+
+  function applyRemoteQueue(remote) {
+    if (!remote || !Array.isArray(remote.queue)) return;
+    const currentSlug = state.currentIdx >= 0 && state.queue[state.currentIdx]
+      ? state.queue[state.currentIdx].slug : null;
+    const cardBySlug = new Map(state.cardsOnPage.map(c => [c.slug, c]));
+    state.queue = remote.queue.map(sq => {
+      const card = cardBySlug.get(sq.slug);
+      const audioUrl = (card && card.audioUrl) || sq.audioUrl || null;
+      const youtubeId = sq.youtubeId || null;
+      const hasYtTimestamp = youtubeId && (sq.ytStart != null);
+      return {
+        slug: sq.slug,
+        title: sq.title,
+        isPaid: !!sq.isPaid,
+        isMembers: !!sq.isMembers,
+        audioUrl,
+        youtubeId,
+        ytStart: sq.ytStart || 0,
+        ytEnd: sq.ytEnd || null,
+        loaded: !!audioUrl || hasYtTimestamp,
+        cardEl: card ? card.cardEl : null,
+      };
+    });
+    if (currentSlug) {
+      const newIdx = state.queue.findIndex(t => t.slug === currentSlug);
+      state.currentIdx = newIdx;
+    } else {
+      state.currentIdx = -1;
+    }
+    persistStateNow();
+    renderQueue();
+    renderCardButtons();
+    if (state.currentIdx < 0) renderTrack();
+  }
+
+  async function syncFromRemote() {
+    const uuid = await fetchMemberUuid();
+    if (!uuid) return;
+    const remote = await fetchRemotePlaylist(uuid);
+    if (remote && Array.isArray(remote.queue)) {
+      applyRemoteQueue(remote);
+    } else if (state.queue.length > 0) {
+      pushPlaylistNow();
+    }
+  }
+
   // ----- card scan (separate from the user's playlist) -----
   // Scans the current DOM for song cards so we know where to render the
   // `+` / `✓` buttons. Does NOT populate the playback queue — the user's
@@ -437,6 +549,7 @@
       cardEl: card.cardEl,
     });
     persistStateNow();
+    schedulePush();
     renderQueue();
     renderCardButtons();
     if (wasEmpty) {
@@ -467,6 +580,7 @@
       state.currentIdx--;
     }
     persistStateNow();
+    schedulePush();
     renderQueue();
     renderCardButtons();
   }
@@ -1024,8 +1138,19 @@
       renderTrack();
     }
 
-    window.addEventListener('pagehide', persistStateNow);
-    window.addEventListener('beforeunload', persistStateNow);
+    window.addEventListener('pagehide', () => {
+      persistStateNow();
+      if (pushTimer && memberUuid) pushPlaylistNow();
+    });
+    window.addEventListener('beforeunload', () => {
+      persistStateNow();
+      if (pushTimer && memberUuid) pushPlaylistNow();
+    });
+
+    // Fire-and-forget remote sync. Local state renders first so signed-out
+    // users (and signed-in users on slow networks) see their playlist
+    // immediately; the remote fetch reconciles a moment later.
+    syncFromRemote();
   }
 
   if (document.readyState === 'loading') {

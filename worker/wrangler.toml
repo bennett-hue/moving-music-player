@@ -6,4 +6,4 @@ compatibility_date = "2025-12-01"
 # `id = "..."` value below to bind the namespace to the worker.
 [[kv_namespaces]]
 binding = "MMP_KV"
-id = "PASTE_KV_NAMESPACE_ID_HERE"
+id = "c94ebe4713584c8a853fb7a4595a473d"
