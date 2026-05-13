@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.9
+ * Moving Music Player v0.4.10
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -200,7 +200,7 @@
       background: transparent;
       color: #111;
       border: 0; padding: 8px;
-      margin: 0 6px 0 -8px;
+      margin: 0 6px 0 0;
       vertical-align: middle;
       cursor: pointer;
       touch-action: manipulation;
