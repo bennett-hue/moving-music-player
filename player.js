@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.5
+ * Moving Music Player v0.4.6
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -110,7 +110,42 @@
       padding: 6px 16px;
       font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
       color: #777; font-weight: 600;
+      display: flex; align-items: center; justify-content: space-between;
     }
+    .mmp-queue-clear {
+      background: transparent;
+      border: 1px solid #d8d4cc;
+      color: #777;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .mmp-queue-clear:hover { color: #b8451f; border-color: #b8451f; }
+    .mmp-queue-clear:disabled { opacity: 0.35; cursor: default; }
+    .mmp-add-all {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px;
+      margin: 0 0 18px;
+      background: ${CONFIG.accentColor};
+      color: #1a1a1a;
+      border: 0;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      font-family: inherit;
+      transition: filter 0.15s, transform 0.1s;
+    }
+    .mmp-add-all:hover { filter: brightness(0.95); }
+    .mmp-add-all:active { transform: scale(0.97); }
+    .mmp-add-all svg { width: 18px; height: 18px; fill: currentColor; }
     .mmp-queue-item {
       display: flex; align-items: center; gap: 12px;
       padding: 10px 16px;
@@ -591,9 +626,8 @@
     return state.queue.findIndex(t => t.slug === slug);
   }
 
-  function addToPlaylist(card) {
-    if (!card || inPlaylist(card.slug) >= 0) return;
-    const wasEmpty = state.queue.length === 0;
+  function pushCardToQueue(card) {
+    if (!card || inPlaylist(card.slug) >= 0) return false;
     state.queue.push({
       slug: card.slug,
       title: card.title,
@@ -603,6 +637,12 @@
       loaded: !!card.audioUrl,
       cardEl: card.cardEl,
     });
+    return true;
+  }
+
+  function addToPlaylist(card) {
+    const wasEmpty = state.queue.length === 0;
+    if (!pushCardToQueue(card)) return;
     persistStateNow();
     schedulePush();
     renderQueue();
@@ -613,6 +653,64 @@
     } else {
       showToast('Added to playlist: ' + card.title);
     }
+  }
+
+  function addAllToPlaylist() {
+    const wasEmpty = state.queue.length === 0;
+    let count = 0;
+    state.cardsOnPage.forEach(c => {
+      if (lockedFor(c)) return;
+      if (pushCardToQueue(c)) count++;
+    });
+    if (count === 0) {
+      showToast('All songs already in playlist');
+      return;
+    }
+    persistStateNow();
+    schedulePush();
+    renderQueue();
+    renderCardButtons();
+    if (wasEmpty) playIdx(0);
+    showToast('Added ' + count + ' ' + (count === 1 ? 'song' : 'songs') + ' to playlist');
+  }
+
+  function clearPlaylist() {
+    if (state.queue.length === 0) {
+      showToast('Playlist is already empty');
+      return;
+    }
+    try { audio.pause(); audio.src = ''; } catch (e) {}
+    try { if (ytPlayer && ytReady) ytPlayer.pauseVideo(); } catch (e) {}
+    stopYtTimer();
+    state.queue = [];
+    state.currentIdx = -1;
+    setProgressPct(0);
+    const titleEl = $('.mmp-title', barEl);
+    if (titleEl) {
+      titleEl.textContent = 'Tap + on a song to start';
+      titleEl.classList.add('mmp-title-empty');
+    }
+    persistStateNow();
+    schedulePush();
+    renderQueue();
+    renderCardButtons();
+    renderPlayPause();
+    showToast('Playlist cleared');
+  }
+
+  function ensureAddAllButton() {
+    const feed = document.querySelector('.post-feed');
+    if (!feed) return;
+    // Skip on single-post pages or pages with too few cards to bother.
+    if (!state.cardsOnPage || state.cardsOnPage.length < 2) return;
+    const existing = document.querySelector('.mmp-add-all');
+    if (existing) return;
+    const btn = document.createElement('button');
+    btn.className = 'mmp-add-all';
+    btn.type = 'button';
+    btn.innerHTML = ICONS.plus + '<span>Add all to playlist</span>';
+    btn.addEventListener('click', addAllToPlaylist);
+    feed.parentNode.insertBefore(btn, feed);
   }
 
   let toastEl = null;
@@ -925,7 +1023,10 @@
         </div>
       </div>
       <div class="mmp-expanded">
-        <div class="mmp-queue-header">Up next</div>
+        <div class="mmp-queue-header">
+          <span>Up next</span>
+          <button class="mmp-queue-clear" aria-label="Clear playlist">Clear</button>
+        </div>
         <div class="mmp-queue-list"></div>
       </div>
     `;
@@ -937,6 +1038,7 @@
     $('.mmp-btn-next', barEl).addEventListener('click', () => advance(+1));
     $('.mmp-btn-expand', barEl).addEventListener('click', toggleExpanded);
     $('.mmp-btn-close', barEl).addEventListener('click', closeBar);
+    $('.mmp-queue-clear', barEl).addEventListener('click', clearPlaylist);
     const progressEl = $('.mmp-progress', barEl);
     progressEl.addEventListener('pointerdown', onProgressPointerDown);
     progressEl.addEventListener('pointermove', onProgressPointerMove);
@@ -1201,6 +1303,7 @@
 
     renderQueue();
     renderCardButtons();
+    ensureAddAllButton();
     startObserver();
 
     showBar();
