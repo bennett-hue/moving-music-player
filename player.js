@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.0
+ * Moving Music Player v0.4.1
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -18,7 +18,7 @@
     contentApiKey: '4bb24d5f52e1f7397cb4fe24a5',
     apiBase: 'https://moving-music.ghost.io/ghost/api/content',
     storageKey: 'mmp-state-v1',
-    accentColor: '#d4a019',
+    accentColor: '#CCFF00',
     panelBg: '#f3f1ec',
     syncUrl: 'https://mmp-sync.bennett-727.workers.dev',
   };
