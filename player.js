@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.12
+ * Moving Music Player v0.4.13
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -1272,17 +1272,19 @@
     });
     authObs.observe(document.body, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
 
-    // Mobile/touch: navigating to a post page kills the audio element and
-    // browser autoplay rules prevent us from auto-resuming. If audio is
-    // actively playing when the user taps a card link, open the post in a
-    // new tab instead so the original tab keeps playing.
+    // Navigating to a post page tears down the audio element, and browser
+    // autoplay rules often prevent a clean auto-resume on the new page. If
+    // audio is actively playing when the user clicks a song link, open the
+    // post in a new tab so the original tab keeps playing.
     document.addEventListener('click', (e) => {
+      // Let the browser handle modifier-clicks (cmd/ctrl/shift/middle) and
+      // anything that's not a primary left click — those already open new
+      // tabs or windows on their own.
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const link = e.target.closest('a.u-permalink');
       if (!link) return;
       const playing = (audio && !audio.paused && audio.currentTime > 0) || isYtPlaying();
       if (!playing) return;
-      const isTouch = window.matchMedia('(pointer: coarse)').matches;
-      if (!isTouch) return;
       e.preventDefault();
       e.stopPropagation();
       window.open(link.href, '_blank', 'noopener');
