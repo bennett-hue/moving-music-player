@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.14
+ * Moving Music Player v0.4.15
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -49,14 +49,13 @@
     }
     .mmp-progress-thumb {
       position: absolute; top: 50%; left: 0;
-      width: 16px; height: 16px;
-      margin-left: -8px;
+      width: 12px; height: 12px;
+      margin-left: -6px;
       transform: translateY(-50%);
       background: ${CONFIG.accentColor};
       border: 2px solid #fff;
       border-radius: 50%;
       box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-      opacity: 0;
       pointer-events: none;
       transition: opacity 0.15s ease;
     }
@@ -272,7 +271,7 @@
         height: 4px; transform: translateY(-50%);
         border-radius: 2px;
       }
-      .mmp-progress-thumb { opacity: 1; }
+      .mmp-progress-thumb { width: 16px; height: 16px; margin-left: -8px; }
     }
     /* Hide native Ghost audio card play button — we hijack it */
     body.mmp-active .kg-audio-card .kg-audio-play-icon { display: none; }
@@ -313,7 +312,7 @@
     expand: '<svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>',
     collapse: '<svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>',
     close: '<svg viewBox="0 0 24 24"><path d="M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg>',
-    note: '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>',
+    note: '<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M11.7 2.6c-.5.1-.9.5-.9 1L10.5 14.3c-.7-.5-1.5-.8-2.3-.7-2 .1-3.7 1.7-3.7 3.6 0 2 1.7 3.7 3.7 3.7s3.7-1.5 3.9-3.4c0-.1 0-.2 0-.3L12.1 6.6c1.2-.2 2.4-.6 3.5-1.2 1.5-.9 2.5-2.3 2.7-4 .1-.6-.5-1.1-1.1-.9-1.8.7-3.7 1.2-5.5 1.5zM15 4.4c-.4.2-.8.5-.9.9 0 .2.1.3.3.3.5-.1.9-.5 1-1 .1-.2-.2-.3-.4-.2zM7.7 17.3c-.5 0-.8.4-.8.8 0 .4.4.7.8.7s.7-.4.7-.8c0-.4-.3-.7-.7-.7z"/></svg>',
     lock: '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>',
     plus: '<svg viewBox="0 0 24 24"><path d="M14 6H2v2h12V6zM14 10H2v2h12v-2zM2 16h8v-2H2v2zM16 12v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>',
     trash: '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
