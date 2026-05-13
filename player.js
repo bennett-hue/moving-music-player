@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.13
+ * Moving Music Player v0.4.14
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -128,7 +128,30 @@
     }
     .mmp-queue-clear:hover { color: #b8451f; border-color: #b8451f; }
     .mmp-queue-clear:disabled { opacity: 0.35; cursor: default; }
-    .mmp-add-all-wrap { margin: 0 0 16px; }
+    .mmp-add-all-wrap {
+      margin: 0 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .mmp-show-tags {
+      display: inline-block;
+      margin-left: auto;
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid #d8d4cc;
+      border-radius: 999px;
+      background: transparent;
+      color: #777;
+      cursor: pointer;
+      font-family: inherit;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .mmp-show-tags:hover { color: #222; border-color: #999; }
     .mmp-add-all {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 5px 12px;
@@ -716,12 +739,45 @@
     btn.innerHTML = ICONS.plus + '<span>Add all to playlist</span>';
     btn.addEventListener('click', addAllToPlaylist);
     wrap.appendChild(btn);
+    // On tag pages, also offer a Show/Hide tags toggle on the right side
+    // of the same row. Previously this was a sticky button that overlapped
+    // the tag description.
+    if (/^\/tag\//.test(location.pathname)) {
+      wrap.appendChild(buildShowTagsButton());
+    }
     // Insert as first child of .post-feed so it inherits the same canvas
     // centering/padding as the article cards.
     feed.insertBefore(wrap, feed.firstChild);
     // Align horizontally with the first card's feed-title (Source theme
     // indents the title by the feed-calendar column width).
     requestAnimationFrame(() => alignAddAllButton(wrap, btn));
+  }
+
+  function buildShowTagsButton() {
+    const TAGS_KEY = 'mm-tags-hidden';
+    const tagBtn = document.createElement('button');
+    tagBtn.className = 'mmp-show-tags';
+    tagBtn.type = 'button';
+    const refresh = () => {
+      tagBtn.textContent = document.body.classList.contains('mm-tags-hidden')
+        ? 'Show tags' : 'Hide tags';
+    };
+    if (localStorage.getItem(TAGS_KEY) === '1') {
+      document.body.classList.add('mm-tags-hidden');
+    }
+    refresh();
+    tagBtn.addEventListener('click', () => {
+      const wasHidden = document.body.classList.contains('mm-tags-hidden');
+      if (wasHidden) {
+        document.body.classList.remove('mm-tags-hidden');
+        localStorage.setItem(TAGS_KEY, '0');
+      } else {
+        document.body.classList.add('mm-tags-hidden');
+        localStorage.setItem(TAGS_KEY, '1');
+      }
+      refresh();
+    });
+    return tagBtn;
   }
 
   function alignAddAllButton(wrap, btn) {
