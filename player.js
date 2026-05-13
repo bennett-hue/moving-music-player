@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.6
+ * Moving Music Player v0.4.7
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -129,23 +129,24 @@
     .mmp-queue-clear:hover { color: #b8451f; border-color: #b8451f; }
     .mmp-queue-clear:disabled { opacity: 0.35; cursor: default; }
     .mmp-add-all {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 10px 18px;
-      margin: 0 0 18px;
-      background: ${CONFIG.accentColor};
-      color: #1a1a1a;
-      border: 0;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px;
+      margin: 0 0 16px;
+      background: transparent;
+      color: ${CONFIG.accentColor};
+      border: 1px solid ${CONFIG.accentColor};
       border-radius: 999px;
-      font-size: 14px;
+      font-size: 11px;
       font-weight: 600;
-      letter-spacing: 0.01em;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       cursor: pointer;
       font-family: inherit;
-      transition: filter 0.15s, transform 0.1s;
+      transition: background 0.15s, transform 0.1s;
     }
-    .mmp-add-all:hover { filter: brightness(0.95); }
+    .mmp-add-all:hover { background: rgba(159, 198, 0, 0.1); }
     .mmp-add-all:active { transform: scale(0.97); }
-    .mmp-add-all svg { width: 18px; height: 18px; fill: currentColor; }
+    .mmp-add-all svg { width: 14px; height: 14px; fill: currentColor; }
     .mmp-queue-item {
       display: flex; align-items: center; gap: 12px;
       padding: 10px 16px;
