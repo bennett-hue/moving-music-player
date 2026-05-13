@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.10
+ * Moving Music Player v0.4.11
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -293,6 +293,7 @@
     note: '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>',
     lock: '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>',
     plus: '<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M8 5v14l11-7zM10.75 10H12.25V11.25H13.5V12.75H12.25V14H10.75V12.75H9.5V11.25H10.75Z"/></svg>',
+    trash: '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
     check: '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>',
     remove: '<svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14z"/></svg>',
   };
@@ -1041,6 +1042,7 @@
           <button class="mmp-btn mmp-btn-prev" aria-label="Previous">${ICONS.prev}</button>
           <button class="mmp-btn mmp-btn-play" aria-label="Play">${ICONS.play}</button>
           <button class="mmp-btn mmp-btn-next" aria-label="Next">${ICONS.next}</button>
+          <button class="mmp-btn mmp-btn-clear-mini" aria-label="Clear playlist" title="Clear playlist">${ICONS.trash}</button>
           <button class="mmp-btn mmp-btn-expand" aria-label="Show queue">${ICONS.expand}</button>
           <button class="mmp-btn mmp-btn-close" aria-label="Close player">${ICONS.close}</button>
         </div>
@@ -1062,6 +1064,7 @@
     $('.mmp-btn-expand', barEl).addEventListener('click', toggleExpanded);
     $('.mmp-btn-close', barEl).addEventListener('click', closeBar);
     $('.mmp-queue-clear', barEl).addEventListener('click', clearPlaylist);
+    $('.mmp-btn-clear-mini', barEl).addEventListener('click', clearPlaylist);
     const progressEl = $('.mmp-progress', barEl);
     progressEl.addEventListener('pointerdown', onProgressPointerDown);
     progressEl.addEventListener('pointermove', onProgressPointerMove);
