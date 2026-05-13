@@ -1,0 +1,9 @@
+name = "mmp-sync"
+main = "worker.js"
+compatibility_date = "2025-12-01"
+
+# After running `wrangler kv namespace create MMP_KV`, paste the printed
+# `id = "..."` value below to bind the namespace to the worker.
+[[kv_namespaces]]
+binding = "MMP_KV"
+id = "PASTE_KV_NAMESPACE_ID_HERE"
