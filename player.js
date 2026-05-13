@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.21
+ * Moving Music Player v0.4.22
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
