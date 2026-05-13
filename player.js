@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.4
+ * Moving Music Player v0.4.5
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -216,6 +216,33 @@
     }
     /* Hide native Ghost audio card play button — we hijack it */
     body.mmp-active .kg-audio-card .kg-audio-play-icon { display: none; }
+    /* Toast: appears briefly when a song is added to the playlist */
+    .mmp-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 90px;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(20, 20, 20, 0.92);
+      color: #fff;
+      padding: 11px 20px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.28);
+      z-index: 100000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      max-width: calc(100vw - 32px);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mmp-toast.is-visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   `;
 
   const ICONS = {
@@ -228,7 +255,7 @@
     close: '<svg viewBox="0 0 24 24"><path d="M19 6.4L17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg>',
     note: '<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>',
     lock: '<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>',
-    plus: '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>',
+    plus: '<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M8 5v14l11-7zM10.75 10H12.25V11.25H13.5V12.75H12.25V14H10.75V12.75H9.5V11.25H10.75Z"/></svg>',
     check: '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>',
     remove: '<svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14z"/></svg>',
   };
@@ -581,10 +608,30 @@
     renderQueue();
     renderCardButtons();
     if (wasEmpty) {
-      // First add: auto-play immediately (this click is a user gesture so
-      // browser autoplay rules are satisfied).
       playIdx(0);
+      showToast('Now playing: ' + card.title);
+    } else {
+      showToast('Added to playlist: ' + card.title);
     }
+  }
+
+  let toastEl = null;
+  let toastTimer = null;
+  function showToast(message) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.className = 'mmp-toast';
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = message;
+    // Force reflow so the transition fires when we re-add the class.
+    toastEl.classList.remove('is-visible');
+    void toastEl.offsetWidth;
+    toastEl.classList.add('is-visible');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      if (toastEl) toastEl.classList.remove('is-visible');
+    }, 2400);
   }
 
   function removeFromPlaylist(slug) {
