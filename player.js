@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.8.7
+ * Moving Music Player v0.8.8
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -102,19 +102,10 @@
       display: inline-flex; align-items: center; justify-content: center;
     }
     .mmp-simple-audio-icon svg { width: 20px; height: 20px; fill: currentColor; }
-    .mmp-simple-audio-text {
-      flex: 1 1 auto; min-width: 0;
-      display: flex; flex-direction: column; gap: 2px;
-    }
     .mmp-simple-audio-title {
+      flex: 1 1 auto; min-width: 0;
       font-weight: 600; color: #222;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-    .mmp-simple-audio-status {
-      font-size: 12px; font-weight: 500;
-      color: ${CONFIG.accentColor};
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
     }
     .mmp-progress {
       position: absolute; top: 0; left: 0; right: 0;
@@ -931,10 +922,7 @@
       btn.dataset.audioUrl = audioUrl;
       btn.dataset.title = titleText;
       btn.innerHTML = '<span class="mmp-simple-audio-icon">' + ICONS.play + '</span>' +
-        '<span class="mmp-simple-audio-text">' +
-        '<span class="mmp-simple-audio-title">' + escapeHtml(titleText) + '</span>' +
-        '<span class="mmp-simple-audio-status">Play in bar below</span>' +
-        '</span>';
+        '<span class="mmp-simple-audio-title">' + escapeHtml(titleText) + '</span>';
       btn.addEventListener('click', handleSimpleAudioClick);
       wrap.appendChild(btn);
       card.parentNode.insertBefore(wrap, card);
@@ -949,6 +937,12 @@
     const btn = e.currentTarget;
     const slug = btn.dataset.slug;
     const existingIdx = inPlaylist(slug);
+    // If this is the currently playing track, toggle play/pause —
+    // matches the bar's behavior so users can pause from either spot.
+    if (existingIdx >= 0 && existingIdx === state.currentIdx) {
+      togglePlay();
+      return;
+    }
     if (existingIdx >= 0) {
       playIdx(existingIdx);
       return;
@@ -970,17 +964,36 @@
   function refreshSimpleAudioState() {
     const currentSlug = state.currentIdx >= 0 && state.queue[state.currentIdx]
       ? state.queue[state.currentIdx].slug : null;
+    const playing = isCurrentlyPlaying();
     $$('.mmp-simple-audio').forEach(btn => {
       const slug = btn.dataset.slug;
-      const isCurrent = slug && slug === currentSlug;
-      const inQ = inPlaylist(slug) >= 0;
+      const isCurrent = !!slug && slug === currentSlug;
       btn.classList.toggle('is-current', isCurrent);
-      const status = btn.querySelector('.mmp-simple-audio-status');
-      if (status) {
-        if (isCurrent) status.textContent = 'Now playing in bar below';
-        else if (inQ) status.textContent = 'In your queue · tap to play';
-        else status.textContent = 'Play in bar below';
+      const iconEl = btn.querySelector('.mmp-simple-audio-icon');
+      if (iconEl) {
+        iconEl.innerHTML = (isCurrent && playing) ? ICONS.pause : ICONS.play;
       }
+      btn.setAttribute('aria-label',
+        (isCurrent && playing) ? 'Pause' : 'Play');
+    });
+  }
+
+  function isCurrentlyPlaying() {
+    if (typeof currentSourceIsYt === 'function' && currentSourceIsYt()) {
+      return isYtPlaying();
+    }
+    return !!(audio && !audio.paused && audio.currentTime > 0);
+  }
+
+  function refreshQueuePlayIcons() {
+    if (!barEl) return;
+    const playing = isCurrentlyPlaying();
+    $$('.mmp-queue-item .mmp-queue-play', barEl).forEach(btn => {
+      const idx = parseInt(btn.dataset.idx, 10);
+      const isCurrent = idx === state.currentIdx;
+      btn.innerHTML = (isCurrent && playing) ? ICONS.pause : ICONS.play;
+      btn.setAttribute('aria-label',
+        (isCurrent && playing) ? 'Pause' : 'Play');
     });
   }
 
@@ -1575,6 +1588,7 @@
     btn.innerHTML = playing ? ICONS.pause : ICONS.play;
     btn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     renderCardButtons();
+    refreshQueuePlayIcons();
   }
 
   function renderTimes() {
@@ -1633,6 +1647,11 @@
           e.preventDefault();
           e.stopPropagation();
           const idx = parseInt(playBtn.dataset.idx, 10);
+          // If this row is the current track, tap toggles play/pause.
+          if (idx === state.currentIdx) {
+            togglePlay();
+            return;
+          }
           const t = state.queue[idx];
           if (lockedFor(t)) { triggerSignup(); return; }
           playIdx(idx);
