@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.9.2
+ * Moving Music Player v0.9.3
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -85,6 +85,7 @@
       color: #222;
       text-align: left;
       transition: background 0.15s, border-color 0.15s;
+      touch-action: manipulation;
     }
     .mmp-simple-audio:hover {
       background: rgba(42, 140, 130, 0.08);
@@ -266,6 +267,7 @@
       cursor: pointer;
       display: inline-flex; align-items: center; justify-content: center;
       border-radius: 50%;
+      touch-action: manipulation;
     }
     .mmp-queue-play svg { width: 14px; height: 14px; fill: currentColor; }
     .mmp-queue-play:hover { background: rgba(0,0,0,0.06); }
@@ -945,12 +947,13 @@
     // matches the bar's behavior so users can pause from either spot.
     if (existingIdx >= 0 && existingIdx === state.currentIdx) {
       flipPlayIconsOptimistic(!isCurrentlyPlaying());
-      togglePlay();
+      requestAnimationFrame(togglePlay);
       return;
     }
     if (existingIdx >= 0) {
       flipPlayIconsOptimistic(true);
-      playIdx(existingIdx);
+      const idxCopy = existingIdx;
+      requestAnimationFrame(() => playIdx(idxCopy));
       return;
     }
     let card = state.cardsOnPage.find(c => c.slug === slug);
@@ -1699,13 +1702,13 @@
           // If this row is the current track, tap toggles play/pause.
           if (idx === state.currentIdx) {
             flipPlayIconsOptimistic(!isCurrentlyPlaying());
-            togglePlay();
+            requestAnimationFrame(togglePlay);
             return;
           }
           const t = state.queue[idx];
           if (lockedFor(t)) { triggerSignup(); return; }
           flipPlayIconsOptimistic(true);
-          playIdx(idx);
+          requestAnimationFrame(() => playIdx(idx));
           return;
         }
         // Title link: let browser navigate to the post page.
