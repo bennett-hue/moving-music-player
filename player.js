@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.8.0
+ * Moving Music Player v0.8.1
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -286,7 +286,8 @@
     .mmp-bar.is-loading .mmp-btn-play svg { animation: mmp-spin 1s linear infinite; }
     @keyframes mmp-spin { to { transform: rotate(360deg); } }
     @media (max-width: 600px) {
-      .mmp-thumb { display: none; }
+      .mmp-thumb { width: 28px; height: 28px; flex: 0 0 28px; }
+      .mmp-thumb img { width: 24px !important; height: 24px !important; }
       .mmp-mini { padding: 8px 8px; gap: 6px; }
       .mmp-btn { width: 32px; height: 32px; padding: 6px; }
       .mmp-time-display { display: none; }
