@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.7.1
+ * Moving Music Player v0.7.2
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -1671,7 +1671,7 @@
     shareOverlay.innerHTML = `
       <div class="mmp-share-modal" role="dialog" aria-label="Share setlist">
         <h3 class="mmp-share-title">Share &ldquo;${escapeHtml(set.name)}&rdquo;</h3>
-        <p class="mmp-share-sub">This link stays in sync with your setlist. Changes you make appear the next time the recipient opens it. ${set.songs.length} ${set.songs.length === 1 ? 'song' : 'songs'}.</p>
+        <p class="mmp-share-sub">View-only. Recipients see the latest version each time they open the link. They can save their own copy, but they can't change yours. ${set.songs.length} ${set.songs.length === 1 ? 'song' : 'songs'}.</p>
         <input class="mmp-share-url" type="text" readonly value="${escapeHtml(url)}">
         <div class="mmp-share-actions">
           <button class="mmp-share-btn mmp-share-close" type="button">Close</button>
