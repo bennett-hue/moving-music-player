@@ -1,4 +1,4 @@
-/* Moving Music Setlists v0.1.1 (Phase 2 MVP)
+/* Moving Music Setlists v0.1.2 (Phase 2 MVP)
  *
  * Anonymous single setlist, persisted in localStorage.
  * Drag-to-reorder via SortableJS (lazy-loaded).
@@ -119,19 +119,21 @@
     '}' +
     '.mm-sl-card-add:hover{color:#7fa300}' +
     '.mm-sl-card-add.is-added{color:#1a1a1a}' +
+    '.mmp-add-all-wrap .mmp-show-tags{margin-left:0}' +
     '.mm-sl-toolbar-pill{' +
-    'display:inline-block;margin-right:auto;' +
+    'display:inline-block;margin-left:auto;' +
     'padding:5px 12px;' +
-    'font:600 11px/1.4 inherit;' +
+    'font-size:11px;font-weight:600;' +
     'letter-spacing:.08em;text-transform:uppercase;' +
     'border:1px solid ' + ACCENT + ';' +
     'border-radius:999px;background:transparent;' +
     'color:#1a1a1a;cursor:pointer;' +
+    'font-family:inherit;' +
     'transition:background .15s;' +
     '}' +
     '.mm-sl-toolbar-pill:hover{background:rgba(159,198,0,.12)}' +
     '.mm-sl-toolbar-pill .mm-sl-count{' +
-    'margin-left:6px;font-weight:700;color:' + ACCENT + ';' +
+    'margin-left:6px;color:' + ACCENT + ';' +
     '}' +
     '.mm-sl-overlay{' +
     'position:fixed;inset:0;background:rgba(0,0,0,.5);' +
