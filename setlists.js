@@ -1,4 +1,4 @@
-/* Moving Music Setlists v0.1.0 (Phase 2 MVP)
+/* Moving Music Setlists v0.1.1 (Phase 2 MVP)
  *
  * Anonymous single setlist, persisted in localStorage.
  * Drag-to-reorder via SortableJS (lazy-loaded).
@@ -108,15 +108,31 @@
     '}' +
     '.mm-sl-add.is-added{background:' + ACCENT + '}' +
     '.mm-sl-card-add{' +
+    'position:relative;z-index:60;pointer-events:auto;' +
     'flex:0 0 32px;width:32px;height:32px;' +
-    'border-radius:50%;background:transparent;' +
-    'border:1px solid ' + ACCENT + ';' +
-    'font:600 18px/1 inherit;color:#1a1a1a;cursor:pointer;' +
+    'background:transparent;border:none;padding:0;' +
+    'font:600 26px/1 inherit;color:' + ACCENT + ';' +
+    'cursor:pointer;' +
     'display:inline-flex;align-items:center;' +
     'justify-content:center;margin-left:8px;' +
     'flex-shrink:0;' +
     '}' +
-    '.mm-sl-card-add.is-added{background:' + ACCENT + '}' +
+    '.mm-sl-card-add:hover{color:#7fa300}' +
+    '.mm-sl-card-add.is-added{color:#1a1a1a}' +
+    '.mm-sl-toolbar-pill{' +
+    'display:inline-block;margin-right:auto;' +
+    'padding:5px 12px;' +
+    'font:600 11px/1.4 inherit;' +
+    'letter-spacing:.08em;text-transform:uppercase;' +
+    'border:1px solid ' + ACCENT + ';' +
+    'border-radius:999px;background:transparent;' +
+    'color:#1a1a1a;cursor:pointer;' +
+    'transition:background .15s;' +
+    '}' +
+    '.mm-sl-toolbar-pill:hover{background:rgba(159,198,0,.12)}' +
+    '.mm-sl-toolbar-pill .mm-sl-count{' +
+    'margin-left:6px;font-weight:700;color:' + ACCENT + ';' +
+    '}' +
     '.mm-sl-overlay{' +
     'position:fixed;inset:0;background:rgba(0,0,0,.5);' +
     'z-index:9995;opacity:0;pointer-events:none;' +
@@ -373,6 +389,53 @@
     }
   }
 
+  // ---------- toolbar pill (next to Show tags) ----------
+  var toolbarPillEl = null;
+  var toolbarCountEl = null;
+
+  function ensureToolbarPill() {
+    var wrap = document.querySelector('.mmp-add-all-wrap');
+    if (!wrap) return false;
+    if (wrap.querySelector('.mm-sl-toolbar-pill')) return true;
+    toolbarPillEl = el('button', {
+      class: 'mm-sl-toolbar-pill',
+      type: 'button',
+      'aria-label': 'Open setlist',
+      on: { click: openDrawer },
+    });
+    toolbarPillEl.appendChild(document.createTextNode('Setlist'));
+    toolbarCountEl = el('span', { class: 'mm-sl-count' }, [
+      String(state.songs.length),
+    ]);
+    toolbarPillEl.appendChild(toolbarCountEl);
+    var showTags = wrap.querySelector('.mmp-show-tags');
+    if (showTags && showTags.nextSibling) {
+      wrap.insertBefore(toolbarPillEl, showTags.nextSibling);
+    } else if (showTags) {
+      wrap.appendChild(toolbarPillEl);
+    } else {
+      wrap.appendChild(toolbarPillEl);
+    }
+    return true;
+  }
+
+  function refreshToolbarPill() {
+    if (toolbarCountEl) {
+      toolbarCountEl.textContent = String(state.songs.length);
+    }
+  }
+
+  function watchForToolbar() {
+    var feed = document.querySelector('.post-feed');
+    if (!feed) return;
+    if (ensureToolbarPill()) return;
+    var obs = new MutationObserver(function (muts, o) {
+      if (ensureToolbarPill()) o.disconnect();
+    });
+    obs.observe(feed, { childList: true, subtree: true });
+    setTimeout(function () { obs.disconnect(); }, 5000);
+  }
+
   function renderButtons() {
     getCardsOnPage().forEach(function (c) {
       if (c.kind === 'post') renderPostButton(c);
@@ -570,6 +633,7 @@
   function refreshAll() {
     repaintButtons();
     refreshFab();
+    refreshToolbarPill();
     refreshList();
   }
 
@@ -577,6 +641,7 @@
     injectStyles();
     renderButtons();
     refreshFab();
+    watchForToolbar();
   }
 
   if (document.readyState === 'loading') {
