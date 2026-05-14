@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.8.4
+ * Moving Music Player v0.8.5
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -63,6 +63,16 @@
     .mmp-bar.is-visible { transform: translateY(0); }
     .mmp-bar.is-fullscreen { top: 0; max-height: none; }
     .mmp-bar.is-fullscreen .mmp-expanded { max-height: none; }
+    /* Hide Ghost's native HTML5 audio controls on post pages — the bar
+       below is the single source of truth for playback. The card's
+       thumbnail and title stay visible. */
+    body.mmp-active .kg-audio-card audio { display: none !important; }
+    body.mmp-active .kg-audio-card .mmp-card-play {
+      width: 38px; height: 38px; padding: 8px;
+    }
+    body.mmp-active .kg-audio-card .mmp-card-play svg {
+      width: 22px; height: 22px;
+    }
     .mmp-progress {
       position: absolute; top: 0; left: 0; right: 0;
       height: 3px; background: rgba(0,0,0,0.08);
