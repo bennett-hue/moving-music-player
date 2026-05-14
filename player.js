@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.8.2
+ * Moving Music Player v0.8.3
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -210,16 +210,25 @@
     }
     .mmp-queue-item.is-current .mmp-queue-title { color: ${CONFIG.accentColor}; }
     .mmp-queue-item.is-locked { opacity: 0.55; }
-    .mmp-queue-num {
-      width: 22px; text-align: right;
-      font-size: 12px; color: #999;
-      flex: 0 0 22px;
+    .mmp-queue-play {
+      flex: 0 0 24px;
+      width: 24px; height: 24px;
+      background: transparent; border: 0; padding: 0;
+      color: ${CONFIG.accentColor};
+      cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 50%;
     }
+    .mmp-queue-play svg { width: 14px; height: 14px; fill: currentColor; }
+    .mmp-queue-play:hover { background: rgba(0,0,0,0.06); }
     .mmp-queue-title {
       flex: 1 1 auto; min-width: 0;
       font-size: 14px; color: #333;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      text-decoration: none;
     }
+    .mmp-queue-title:hover { color: ${CONFIG.accentColor}; }
+    .mmp-queue-item.is-current .mmp-queue-title { color: ${CONFIG.accentColor}; }
     .mmp-queue-icon {
       flex: 0 0 auto; font-size: 12px; color: #999;
     }
@@ -1474,8 +1483,8 @@
       if (locked) classes.push('is-locked');
       return `<div class="${classes.join(' ')}" data-idx="${i}" data-id="${escapeHtml(t.slug)}">
         <div class="mmp-queue-handle" aria-hidden="true">☰</div>
-        <div class="mmp-queue-num">${i + 1}</div>
-        <div class="mmp-queue-title">${escapeHtml(t.title)}</div>
+        <button class="mmp-queue-play" data-idx="${i}" aria-label="Play ${escapeHtml(t.title)}">${ICONS.play}</button>
+        <a class="mmp-queue-title" href="/${escapeHtml(t.slug)}/" data-idx="${i}">${escapeHtml(t.title)}</a>
         <button class="mmp-queue-remove" data-slug="${escapeHtml(t.slug)}" aria-label="Remove">${ICONS.close}</button>
       </div>`;
     }).join('');
@@ -1484,14 +1493,32 @@
         if (e.target.closest('.mmp-queue-handle')) { e.stopPropagation(); return; }
         const remBtn = e.target.closest('.mmp-queue-remove');
         if (remBtn) {
+          e.preventDefault();
           e.stopPropagation();
           removeFromPlaylist(remBtn.dataset.slug);
           return;
         }
-        const idx = parseInt(el.dataset.idx, 10);
-        const t = state.queue[idx];
-        if (lockedFor(t)) { triggerSignup(); return; }
-        playIdx(idx);
+        const playBtn = e.target.closest('.mmp-queue-play');
+        if (playBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const idx = parseInt(playBtn.dataset.idx, 10);
+          const t = state.queue[idx];
+          if (lockedFor(t)) { triggerSignup(); return; }
+          playIdx(idx);
+          return;
+        }
+        // Title link: let browser navigate to the post page.
+        // Block navigation only for locked tracks (triggers signup instead).
+        const linkEl = e.target.closest('.mmp-queue-title');
+        if (linkEl) {
+          const idx = parseInt(linkEl.dataset.idx, 10);
+          const t = state.queue[idx];
+          if (t && lockedFor(t)) {
+            e.preventDefault();
+            triggerSignup();
+          }
+        }
       });
     });
     ensureSortable().then(initQueueSortable);
