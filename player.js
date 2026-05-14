@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.9.1
+ * Moving Music Player v0.9.2
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -944,10 +944,12 @@
     // If this is the currently playing track, toggle play/pause —
     // matches the bar's behavior so users can pause from either spot.
     if (existingIdx >= 0 && existingIdx === state.currentIdx) {
+      flipPlayIconsOptimistic(!isCurrentlyPlaying());
       togglePlay();
       return;
     }
     if (existingIdx >= 0) {
+      flipPlayIconsOptimistic(true);
       playIdx(existingIdx);
       return;
     }
@@ -1011,6 +1013,37 @@
         btn.setAttribute('aria-label', label);
       }
     });
+  }
+
+  // Optimistic UI: flip every play/pause icon synchronously to the
+  // intended state, before audio.play()'s "play" event round-trips.
+  // The audio event handlers will re-run refresh* and reconcile if
+  // playback ultimately fails (autoplay block, network error, etc).
+  function flipPlayIconsOptimistic(willBePlaying) {
+    const currentSlug = state.currentIdx >= 0 && state.queue[state.currentIdx]
+      ? state.queue[state.currentIdx].slug : null;
+    $$('.mmp-simple-audio').forEach(btn => {
+      const slug = btn.dataset.slug;
+      const isCurrent = !!slug && slug === currentSlug;
+      const iconEl = btn.querySelector('.mmp-simple-audio-icon');
+      if (iconEl) {
+        const want = (isCurrent && willBePlaying) ? ICONS.pause : ICONS.play;
+        if (iconEl.innerHTML !== want) iconEl.innerHTML = want;
+      }
+    });
+    if (barEl) {
+      $$('.mmp-queue-item .mmp-queue-play', barEl).forEach(btn => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        const isCurrent = idx === state.currentIdx;
+        const want = (isCurrent && willBePlaying) ? ICONS.pause : ICONS.play;
+        if (btn.innerHTML !== want) btn.innerHTML = want;
+      });
+      const mainBtn = $('.mmp-btn-play', barEl);
+      if (mainBtn) {
+        const want = willBePlaying ? ICONS.pause : ICONS.play;
+        if (mainBtn.innerHTML !== want) mainBtn.innerHTML = want;
+      }
+    }
   }
 
   // ----- playlist mutations -----
@@ -1665,11 +1698,13 @@
           const idx = parseInt(playBtn.dataset.idx, 10);
           // If this row is the current track, tap toggles play/pause.
           if (idx === state.currentIdx) {
+            flipPlayIconsOptimistic(!isCurrentlyPlaying());
             togglePlay();
             return;
           }
           const t = state.queue[idx];
           if (lockedFor(t)) { triggerSignup(); return; }
+          flipPlayIconsOptimistic(true);
           playIdx(idx);
           return;
         }
