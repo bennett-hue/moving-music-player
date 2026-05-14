@@ -24,6 +24,8 @@
     accentColor: '#9FC600',
     panelBg: '#f3f1ec',
     syncUrl: 'https://mmp-sync.bennett-727.workers.dev',
+    sortableCdn: 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js',
+    namedSetlistsKey: 'mm-named-setlists-v1',
   };
 
   const CSS = `
@@ -311,6 +313,63 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+    .mmp-queue-actions {
+      display: inline-flex; gap: 6px; align-items: center;
+    }
+    .mmp-setlist-btn {
+      background: transparent; color: #555;
+      border: 1px solid #d8d4cc;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font: 600 11px/1.3 inherit;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .mmp-setlist-btn:hover {
+      color: ${CONFIG.accentColor};
+      border-color: ${CONFIG.accentColor};
+    }
+    .mmp-bar.is-setlists-mode .mmp-setlist-save,
+    .mmp-bar.is-setlists-mode .mmp-queue-clear { display: none; }
+    .mmp-queue-handle {
+      flex: 0 0 22px;
+      font-size: 16px; line-height: 1;
+      color: #b9b3a8;
+      cursor: grab;
+      text-align: center;
+      touch-action: none;
+      user-select: none;
+    }
+    .mmp-queue-handle:active { cursor: grabbing; }
+    .mmp-queue-ghost { opacity: 0.5; background: #f6ffdf; }
+    .mmp-setlist-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.12s;
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+    }
+    .mmp-setlist-item:hover { background: rgba(0,0,0,0.04); }
+    .mmp-setlist-name {
+      flex: 1; min-width: 0;
+      font-weight: 600; color: #222;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .mmp-setlist-meta {
+      flex: 0 0 auto;
+      font-size: 12px; color: #888;
+    }
+    .mmp-setlist-del {
+      flex: 0 0 auto;
+      width: 28px; height: 28px;
+      background: transparent; border: 0; padding: 0;
+      color: #999; cursor: pointer; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .mmp-setlist-del:hover { color: #b33; background: rgba(0,0,0,0.06); }
+    .mmp-setlist-del svg { width: 14px; height: 14px; fill: currentColor; }
   `;
 
   const ICONS = {
@@ -1113,8 +1172,12 @@
       </div>
       <div class="mmp-expanded">
         <div class="mmp-queue-header">
-          <span>Up next</span>
-          <button class="mmp-queue-clear" aria-label="Clear playlist">Clear</button>
+          <span class="mmp-queue-label">Up next</span>
+          <div class="mmp-queue-actions">
+            <button class="mmp-setlist-btn mmp-setlist-save" aria-label="Save as setlist">Save</button>
+            <button class="mmp-setlist-btn mmp-setlist-load" aria-label="Load setlist">Load</button>
+            <button class="mmp-setlist-btn mmp-queue-clear" aria-label="Clear playlist">Clear</button>
+          </div>
         </div>
         <div class="mmp-queue-list"></div>
       </div>
@@ -1129,6 +1192,8 @@
     $('.mmp-btn-close', barEl).addEventListener('click', closeBar);
     $('.mmp-queue-clear', barEl).addEventListener('click', clearPlaylist);
     $('.mmp-btn-clear-mini', barEl).addEventListener('click', clearPlaylist);
+    $('.mmp-setlist-save', barEl).addEventListener('click', saveCurrentAsSetlist);
+    $('.mmp-setlist-load', barEl).addEventListener('click', toggleSetlistsMode);
     const progressEl = $('.mmp-progress', barEl);
     progressEl.addEventListener('pointerdown', onProgressPointerDown);
     progressEl.addEventListener('pointermove', onProgressPointerMove);
@@ -1221,8 +1286,12 @@
   function renderQueue() {
     const list = $('.mmp-queue-list', barEl);
     if (!list) return;
+    if (setlistsMode) { renderSetlistsList(list); return; }
+    const label = $('.mmp-queue-label', barEl);
+    if (label) label.textContent = 'Up next';
     if (state.queue.length === 0) {
       list.innerHTML = `<div class="mmp-queue-empty">Add songs with the + button on any track.</div>`;
+      teardownQueueSortable();
       return;
     }
     list.innerHTML = state.queue.map((t, i) => {
@@ -1230,7 +1299,8 @@
       const classes = ['mmp-queue-item'];
       if (i === state.currentIdx) classes.push('is-current');
       if (locked) classes.push('is-locked');
-      return `<div class="${classes.join(' ')}" data-idx="${i}">
+      return `<div class="${classes.join(' ')}" data-idx="${i}" data-id="${escapeHtml(t.slug)}">
+        <div class="mmp-queue-handle" aria-hidden="true">☰</div>
         <div class="mmp-queue-num">${i + 1}</div>
         <div class="mmp-queue-title">${escapeHtml(t.title)}</div>
         <button class="mmp-queue-remove" data-slug="${escapeHtml(t.slug)}" aria-label="Remove">${ICONS.close}</button>
@@ -1238,6 +1308,7 @@
     }).join('');
     $$('.mmp-queue-item', list).forEach(el => {
       el.addEventListener('click', (e) => {
+        if (e.target.closest('.mmp-queue-handle')) { e.stopPropagation(); return; }
         const remBtn = e.target.closest('.mmp-queue-remove');
         if (remBtn) {
           e.stopPropagation();
@@ -1250,11 +1321,189 @@
         playIdx(idx);
       });
     });
+    ensureSortable().then(initQueueSortable);
   }
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
+
+  // ----- named setlists (save / load) -----
+  function loadNamedSetlists() {
+    try {
+      const raw = localStorage.getItem(CONFIG.namedSetlistsKey);
+      return raw ? (JSON.parse(raw) || {}) : {};
+    } catch (e) { return {}; }
+  }
+  function saveNamedSetlists(obj) {
+    try { localStorage.setItem(CONFIG.namedSetlistsKey, JSON.stringify(obj)); } catch (e) {}
+  }
+
+  function saveCurrentAsSetlist() {
+    if (state.queue.length === 0) {
+      showToast('Nothing to save — queue is empty');
+      return;
+    }
+    const name = (window.prompt('Setlist name:', '') || '').trim();
+    if (!name) return;
+    const all = loadNamedSetlists();
+    const id = 'sl_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+    all[id] = {
+      id, name,
+      songs: state.queue.map(t => ({
+        slug: t.slug, title: t.title,
+        isPaid: !!t.isPaid, isMembers: !!t.isMembers,
+        audioUrl: t.audioUrl || null,
+        youtubeId: t.youtubeId || null,
+        ytStart: t.ytStart || 0,
+        ytEnd: t.ytEnd || null,
+      })),
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    };
+    saveNamedSetlists(all);
+    showToast('Saved: ' + name);
+  }
+
+  function loadNamedSetlist(id) {
+    const all = loadNamedSetlists();
+    const set = all[id];
+    if (!set) return;
+    if (state.queue.length > 0) {
+      if (!window.confirm('Replace current queue with "' + set.name + '"?')) return;
+    }
+    const cardBySlug = new Map(state.cardsOnPage.map(c => [c.slug, c]));
+    state.queue = set.songs.map(s => {
+      const card = cardBySlug.get(s.slug);
+      const audioUrl = (card && card.audioUrl) || s.audioUrl || null;
+      const youtubeId = s.youtubeId || null;
+      return {
+        slug: s.slug,
+        title: s.title,
+        isPaid: !!s.isPaid,
+        isMembers: !!s.isMembers,
+        audioUrl,
+        youtubeId,
+        ytStart: s.ytStart || 0,
+        ytEnd: s.ytEnd || null,
+        loaded: !!audioUrl || (youtubeId && s.ytStart != null),
+        cardEl: card ? card.cardEl : null,
+      };
+    });
+    state.currentIdx = -1;
+    persistStateNow();
+    schedulePush();
+    setSetlistsMode(false);
+    showBar();
+    renderQueue();
+    renderCardButtons();
+    renderTrack();
+    showToast('Loaded: ' + set.name);
+    if (state.queue.length > 0) playIdx(0);
+  }
+
+  function deleteNamedSetlist(id) {
+    const all = loadNamedSetlists();
+    if (!all[id]) return;
+    if (!window.confirm('Delete "' + all[id].name + '"?')) return;
+    delete all[id];
+    saveNamedSetlists(all);
+    renderQueue();
+  }
+
+  function setSetlistsMode(on) {
+    setlistsMode = !!on;
+    teardownQueueSortable();
+    if (barEl) barEl.classList.toggle('is-setlists-mode', setlistsMode);
+    const loadBtn = barEl && $('.mmp-setlist-load', barEl);
+    if (loadBtn) loadBtn.textContent = setlistsMode ? 'Done' : 'Load';
+    const label = barEl && $('.mmp-queue-label', barEl);
+    if (label) label.textContent = setlistsMode ? 'Saved setlists' : 'Up next';
+    renderQueue();
+  }
+
+  function toggleSetlistsMode() { setSetlistsMode(!setlistsMode); }
+
+  function renderSetlistsList(list) {
+    const all = loadNamedSetlists();
+    const arr = Object.values(all).sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
+    if (arr.length === 0) {
+      list.innerHTML = `<div class="mmp-queue-empty">No saved setlists yet. Build a queue, then tap Save.</div>`;
+      return;
+    }
+    list.innerHTML = arr.map(s => `
+      <div class="mmp-setlist-item" data-id="${escapeHtml(s.id)}">
+        <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
+        <div class="mmp-setlist-meta">${s.songs.length} ${s.songs.length === 1 ? 'song' : 'songs'}</div>
+        <button class="mmp-setlist-del" data-id="${escapeHtml(s.id)}" aria-label="Delete">${ICONS.close}</button>
+      </div>
+    `).join('');
+    $$('.mmp-setlist-item', list).forEach(el => {
+      el.addEventListener('click', (e) => {
+        const delBtn = e.target.closest('.mmp-setlist-del');
+        if (delBtn) {
+          e.stopPropagation();
+          deleteNamedSetlist(delBtn.dataset.id);
+          return;
+        }
+        loadNamedSetlist(el.dataset.id);
+      });
+    });
+  }
+
+  // ----- SortableJS lazy load + queue drag-reorder -----
+  let queueSortable = null;
+  let sortableLoading = null;
+  function ensureSortable() {
+    if (window.Sortable) return Promise.resolve();
+    if (sortableLoading) return sortableLoading;
+    sortableLoading = new Promise((resolve) => {
+      const s = document.createElement('script');
+      s.src = CONFIG.sortableCdn;
+      s.onload = () => resolve();
+      s.onerror = () => { sortableLoading = null; resolve(); };
+      document.head.appendChild(s);
+    });
+    return sortableLoading;
+  }
+  function teardownQueueSortable() {
+    if (queueSortable) {
+      try { queueSortable.destroy(); } catch (e) {}
+      queueSortable = null;
+    }
+  }
+  function initQueueSortable() {
+    if (!window.Sortable || setlistsMode) return;
+    const list = barEl && $('.mmp-queue-list', barEl);
+    if (!list) return;
+    teardownQueueSortable();
+    queueSortable = new window.Sortable(list, {
+      animation: 150,
+      handle: '.mmp-queue-handle',
+      delay: 120,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 5,
+      ghostClass: 'mmp-queue-ghost',
+      onEnd: handleQueueReorder,
+    });
+  }
+  function handleQueueReorder() {
+    if (!queueSortable) return;
+    const order = queueSortable.toArray();
+    const currentSlug = state.currentIdx >= 0 && state.queue[state.currentIdx]
+      ? state.queue[state.currentIdx].slug : null;
+    const bySlug = new Map(state.queue.map(t => [t.slug, t]));
+    const next = order.map(slug => bySlug.get(slug)).filter(Boolean);
+    if (next.length !== state.queue.length) return;
+    state.queue = next;
+    state.currentIdx = currentSlug
+      ? state.queue.findIndex(t => t.slug === currentSlug)
+      : -1;
+    persistStateNow();
+    schedulePush();
+    renderQueue();
+  }
+  let setlistsMode = false;
 
   // ----- card buttons (+ / ✓ / lock) -----
   function handleCardClick(e) {
