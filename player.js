@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.5.0
+ * Moving Music Player v0.6.0
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -15,6 +15,12 @@
  * named setlists. The queue IS the setlist — Save snapshots it under a
  * name, Load swaps the queue back in. localStorage-only for now; Worker
  * KV sync for named setlists is the next step.
+ *
+ * v0.6.0: share named setlists via a public link. Owner taps Share on a
+ * saved setlist → Worker stores the snapshot under a random shareId →
+ * URL is `?setlist={shareId}`. Anyone who opens that URL sees an import
+ * banner with "Save to my setlists" / "Play now" / dismiss. Worker route
+ * /shared/:shareId is open-read, open-write — shareId is the secret.
  */
 (() => {
   'use strict';
@@ -375,6 +381,100 @@
     }
     .mmp-setlist-del:hover { color: #b33; background: rgba(0,0,0,0.06); }
     .mmp-setlist-del svg { width: 14px; height: 14px; fill: currentColor; }
+    .mmp-setlist-share {
+      flex: 0 0 auto;
+      width: 28px; height: 28px;
+      background: transparent; border: 0; padding: 0;
+      color: #999; cursor: pointer; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-right: 2px;
+    }
+    .mmp-setlist-share:hover { color: ${CONFIG.accentColor}; background: rgba(0,0,0,0.06); }
+    .mmp-setlist-share.is-shared { color: ${CONFIG.accentColor}; }
+    .mmp-setlist-share svg { width: 14px; height: 14px; fill: currentColor; }
+    .mmp-share-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .mmp-share-modal {
+      background: #fff; color: #222;
+      border-radius: 12px;
+      max-width: 480px; width: 100%;
+      padding: 22px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    }
+    .mmp-share-title {
+      font-size: 17px; font-weight: 700; margin: 0 0 4px;
+    }
+    .mmp-share-sub {
+      font-size: 13px; color: #666; margin: 0 0 14px;
+    }
+    .mmp-share-url {
+      width: 100%; box-sizing: border-box;
+      padding: 10px 12px;
+      font-size: 13px; font-family: ui-monospace, Menlo, monospace;
+      border: 1px solid #ddd; border-radius: 6px;
+      background: #f6f4ee; color: #222;
+    }
+    .mmp-share-actions {
+      display: flex; gap: 8px; margin-top: 14px;
+      justify-content: flex-end;
+    }
+    .mmp-share-btn {
+      padding: 8px 16px;
+      font: 600 14px/1.2 inherit;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #fff; color: #333;
+      cursor: pointer;
+    }
+    .mmp-share-btn.is-primary {
+      background: ${CONFIG.accentColor};
+      border-color: ${CONFIG.accentColor};
+      color: #1a1a1a;
+    }
+    .mmp-import-banner {
+      position: fixed; top: 0; left: 0; right: 0;
+      background: #fffdf0;
+      border-bottom: 1px solid ${CONFIG.accentColor};
+      padding: 12px 14px;
+      z-index: 99998;
+      display: flex; align-items: center; gap: 12px;
+      font-size: 14px; color: #222;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transform: translateY(-110%);
+      transition: transform 0.3s ease;
+    }
+    .mmp-import-banner.is-open { transform: translateY(0); }
+    .mmp-import-text { flex: 1; min-width: 0; }
+    .mmp-import-name { font-weight: 700; }
+    .mmp-import-actions {
+      display: inline-flex; gap: 6px; flex-shrink: 0;
+    }
+    .mmp-import-btn {
+      padding: 6px 12px;
+      font: 600 13px/1.2 inherit;
+      border: 1px solid #ddd;
+      border-radius: 999px;
+      background: #fff; color: #333;
+      cursor: pointer;
+    }
+    .mmp-import-btn.is-primary {
+      background: ${CONFIG.accentColor};
+      border-color: ${CONFIG.accentColor};
+      color: #1a1a1a;
+    }
+    .mmp-import-dismiss {
+      background: transparent; border: 0; padding: 4px 8px;
+      font-size: 18px; cursor: pointer; color: #999;
+    }
+    @media (max-width: 600px) {
+      .mmp-import-banner { flex-wrap: wrap; padding: 10px 12px; }
+      .mmp-import-text { flex: 1 0 100%; margin-bottom: 8px; }
+    }
   `;
 
   const ICONS = {
@@ -391,6 +491,7 @@
     trash: '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
     check: '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>',
     remove: '<svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14z"/></svg>',
+    share: '<svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>',
   };
 
   // ----- state -----
@@ -558,6 +659,7 @@
   // Signed-in members' playlists sync via a tiny KV-backed Worker keyed by
   // Ghost member UUID. Signed-out users get localStorage only.
   let memberUuid = null;
+  let memberName = null;
   let memberUuidFetched = false;
   let pushTimer = null;
 
@@ -569,6 +671,7 @@
       if (r.status === 204 || !r.ok) return null;
       const d = await r.json();
       memberUuid = (d && d.uuid) || null;
+      memberName = (d && (d.name || d.firstname)) || null;
       return memberUuid;
     } catch (e) { return null; }
   }
@@ -1436,15 +1539,26 @@
       list.innerHTML = `<div class="mmp-queue-empty">No saved setlists yet. Build a queue, then tap Save.</div>`;
       return;
     }
-    list.innerHTML = arr.map(s => `
+    list.innerHTML = arr.map(s => {
+      const shareCls = s.shareId ? ' is-shared' : '';
+      const shareLabel = s.shareId ? 'Open share link' : 'Share';
+      return `
       <div class="mmp-setlist-item" data-id="${escapeHtml(s.id)}">
         <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
         <div class="mmp-setlist-meta">${s.songs.length} ${s.songs.length === 1 ? 'song' : 'songs'}</div>
+        <button class="mmp-setlist-share${shareCls}" data-id="${escapeHtml(s.id)}" aria-label="${shareLabel}" title="${shareLabel}">${ICONS.share}</button>
         <button class="mmp-setlist-del" data-id="${escapeHtml(s.id)}" aria-label="Delete">${ICONS.close}</button>
       </div>
-    `).join('');
+    `;
+    }).join('');
     $$('.mmp-setlist-item', list).forEach(el => {
       el.addEventListener('click', (e) => {
+        const shareBtn = e.target.closest('.mmp-setlist-share');
+        if (shareBtn) {
+          e.stopPropagation();
+          shareSetlist(shareBtn.dataset.id);
+          return;
+        }
         const delBtn = e.target.closest('.mmp-setlist-del');
         if (delBtn) {
           e.stopPropagation();
@@ -1454,6 +1568,211 @@
         loadNamedSetlist(el.dataset.id);
       });
     });
+  }
+
+  // ----- share / import shared setlists -----
+  function genShareId() {
+    const a = Math.random().toString(36).slice(2, 10);
+    const b = Math.random().toString(36).slice(2, 6);
+    return (a + b).replace(/[^a-z0-9]/gi, '').slice(0, 12).padEnd(8, 'x');
+  }
+
+  async function shareSetlist(id) {
+    const all = loadNamedSetlists();
+    const set = all[id];
+    if (!set) return;
+    const shareId = set.shareId || genShareId();
+    const payload = {
+      shareId,
+      name: set.name,
+      songs: set.songs,
+      owner_name: memberName || null,
+      shared_at: Date.now(),
+    };
+    showToast('Creating share link…');
+    let ok = false;
+    try {
+      const r = await fetch(`${CONFIG.syncUrl}/shared/${shareId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      ok = r.ok;
+    } catch (e) {}
+    if (!ok) {
+      showToast('Share failed — check connection');
+      return;
+    }
+    set.shareId = shareId;
+    set.updated_at = Date.now();
+    all[id] = set;
+    saveNamedSetlists(all);
+    const url = `${location.origin}/?setlist=${shareId}`;
+    openShareModal(set, url);
+    if (setlistsMode) renderQueue();
+  }
+
+  let shareOverlay = null;
+  function openShareModal(set, url) {
+    closeShareModal();
+    shareOverlay = document.createElement('div');
+    shareOverlay.className = 'mmp-share-overlay';
+    shareOverlay.innerHTML = `
+      <div class="mmp-share-modal" role="dialog" aria-label="Share setlist">
+        <h3 class="mmp-share-title">Share &ldquo;${escapeHtml(set.name)}&rdquo;</h3>
+        <p class="mmp-share-sub">Anyone with this link can load this setlist. ${set.songs.length} ${set.songs.length === 1 ? 'song' : 'songs'}.</p>
+        <input class="mmp-share-url" type="text" readonly value="${escapeHtml(url)}">
+        <div class="mmp-share-actions">
+          <button class="mmp-share-btn mmp-share-close" type="button">Close</button>
+          <button class="mmp-share-btn is-primary mmp-share-copy" type="button">Copy link</button>
+        </div>
+      </div>`;
+    document.body.appendChild(shareOverlay);
+    const input = $('.mmp-share-url', shareOverlay);
+    setTimeout(() => { try { input.focus(); input.select(); } catch (e) {} }, 0);
+    shareOverlay.addEventListener('click', (e) => {
+      if (e.target === shareOverlay) closeShareModal();
+    });
+    $('.mmp-share-close', shareOverlay).addEventListener('click', closeShareModal);
+    $('.mmp-share-copy', shareOverlay).addEventListener('click', () => {
+      const txt = input.value;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(
+          () => showToast('Link copied'),
+          () => { try { input.select(); document.execCommand('copy'); showToast('Link copied'); } catch (e) { showToast('Copy failed'); } }
+        );
+      } else {
+        try { input.select(); document.execCommand('copy'); showToast('Link copied'); }
+        catch (e) { showToast('Copy failed'); }
+      }
+    });
+  }
+  function closeShareModal() {
+    if (shareOverlay) {
+      shareOverlay.remove();
+      shareOverlay = null;
+    }
+  }
+
+  async function fetchSharedSetlist(shareId) {
+    try {
+      const r = await fetch(`${CONFIG.syncUrl}/shared/${shareId}`);
+      if (!r.ok) return null;
+      const t = await r.text();
+      if (!t || t === 'null') return null;
+      return JSON.parse(t);
+    } catch (e) { return null; }
+  }
+
+  function clearShareParam() {
+    try {
+      const u = new URL(location.href);
+      u.searchParams.delete('setlist');
+      const next = u.pathname + (u.search ? u.search : '') + u.hash;
+      history.replaceState(null, '', next);
+    } catch (e) {}
+  }
+
+  let importBanner = null;
+  function detectIncomingShare() {
+    let shareId = null;
+    try {
+      const p = new URLSearchParams(location.search);
+      shareId = p.get('setlist');
+    } catch (e) {}
+    if (!shareId) return;
+    if (!/^[A-Za-z0-9_-]{8,32}$/.test(shareId)) {
+      clearShareParam();
+      return;
+    }
+    fetchSharedSetlist(shareId).then(data => {
+      if (data && Array.isArray(data.songs)) showImportBanner(data);
+      else clearShareParam();
+    });
+  }
+
+  function showImportBanner(data) {
+    if (importBanner) importBanner.remove();
+    const owner = data.owner_name ? escapeHtml(data.owner_name) : 'Someone';
+    const count = data.songs.length;
+    importBanner = document.createElement('div');
+    importBanner.className = 'mmp-import-banner';
+    importBanner.innerHTML = `
+      <div class="mmp-import-text">
+        ${owner} shared <span class="mmp-import-name">&ldquo;${escapeHtml(data.name || 'a setlist')}&rdquo;</span>
+        with you · ${count} ${count === 1 ? 'song' : 'songs'}
+      </div>
+      <div class="mmp-import-actions">
+        <button class="mmp-import-btn mmp-import-save" type="button">Save to my setlists</button>
+        <button class="mmp-import-btn is-primary mmp-import-play" type="button">Play now</button>
+        <button class="mmp-import-dismiss" type="button" aria-label="Dismiss">×</button>
+      </div>`;
+    document.body.appendChild(importBanner);
+    requestAnimationFrame(() => importBanner.classList.add('is-open'));
+    $('.mmp-import-save', importBanner).addEventListener('click', () => {
+      importSharedAsCopy(data);
+      dismissImportBanner();
+    });
+    $('.mmp-import-play', importBanner).addEventListener('click', () => {
+      importSharedAsCopy(data);
+      playSharedNow(data);
+      dismissImportBanner();
+    });
+    $('.mmp-import-dismiss', importBanner).addEventListener('click', dismissImportBanner);
+  }
+
+  function dismissImportBanner() {
+    if (!importBanner) return;
+    importBanner.classList.remove('is-open');
+    const el = importBanner;
+    setTimeout(() => { try { el.remove(); } catch (e) {} }, 350);
+    importBanner = null;
+    clearShareParam();
+  }
+
+  function importSharedAsCopy(data) {
+    const all = loadNamedSetlists();
+    const id = 'sl_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+    const owner = data.owner_name ? ' (from ' + data.owner_name + ')' : ' (shared)';
+    all[id] = {
+      id,
+      name: (data.name || 'Shared setlist') + owner,
+      songs: data.songs,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+      from_shareId: data.shareId || null,
+    };
+    saveNamedSetlists(all);
+    showToast('Saved a copy');
+  }
+
+  function playSharedNow(data) {
+    const cardBySlug = new Map(state.cardsOnPage.map(c => [c.slug, c]));
+    state.queue = (data.songs || []).map(s => {
+      const card = cardBySlug.get(s.slug);
+      const audioUrl = (card && card.audioUrl) || s.audioUrl || null;
+      const youtubeId = s.youtubeId || null;
+      return {
+        slug: s.slug,
+        title: s.title,
+        isPaid: !!s.isPaid,
+        isMembers: !!s.isMembers,
+        audioUrl,
+        youtubeId,
+        ytStart: s.ytStart || 0,
+        ytEnd: s.ytEnd || null,
+        loaded: !!audioUrl || (youtubeId && s.ytStart != null),
+        cardEl: card ? card.cardEl : null,
+      };
+    });
+    state.currentIdx = -1;
+    persistStateNow();
+    schedulePush();
+    showBar();
+    renderQueue();
+    renderCardButtons();
+    renderTrack();
+    if (state.queue.length > 0) playIdx(0);
   }
 
   // ----- SortableJS lazy load + queue drag-reorder -----
@@ -1702,6 +2021,9 @@
     // users (and signed-in users on slow networks) see their playlist
     // immediately; the remote fetch reconciles a moment later.
     syncFromRemote();
+
+    // If we arrived via a setlist share link, fetch and show the import banner.
+    detectIncomingShare();
   }
 
   if (document.readyState === 'loading') {
