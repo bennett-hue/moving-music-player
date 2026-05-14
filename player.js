@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.6.0
+ * Moving Music Player v0.7.0
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -21,6 +21,14 @@
  * URL is `?setlist={shareId}`. Anyone who opens that URL sees an import
  * banner with "Save to my setlists" / "Play now" / dismiss. Worker route
  * /shared/:shareId is open-read, open-write — shareId is the secret.
+ *
+ * v0.7.0: shared setlists are LIVE (Google-Doc-style read-only). Loading
+ * or saving a setlist "links" the queue to that saved setlist via
+ * state.linkedSetlistId. Every queue mutation (add, remove, reorder)
+ * flows back to the saved setlist, and — if it has a shareId — pushes
+ * a debounced update to the Worker. Recipients always see the latest
+ * version on next page load. Save button becomes "Save as new" while
+ * editing a linked setlist, so forking is one click away.
  */
 (() => {
   'use strict';
@@ -502,6 +510,11 @@
     cardsOnPage: [],
     currentIdx: -1,
     expanded: false,
+    // linkedSetlistId = the saved setlist the queue is currently editing.
+    // null = ad-hoc queue (no link). When set, mutations to the queue
+    // flow back to the saved setlist; if the setlist has a shareId, the
+    // change also pushes to the Worker so recipients see live updates.
+    linkedSetlistId: null,
   };
   let audio = null;
   let barEl = null;
@@ -639,6 +652,7 @@
           ytStart: q.ytStart || 0,
           ytEnd: q.ytEnd || null,
         })),
+        linkedSetlistId: state.linkedSetlistId || null,
         savedAt: Date.now(),
       }));
     } catch (e) {}
@@ -846,6 +860,7 @@
     if (!pushCardToQueue(card)) return;
     persistStateNow();
     schedulePush();
+    syncLinkedSetlist();
     renderQueue();
     renderCardButtons();
     if (wasEmpty) {
@@ -869,6 +884,7 @@
     }
     persistStateNow();
     schedulePush();
+    syncLinkedSetlist();
     renderQueue();
     renderCardButtons();
     if (wasEmpty) playIdx(0);
@@ -885,6 +901,7 @@
     stopYtTimer();
     state.queue = [];
     state.currentIdx = -1;
+    state.linkedSetlistId = null;
     setProgressPct(0);
     const titleEl = $('.mmp-title', barEl);
     if (titleEl) {
@@ -1009,6 +1026,7 @@
     }
     persistStateNow();
     schedulePush();
+    syncLinkedSetlist();
     renderQueue();
     renderCardButtons();
   }
@@ -1396,7 +1414,19 @@
     if (!list) return;
     if (setlistsMode) { renderSetlistsList(list); return; }
     const label = $('.mmp-queue-label', barEl);
-    if (label) label.textContent = 'Up next';
+    const linked = state.linkedSetlistId
+      ? (loadNamedSetlists()[state.linkedSetlistId] || null)
+      : null;
+    if (label) {
+      if (linked) {
+        const shared = linked.shareId ? ' (live)' : '';
+        label.textContent = 'Editing: ' + linked.name + shared;
+      } else {
+        label.textContent = 'Up next';
+      }
+    }
+    const saveBtn = $('.mmp-setlist-save', barEl);
+    if (saveBtn) saveBtn.textContent = linked ? 'Save as new' : 'Save';
     if (state.queue.length === 0) {
       list.innerHTML = `<div class="mmp-queue-empty">Add songs with the + button on any track.</div>`;
       teardownQueueSortable();
@@ -1452,9 +1482,14 @@
       showToast('Nothing to save — queue is empty');
       return;
     }
-    const name = (window.prompt('Setlist name:', '') || '').trim();
-    if (!name) return;
     const all = loadNamedSetlists();
+    const linked = state.linkedSetlistId && all[state.linkedSetlistId];
+    const promptLabel = linked
+      ? 'Save as a NEW setlist (the original "' + linked.name + '" keeps auto-saving):'
+      : 'Setlist name:';
+    const defaultName = linked ? linked.name + ' copy' : '';
+    const name = (window.prompt(promptLabel, defaultName) || '').trim();
+    if (!name) return;
     const id = 'sl_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
     all[id] = {
       id, name,
@@ -1470,6 +1505,9 @@
       updated_at: Date.now(),
     };
     saveNamedSetlists(all);
+    state.linkedSetlistId = id;
+    persistStateNow();
+    renderQueue();
     showToast('Saved: ' + name);
   }
 
@@ -1499,6 +1537,7 @@
       };
     });
     state.currentIdx = -1;
+    state.linkedSetlistId = id;
     persistStateNow();
     schedulePush();
     setSetlistsMode(false);
@@ -1620,7 +1659,7 @@
     shareOverlay.innerHTML = `
       <div class="mmp-share-modal" role="dialog" aria-label="Share setlist">
         <h3 class="mmp-share-title">Share &ldquo;${escapeHtml(set.name)}&rdquo;</h3>
-        <p class="mmp-share-sub">Anyone with this link can load this setlist. ${set.songs.length} ${set.songs.length === 1 ? 'song' : 'songs'}.</p>
+        <p class="mmp-share-sub">This link stays in sync with your setlist. Changes you make appear the next time the recipient opens it. ${set.songs.length} ${set.songs.length === 1 ? 'song' : 'songs'}.</p>
         <input class="mmp-share-url" type="text" readonly value="${escapeHtml(url)}">
         <div class="mmp-share-actions">
           <button class="mmp-share-btn mmp-share-close" type="button">Close</button>
@@ -1825,9 +1864,63 @@
       : -1;
     persistStateNow();
     schedulePush();
+    syncLinkedSetlist();
     renderQueue();
   }
   let setlistsMode = false;
+
+  // ----- live sync of linked setlist -----
+  // When the queue is linked to a saved setlist (state.linkedSetlistId),
+  // every queue mutation flows back to the saved setlist's songs[] and
+  // — if the setlist is shared — pushes a debounced update to the Worker
+  // at /shared/{shareId} so recipients see the latest on next page load.
+  let sharedPushTimer = null;
+  function syncLinkedSetlist() {
+    if (!state.linkedSetlistId) return;
+    const all = loadNamedSetlists();
+    const set = all[state.linkedSetlistId];
+    if (!set) {
+      state.linkedSetlistId = null;
+      return;
+    }
+    set.songs = state.queue.map(t => ({
+      slug: t.slug, title: t.title,
+      isPaid: !!t.isPaid, isMembers: !!t.isMembers,
+      audioUrl: t.audioUrl || null,
+      youtubeId: t.youtubeId || null,
+      ytStart: t.ytStart || 0,
+      ytEnd: t.ytEnd || null,
+    }));
+    set.updated_at = Date.now();
+    all[state.linkedSetlistId] = set;
+    saveNamedSetlists(all);
+    if (set.shareId) scheduleSharedPush(set);
+  }
+  function scheduleSharedPush(set) {
+    if (sharedPushTimer) clearTimeout(sharedPushTimer);
+    sharedPushTimer = setTimeout(() => {
+      sharedPushTimer = null;
+      pushSharedSetlistNow(set);
+    }, 2000);
+  }
+  function pushSharedSetlistNow(set) {
+    if (!set || !set.shareId) return;
+    const payload = {
+      shareId: set.shareId,
+      name: set.name,
+      songs: set.songs,
+      owner_name: memberName || null,
+      shared_at: Date.now(),
+    };
+    try {
+      fetch(`${CONFIG.syncUrl}/shared/${set.shareId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      }).catch(() => {});
+    } catch (e) {}
+  }
 
   // ----- card buttons (+ / ✓ / lock) -----
   function handleCardClick(e) {
@@ -1964,6 +2057,9 @@
           cardEl: card ? card.cardEl : null,
         };
       });
+    }
+    if (saved && saved.linkedSetlistId) {
+      state.linkedSetlistId = saved.linkedSetlistId;
     }
 
     renderQueue();
