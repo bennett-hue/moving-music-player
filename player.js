@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.8.6
+ * Moving Music Player v0.8.7
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -63,36 +63,58 @@
     .mmp-bar.is-visible { transform: translateY(0); }
     .mmp-bar.is-fullscreen { top: 0; max-height: none; }
     .mmp-bar.is-fullscreen .mmp-expanded { max-height: none; }
-    /* Hide Ghost's audio card playback controls on post pages — the bar
-       below is the single source of truth for playback. Keep just the
-       thumbnail + title visible. Ghost renders custom audio controls
-       (not browser-native), so we have to target their classes. */
-    body.mmp-active .kg-audio-card audio,
-    body.mmp-active .kg-audio-card .kg-audio-player,
-    body.mmp-active .kg-audio-card .kg-audio-player-container,
-    body.mmp-active .kg-audio-card .kg-audio-play-icon,
-    body.mmp-active .kg-audio-card .kg-audio-pause-icon,
-    body.mmp-active .kg-audio-card .kg-audio-current-time,
-    body.mmp-active .kg-audio-card .kg-audio-duration,
-    body.mmp-active .kg-audio-card .kg-audio-time,
-    body.mmp-active .kg-audio-card .kg-audio-seek-slider,
-    body.mmp-active .kg-audio-card .kg-audio-playback-rate,
-    body.mmp-active .kg-audio-card .kg-audio-mute-icon,
-    body.mmp-active .kg-audio-card .kg-audio-unmute-icon,
-    body.mmp-active .kg-audio-card .kg-audio-volume-container,
-    body.mmp-active .kg-audio-card .kg-audio-volume-slider {
+    /* Ghost's audio card has a custom JS-rendered player UI (scrubber,
+       speed, volume) that competes with our bar at the bottom. On post
+       pages we hide the whole .kg-audio-card and insert a clean
+       single-button replacement in its place. */
+    body.mmp-active .kg-audio-card[data-mmp-simplified="1"] {
       display: none !important;
     }
-    body.mmp-active .kg-audio-card {
-      grid-template-columns: auto 1fr !important;
-      grid-template-rows: auto !important;
-      padding: 12px !important;
+    .mmp-simple-audio-wrapper { margin: 1.2em 0; }
+    .mmp-simple-audio {
+      display: flex; align-items: center; gap: 14px;
+      width: 100%;
+      padding: 14px 18px;
+      background: ${CONFIG.panelBg};
+      border: 1px solid #d8d4cc;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      color: #222;
+      text-align: left;
+      transition: background 0.15s, border-color 0.15s;
     }
-    body.mmp-active .kg-audio-card .mmp-card-play {
-      width: 38px; height: 38px; padding: 8px;
+    .mmp-simple-audio:hover {
+      background: rgba(42, 140, 130, 0.08);
+      border-color: ${CONFIG.accentColor};
     }
-    body.mmp-active .kg-audio-card .mmp-card-play svg {
-      width: 22px; height: 22px;
+    .mmp-simple-audio.is-current {
+      border-color: ${CONFIG.accentColor};
+      background: rgba(42, 140, 130, 0.06);
+    }
+    .mmp-simple-audio-icon {
+      flex: 0 0 36px; width: 36px; height: 36px;
+      border-radius: 50%;
+      background: ${CONFIG.accentColor};
+      color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .mmp-simple-audio-icon svg { width: 20px; height: 20px; fill: currentColor; }
+    .mmp-simple-audio-text {
+      flex: 1 1 auto; min-width: 0;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .mmp-simple-audio-title {
+      font-weight: 600; color: #222;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .mmp-simple-audio-status {
+      font-size: 12px; font-weight: 500;
+      color: ${CONFIG.accentColor};
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
     .mmp-progress {
       position: absolute; top: 0; left: 0; right: 0;
@@ -884,6 +906,82 @@
     });
 
     return items;
+  }
+
+  // ----- Replace Ghost's audio card with a clean single-button row.
+  // Ghost's audio card has its own JS-rendered transport (scrubber,
+  // speed, volume) that fights the bar at the bottom. We hide the
+  // whole .kg-audio-card and insert a simpler row that just says
+  // "▶ Western Wind w Belfast Bagaduce Community Chorus" — tap to
+  // add+play through the bar. Skip-once via data-mmp-simplified.
+  function simplifyAudioCards() {
+    $$('.kg-audio-card').forEach((card, i) => {
+      if (card.dataset.mmpSimplified === '1') return;
+      const titleEl = card.querySelector('.kg-audio-title');
+      const titleText = (titleEl && titleEl.textContent.trim()) || 'Audio';
+      const audio = card.querySelector('audio');
+      const audioUrl = (audio && audio.src) || '';
+      const slug = slugFromHref(location.pathname) || ('audio-' + i);
+      const wrap = document.createElement('div');
+      wrap.className = 'mmp-simple-audio-wrapper';
+      const btn = document.createElement('button');
+      btn.className = 'mmp-simple-audio';
+      btn.type = 'button';
+      btn.dataset.slug = slug;
+      btn.dataset.audioUrl = audioUrl;
+      btn.dataset.title = titleText;
+      btn.innerHTML = '<span class="mmp-simple-audio-icon">' + ICONS.play + '</span>' +
+        '<span class="mmp-simple-audio-text">' +
+        '<span class="mmp-simple-audio-title">' + escapeHtml(titleText) + '</span>' +
+        '<span class="mmp-simple-audio-status">Play in bar below</span>' +
+        '</span>';
+      btn.addEventListener('click', handleSimpleAudioClick);
+      wrap.appendChild(btn);
+      card.parentNode.insertBefore(wrap, card);
+      card.dataset.mmpSimplified = '1';
+    });
+    refreshSimpleAudioState();
+  }
+
+  function handleSimpleAudioClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    const slug = btn.dataset.slug;
+    const existingIdx = inPlaylist(slug);
+    if (existingIdx >= 0) {
+      playIdx(existingIdx);
+      return;
+    }
+    let card = state.cardsOnPage.find(c => c.slug === slug);
+    if (!card) {
+      card = {
+        slug,
+        title: btn.dataset.title || 'Audio',
+        audioUrl: btn.dataset.audioUrl || null,
+        isPaid: false, isMembers: false,
+        loaded: !!btn.dataset.audioUrl,
+        cardEl: btn.closest('.mmp-simple-audio-wrapper'),
+      };
+    }
+    addToPlaylist(card);
+  }
+
+  function refreshSimpleAudioState() {
+    const currentSlug = state.currentIdx >= 0 && state.queue[state.currentIdx]
+      ? state.queue[state.currentIdx].slug : null;
+    $$('.mmp-simple-audio').forEach(btn => {
+      const slug = btn.dataset.slug;
+      const isCurrent = slug && slug === currentSlug;
+      const inQ = inPlaylist(slug) >= 0;
+      btn.classList.toggle('is-current', isCurrent);
+      const status = btn.querySelector('.mmp-simple-audio-status');
+      if (status) {
+        if (isCurrent) status.textContent = 'Now playing in bar below';
+        else if (inQ) status.textContent = 'In your queue · tap to play';
+        else status.textContent = 'Play in bar below';
+      }
+    });
   }
 
   // ----- playlist mutations -----
@@ -2033,6 +2131,7 @@
   }
 
   function renderCardButtons() {
+    refreshSimpleAudioState();
     state.cardsOnPage.forEach(card => {
       if (!card.cardEl) return;
       let btn = card.cardEl.querySelector('.mmp-card-play');
@@ -2063,6 +2162,7 @@
   let observeDebounce = null;
   function rebuildFromDom() {
     state.cardsOnPage = scanCards();
+    simplifyAudioCards();
     // Re-attach fresh cardEl refs onto matching playlist entries
     const cardBySlug = new Map(state.cardsOnPage.map(c => [c.slug, c]));
     state.queue.forEach(t => {
@@ -2127,6 +2227,7 @@
     // then scan the current page just to render the per-card +/✓ icons.
     const saved = loadSavedTrack();
     state.cardsOnPage = scanCards();
+    simplifyAudioCards();
     const cardBySlug = new Map(state.cardsOnPage.map(c => [c.slug, c]));
 
     if (saved && Array.isArray(saved.queue)) {
