@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.23
+ * Moving Music Player v0.5.0
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -10,6 +10,11 @@
  *
  * v0.4.0: signed-in members' playlists sync across devices via a Cloudflare
  * Worker keyed by Ghost member UUID. Signed-out users get localStorage only.
+ *
+ * v0.5.0: drag-to-reorder the queue (SortableJS lazy-loaded) + Save/Load
+ * named setlists. The queue IS the setlist — Save snapshots it under a
+ * name, Load swaps the queue back in. localStorage-only for now; Worker
+ * KV sync for named setlists is the next step.
  */
 (() => {
   'use strict';
