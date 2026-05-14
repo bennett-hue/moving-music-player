@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.8.8
+ * Moving Music Player v0.8.9
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -982,7 +982,10 @@
     if (typeof currentSourceIsYt === 'function' && currentSourceIsYt()) {
       return isYtPlaying();
     }
-    return !!(audio && !audio.paused && audio.currentTime > 0);
+    // Match the bar's main play button check exactly. Earlier
+    // versions also required currentTime>0, which left icons stuck
+    // on ▶ for the first frame after a fresh play.
+    return !!(audio && !audio.paused);
   }
 
   function refreshQueuePlayIcons() {
@@ -1671,6 +1674,9 @@
       });
     });
     ensureSortable().then(initQueueSortable);
+    // Ensure the current row's play icon flips to ⏸ immediately after
+    // a rebuild — don't wait for an audio 'play' event to round-trip.
+    refreshQueuePlayIcons();
   }
 
   function escapeHtml(s) {
