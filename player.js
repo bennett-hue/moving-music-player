@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.8.1
+ * Moving Music Player v0.8.2
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -1453,12 +1453,7 @@
       ? (loadNamedSetlists()[state.linkedSetlistId] || null)
       : null;
     if (label) {
-      if (linked) {
-        const shared = linked.shareId ? ' (live)' : '';
-        label.textContent = 'Editing: ' + linked.name + shared;
-      } else {
-        label.textContent = 'Up next';
-      }
+      label.textContent = linked ? linked.name : 'Up next';
     }
     const saveBtn = $('.mmp-setlist-save', barEl);
     if (saveBtn) saveBtn.textContent = linked ? 'Save as new' : 'Save';
