@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.8.9
+ * Moving Music Player v0.9.0
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -130,9 +130,13 @@
       transition: opacity 0.15s ease;
     }
     .mmp-mini {
+      position: relative;
       display: flex; align-items: center; gap: 10px;
       padding: 10px 12px;
       min-height: 56px;
+      /* New layout: mini stays pinned to the bottom of the bar.
+         The expanded panel grows upward above it. */
+      flex: 0 0 auto;
     }
     .mmp-thumb {
       width: 40px; height: 40px; flex: 0 0 40px;
@@ -1443,11 +1447,23 @@
     barEl = document.createElement('div');
     barEl.className = 'mmp-bar';
     barEl.innerHTML = `
-      <div class="mmp-progress" role="slider" aria-label="Seek">
-        <div class="mmp-progress-fill"></div>
-        <div class="mmp-progress-thumb"></div>
+      <div class="mmp-expanded">
+        <div class="mmp-queue-header">
+          <span class="mmp-queue-label">Up next</span>
+          <div class="mmp-queue-actions">
+            <button class="mmp-setlist-btn mmp-setlist-save" aria-label="Save as setlist">Save</button>
+            <button class="mmp-setlist-btn mmp-setlist-share-toolbar" aria-label="Share setlist">Share</button>
+            <button class="mmp-setlist-btn mmp-setlist-load" aria-label="Load setlist">Load</button>
+            <button class="mmp-setlist-btn mmp-queue-clear" aria-label="Clear playlist">Clear</button>
+          </div>
+        </div>
+        <div class="mmp-queue-list"></div>
       </div>
       <div class="mmp-mini">
+        <div class="mmp-progress" role="slider" aria-label="Seek">
+          <div class="mmp-progress-fill"></div>
+          <div class="mmp-progress-thumb"></div>
+        </div>
         <div class="mmp-thumb">${ICONS.note}</div>
         <div class="mmp-title mmp-title-empty">Tap + on a song to start</div>
         <div class="mmp-time-display"><span class="mmp-time-cur">0:00</span> / <span class="mmp-time-dur">0:00</span></div>
@@ -1460,18 +1476,6 @@
           <button class="mmp-btn mmp-btn-fullscreen" aria-label="Full-screen queue" title="Full-screen queue">${ICONS.fullscreenOn}</button>
           <button class="mmp-btn mmp-btn-close" aria-label="Close player">${ICONS.close}</button>
         </div>
-      </div>
-      <div class="mmp-expanded">
-        <div class="mmp-queue-header">
-          <span class="mmp-queue-label">Up next</span>
-          <div class="mmp-queue-actions">
-            <button class="mmp-setlist-btn mmp-setlist-save" aria-label="Save as setlist">Save</button>
-            <button class="mmp-setlist-btn mmp-setlist-share-toolbar" aria-label="Share setlist">Share</button>
-            <button class="mmp-setlist-btn mmp-setlist-load" aria-label="Load setlist">Load</button>
-            <button class="mmp-setlist-btn mmp-queue-clear" aria-label="Clear playlist">Clear</button>
-          </div>
-        </div>
-        <div class="mmp-queue-list"></div>
       </div>
     `;
     document.body.appendChild(barEl);
