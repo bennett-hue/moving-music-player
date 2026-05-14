@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.7.2
+ * Moving Music Player v0.7.3
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -40,7 +40,7 @@
     contentApiKey: '4bb24d5f52e1f7397cb4fe24a5',
     apiBase: 'https://moving-music.ghost.io/ghost/api/content',
     storageKey: 'mmp-state-v1',
-    accentColor: '#9FC600',
+    accentColor: '#2A8C82',
     panelBg: '#f3f1ec',
     syncUrl: 'https://mmp-sync.bennett-727.workers.dev',
     sortableCdn: 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js',
@@ -192,7 +192,7 @@
       font-family: inherit;
       transition: background 0.15s, transform 0.1s;
     }
-    .mmp-add-all:hover { background: rgba(159, 198, 0, 0.1); }
+    .mmp-add-all:hover { background: rgba(42, 140, 130, 0.1); }
     .mmp-add-all:active { transform: scale(0.97); }
     .mmp-add-all svg { width: 14px; height: 14px; fill: currentColor; }
     .mmp-queue-item {
@@ -261,7 +261,7 @@
     body.mm-signed-in .mmp-card-play { color: ${CONFIG.accentColor}; }
     .mmp-card-play.is-added { color: ${CONFIG.accentColor}; }
     .mmp-card-play.is-locked { color: #999; }
-    .mmp-card-play:hover { background: rgba(159, 198, 0, 0.14); }
+    .mmp-card-play:hover { background: rgba(42, 140, 130, 0.14); }
     .mmp-card-play:active { transform: scale(0.92); }
     .mmp-card-play, body.mmp-active .feed-title .mmp-card-play { pointer-events: auto; }
     .mmp-card-play svg { width: 18px; height: 18px; fill: currentColor; vertical-align: middle; pointer-events: none; }
