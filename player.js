@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.9.0
+ * Moving Music Player v0.9.1
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -975,10 +975,16 @@
       btn.classList.toggle('is-current', isCurrent);
       const iconEl = btn.querySelector('.mmp-simple-audio-icon');
       if (iconEl) {
-        iconEl.innerHTML = (isCurrent && playing) ? ICONS.pause : ICONS.play;
+        const want = (isCurrent && playing) ? ICONS.pause : ICONS.play;
+        // Only write innerHTML if it changed — every SVG swap inside
+        // .gh-content otherwise wakes the MutationObserver, which
+        // schedules a rebuild, which calls us again. Feedback loop.
+        if (iconEl.innerHTML !== want) iconEl.innerHTML = want;
       }
-      btn.setAttribute('aria-label',
-        (isCurrent && playing) ? 'Pause' : 'Play');
+      const label = (isCurrent && playing) ? 'Pause' : 'Play';
+      if (btn.getAttribute('aria-label') !== label) {
+        btn.setAttribute('aria-label', label);
+      }
     });
   }
 
@@ -998,9 +1004,12 @@
     $$('.mmp-queue-item .mmp-queue-play', barEl).forEach(btn => {
       const idx = parseInt(btn.dataset.idx, 10);
       const isCurrent = idx === state.currentIdx;
-      btn.innerHTML = (isCurrent && playing) ? ICONS.pause : ICONS.play;
-      btn.setAttribute('aria-label',
-        (isCurrent && playing) ? 'Pause' : 'Play');
+      const want = (isCurrent && playing) ? ICONS.pause : ICONS.play;
+      if (btn.innerHTML !== want) btn.innerHTML = want;
+      const label = (isCurrent && playing) ? 'Pause' : 'Play';
+      if (btn.getAttribute('aria-label') !== label) {
+        btn.setAttribute('aria-label', label);
+      }
     });
   }
 
@@ -2204,8 +2213,21 @@
   function startObserver() {
     const target = document.querySelector('main, .gh-main, .gh-content') || document.body;
     const obs = new MutationObserver((mutations) => {
-      const meaningful = mutations.some(m => Array.from(m.addedNodes).concat(Array.from(m.removedNodes))
-        .some(n => n.nodeType === 1 && !n.classList?.contains('mmp-card-play')));
+      const meaningful = mutations.some(m => {
+        return Array.from(m.addedNodes).concat(Array.from(m.removedNodes))
+          .some(n => {
+            if (n.nodeType !== 1) return false;
+            // Ignore our own injected/updated markup so SVG icon
+            // swaps don't trigger a rebuild → refresh → swap loop.
+            if (n.classList && n.classList.contains('mmp-card-play')) return false;
+            if (n.classList && n.classList.contains('mmp-simple-audio-wrapper')) return false;
+            if (n.closest && n.closest('.mmp-simple-audio')) return false;
+            if (n.closest && n.closest('.mmp-card-play')) return false;
+            if (n.closest && n.closest('.mmp-simple-audio-wrapper')) return false;
+            if (n.closest && n.closest('.mmp-bar')) return false;
+            return true;
+          });
+      });
       if (!meaningful) return;
       clearTimeout(observeDebounce);
       observeDebounce = setTimeout(rebuildFromDom, 150);
