@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.4.22
+ * Moving Music Player v0.4.23
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -222,10 +222,10 @@
     body.mmp-active .feed-title a { pointer-events: auto; }
     .mmp-card-play {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 40px; height: 40px;
+      width: 26px; height: 26px;
       background: transparent;
       color: #111;
-      border: 0; padding: 8px;
+      border: 0; padding: 4px;
       margin: 0 6px 0 0;
       vertical-align: middle;
       cursor: pointer;
@@ -235,6 +235,7 @@
       pointer-events: auto;
       border-radius: 50%;
       transition: background 0.15s, transform 0.1s;
+      flex: 0 0 26px;
     }
     body.mm-signed-in .mmp-card-play { color: ${CONFIG.accentColor}; }
     .mmp-card-play.is-added { color: ${CONFIG.accentColor}; }
@@ -242,7 +243,11 @@
     .mmp-card-play:hover { background: rgba(159, 198, 0, 0.14); }
     .mmp-card-play:active { transform: scale(0.92); }
     .mmp-card-play, body.mmp-active .feed-title .mmp-card-play { pointer-events: auto; }
-    .mmp-card-play svg { width: 24px; height: 24px; fill: currentColor; vertical-align: middle; pointer-events: none; }
+    .mmp-card-play svg { width: 18px; height: 18px; fill: currentColor; vertical-align: middle; pointer-events: none; }
+    @media (max-width: 600px) {
+      .mmp-card-play { width: 34px; height: 34px; padding: 7px; flex: 0 0 34px; }
+      .mmp-card-play svg { width: 20px; height: 20px; }
+    }
     .mmp-queue-empty {
       padding: 18px 16px; color: #777; font-size: 13px; font-style: italic;
     }
