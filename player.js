@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.8.3
+ * Moving Music Player v0.8.4
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -671,6 +671,7 @@
           ytEnd: q.ytEnd || null,
         })),
         linkedSetlistId: state.linkedSetlistId || null,
+        expanded: !!state.expanded,
         savedAt: Date.now(),
       }));
     } catch (e) {}
@@ -2122,6 +2123,11 @@
     }
     if (saved && saved.linkedSetlistId) {
       state.linkedSetlistId = saved.linkedSetlistId;
+    }
+    if (saved && saved.expanded) {
+      state.expanded = true;
+      barEl.classList.add('is-open');
+      $('.mmp-btn-expand', barEl).innerHTML = ICONS.collapse;
     }
 
     renderQueue();
