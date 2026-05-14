@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.7.0
+ * Moving Music Player v0.7.1
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -351,7 +351,10 @@
       border-color: ${CONFIG.accentColor};
     }
     .mmp-bar.is-setlists-mode .mmp-setlist-save,
+    .mmp-bar.is-setlists-mode .mmp-setlist-share-toolbar,
     .mmp-bar.is-setlists-mode .mmp-queue-clear { display: none; }
+    .mmp-setlist-share-toolbar { display: none; }
+    .mmp-bar.is-linked-queue .mmp-setlist-share-toolbar { display: inline-block; }
     .mmp-queue-handle {
       flex: 0 0 22px;
       font-size: 16px; line-height: 1;
@@ -1301,6 +1304,7 @@
           <span class="mmp-queue-label">Up next</span>
           <div class="mmp-queue-actions">
             <button class="mmp-setlist-btn mmp-setlist-save" aria-label="Save as setlist">Save</button>
+            <button class="mmp-setlist-btn mmp-setlist-share-toolbar" aria-label="Share setlist">Share</button>
             <button class="mmp-setlist-btn mmp-setlist-load" aria-label="Load setlist">Load</button>
             <button class="mmp-setlist-btn mmp-queue-clear" aria-label="Clear playlist">Clear</button>
           </div>
@@ -1320,6 +1324,9 @@
     $('.mmp-btn-clear-mini', barEl).addEventListener('click', clearPlaylist);
     $('.mmp-setlist-save', barEl).addEventListener('click', saveCurrentAsSetlist);
     $('.mmp-setlist-load', barEl).addEventListener('click', toggleSetlistsMode);
+    $('.mmp-setlist-share-toolbar', barEl).addEventListener('click', () => {
+      if (state.linkedSetlistId) shareSetlist(state.linkedSetlistId);
+    });
     const progressEl = $('.mmp-progress', barEl);
     progressEl.addEventListener('pointerdown', onProgressPointerDown);
     progressEl.addEventListener('pointermove', onProgressPointerMove);
@@ -1427,6 +1434,11 @@
     }
     const saveBtn = $('.mmp-setlist-save', barEl);
     if (saveBtn) saveBtn.textContent = linked ? 'Save as new' : 'Save';
+    if (barEl) barEl.classList.toggle('is-linked-queue', !!linked);
+    const shareToolbarBtn = $('.mmp-setlist-share-toolbar', barEl);
+    if (shareToolbarBtn) {
+      shareToolbarBtn.textContent = linked && linked.shareId ? 'Sharing' : 'Share';
+    }
     if (state.queue.length === 0) {
       list.innerHTML = `<div class="mmp-queue-empty">Add songs with the + button on any track.</div>`;
       teardownQueueSortable();
