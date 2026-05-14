@@ -61,6 +61,8 @@
       display: flex; flex-direction: column;
     }
     .mmp-bar.is-visible { transform: translateY(0); }
+    .mmp-bar.is-fullscreen { top: 0; max-height: none; }
+    .mmp-bar.is-fullscreen .mmp-expanded { max-height: none; }
     .mmp-progress {
       position: absolute; top: 0; left: 0; right: 0;
       height: 3px; background: rgba(0,0,0,0.08);
@@ -196,8 +198,8 @@
     .mmp-add-all:active { transform: scale(0.97); }
     .mmp-add-all svg { width: 14px; height: 14px; fill: currentColor; }
     .mmp-queue-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 16px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 14px;
       cursor: pointer;
       transition: background 0.12s;
     }
@@ -274,7 +276,7 @@
     }
     .mmp-queue-remove {
       flex: 0 0 auto;
-      width: 28px; height: 28px;
+      width: 24px; height: 24px;
       background: transparent; border: 0; padding: 0;
       color: #999; cursor: pointer; border-radius: 50%;
       display: inline-flex; align-items: center; justify-content: center;
@@ -503,6 +505,8 @@
     check: '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>',
     remove: '<svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14z"/></svg>',
     share: '<svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>',
+    fullscreenOn: '<svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zM5 10h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>',
+    fullscreenOff: '<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>',
   };
 
   // ----- state -----
@@ -513,6 +517,7 @@
     cardsOnPage: [],
     currentIdx: -1,
     expanded: false,
+    fullscreen: false,
     // linkedSetlistId = the saved setlist the queue is currently editing.
     // null = ad-hoc queue (no link). When set, mutations to the queue
     // flow back to the saved setlist; if the setlist has a shareId, the
@@ -1296,6 +1301,7 @@
           <button class="mmp-btn mmp-btn-next" aria-label="Next">${ICONS.next}</button>
           <button class="mmp-btn mmp-btn-clear-mini" aria-label="Clear playlist" title="Clear playlist">${ICONS.trash}</button>
           <button class="mmp-btn mmp-btn-expand" aria-label="Show queue">${ICONS.expand}</button>
+          <button class="mmp-btn mmp-btn-fullscreen" aria-label="Full-screen queue" title="Full-screen queue">${ICONS.fullscreenOn}</button>
           <button class="mmp-btn mmp-btn-close" aria-label="Close player">${ICONS.close}</button>
         </div>
       </div>
@@ -1319,6 +1325,7 @@
     $('.mmp-btn-play', barEl).addEventListener('click', togglePlay);
     $('.mmp-btn-next', barEl).addEventListener('click', () => advance(+1));
     $('.mmp-btn-expand', barEl).addEventListener('click', toggleExpanded);
+    $('.mmp-btn-fullscreen', barEl).addEventListener('click', toggleFullscreen);
     $('.mmp-btn-close', barEl).addEventListener('click', closeBar);
     $('.mmp-queue-clear', barEl).addEventListener('click', clearPlaylist);
     $('.mmp-btn-clear-mini', barEl).addEventListener('click', clearPlaylist);
@@ -1383,6 +1390,26 @@
     state.expanded = !state.expanded;
     barEl.classList.toggle('is-open', state.expanded);
     $('.mmp-btn-expand', barEl).innerHTML = state.expanded ? ICONS.collapse : ICONS.expand;
+    // Exiting expanded also exits fullscreen.
+    if (!state.expanded && state.fullscreen) {
+      state.fullscreen = false;
+      barEl.classList.remove('is-fullscreen');
+      $('.mmp-btn-fullscreen', barEl).innerHTML = ICONS.fullscreenOn;
+    }
+  }
+
+  function toggleFullscreen() {
+    state.fullscreen = !state.fullscreen;
+    // Going fullscreen auto-opens the expanded panel if it isn't already.
+    if (state.fullscreen && !state.expanded) {
+      state.expanded = true;
+      barEl.classList.add('is-open');
+      $('.mmp-btn-expand', barEl).innerHTML = ICONS.collapse;
+    }
+    barEl.classList.toggle('is-fullscreen', state.fullscreen);
+    $('.mmp-btn-fullscreen', barEl).innerHTML = state.fullscreen
+      ? ICONS.fullscreenOff
+      : ICONS.fullscreenOn;
   }
 
   function renderTrack() {
