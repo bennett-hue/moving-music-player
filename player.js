@@ -172,6 +172,12 @@
       color: #333;
     }
     .mmp-title-empty { color: #999; font-style: italic; }
+    .mmp-title a.mmp-title-link {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .mmp-title a.mmp-title-link:hover { color: ${CONFIG.accentColor}; }
     .mmp-controls {
       display: flex; align-items: center; gap: 2px;
       flex: 0 0 auto;
@@ -1666,7 +1672,10 @@
         : 'Tap play to begin';
       titleEl.classList.add('mmp-title-empty');
     } else {
-      titleEl.textContent = t.title;
+      const href = t.slug ? '/' + encodeURIComponent(t.slug) + '/' : null;
+      titleEl.innerHTML = href
+        ? '<a class="mmp-title-link" href="' + href + '">' + escapeHtml(t.title) + '</a>'
+        : escapeHtml(t.title);
       titleEl.classList.remove('mmp-title-empty');
     }
     renderPlayPause();
