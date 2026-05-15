@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.9.3
+ * Moving Music Player v0.10.0
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -29,6 +29,12 @@
  * a debounced update to the Worker. Recipients always see the latest
  * version on next page load. Save button becomes "Save as new" while
  * editing a linked setlist, so forking is one click away.
+ *
+ * v0.10.0: starter setlists — six built-in, tag-driven setlists pinned to
+ * the top of Saved Setlists for every visitor. Virtual: songs are pulled
+ * live from the Content API for each tag and cached for 6h, so the lists
+ * auto-update as tag membership changes. Built-ins have no delete/share
+ * buttons; users who want to edit one tap it then Save as a copy.
  */
 (() => {
   'use strict';
@@ -45,6 +51,16 @@
     syncUrl: 'https://mmp-sync.bennett-727.workers.dev',
     sortableCdn: 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js',
     namedSetlistsKey: 'mm-named-setlists-v1',
+    starterCacheKey: 'mm-starter-setlists-v1',
+    starterCacheTtl: 6 * 60 * 60 * 1000,
+    starterSetlists: [
+      { id: '_starter_intro', name: 'Intro Songs', tag: 'easier' },
+      { id: '_starter_courage', name: 'Songs of Courage', tag: 'courage' },
+      { id: '_starter_woods', name: 'Forest & Wood', tag: 'woods' },
+      { id: '_starter_sea', name: 'Sea Songs & Shanties', tag: 'sea-shanties' },
+      { id: '_starter_field', name: 'In The Field, In The Dusk, In The Summer (2015)', tag: 'album-in-the-field' },
+      { id: '_starter_mm', name: 'Mountain Mover (2026)', tag: 'album-mountain-mover' },
+    ],
   };
 
   const CSS = `
@@ -1745,6 +1761,132 @@
     try { localStorage.setItem(CONFIG.namedSetlistsKey, JSON.stringify(obj)); } catch (e) {}
   }
 
+  // ----- starter (virtual) setlists -----
+  // Tag-driven setlists pinned to the top of Saved Setlists for every
+  // visitor. Songs are pulled live from the Content API and cached, so
+  // the lists auto-update as tag membership changes. Users can't delete
+  // or edit a starter — to customize, load one then Save as a new copy.
+  let starterSetlistsData = null;
+  let starterFetchInFlight = null;
+
+  function loadStarterCache() {
+    try {
+      const raw = localStorage.getItem(CONFIG.starterCacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.cachedAt) return null;
+      if (Date.now() - parsed.cachedAt > CONFIG.starterCacheTtl) return null;
+      return parsed.data || null;
+    } catch (e) { return null; }
+  }
+  function saveStarterCache(data) {
+    try {
+      localStorage.setItem(CONFIG.starterCacheKey, JSON.stringify({
+        cachedAt: Date.now(),
+        data,
+      }));
+    } catch (e) {}
+  }
+
+  function visibilityToFlags(v) {
+    if (v === 'paid' || v === 'tiers') return { isPaid: true, isMembers: false };
+    if (v === 'members') return { isPaid: false, isMembers: true };
+    return { isPaid: false, isMembers: false };
+  }
+
+  async function fetchStarterTagSongs(tagSlug) {
+    const url = `${CONFIG.apiBase}/posts/?key=${CONFIG.contentApiKey}` +
+      `&filter=${encodeURIComponent('tag:' + tagSlug)}` +
+      `&limit=all&fields=slug,title,visibility&order=${encodeURIComponent('title ASC')}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('http_' + r.status);
+    const data = await r.json();
+    return (data.posts || []).map(p => {
+      const v = visibilityToFlags(p.visibility);
+      return {
+        slug: p.slug,
+        title: p.title,
+        audioUrl: null,
+        youtubeId: null,
+        ytStart: 0,
+        ytEnd: null,
+        isPaid: v.isPaid,
+        isMembers: v.isMembers,
+      };
+    });
+  }
+
+  async function refreshStarterSetlists() {
+    if (starterFetchInFlight) return starterFetchInFlight;
+    starterFetchInFlight = (async () => {
+      try {
+        const results = await Promise.all(
+          CONFIG.starterSetlists.map(s =>
+            fetchStarterTagSongs(s.tag)
+              .then(songs => ({ id: s.id, name: s.name, tag: s.tag, songs }))
+              .catch(e => { console.warn('[mmp] starter fetch failed', s.tag, e); return null; })
+          )
+        );
+        const data = {};
+        results.forEach(r => { if (r) data[r.id] = r; });
+        starterSetlistsData = data;
+        saveStarterCache(data);
+        if (setlistsMode && barEl) renderQueue();
+      } finally {
+        starterFetchInFlight = null;
+      }
+    })();
+    return starterFetchInFlight;
+  }
+
+  function ensureStarterSetlists() {
+    if (!starterSetlistsData) {
+      const cached = loadStarterCache();
+      if (cached) starterSetlistsData = cached;
+    }
+    refreshStarterSetlists();
+  }
+
+  function loadStarterSetlist(id) {
+    const set = starterSetlistsData && starterSetlistsData[id];
+    if (!set || !Array.isArray(set.songs) || set.songs.length === 0) {
+      showToast('Setlist is still loading…');
+      refreshStarterSetlists();
+      return;
+    }
+    if (state.queue.length > 0) {
+      if (!window.confirm('Replace current queue with "' + set.name + '"?')) return;
+    }
+    const cardBySlug = new Map(state.cardsOnPage.map(c => [c.slug, c]));
+    state.queue = set.songs.map(s => {
+      const card = cardBySlug.get(s.slug);
+      const audioUrl = (card && card.audioUrl) || null;
+      return {
+        slug: s.slug,
+        title: s.title,
+        isPaid: !!s.isPaid,
+        isMembers: !!s.isMembers,
+        audioUrl,
+        youtubeId: null,
+        ytStart: 0,
+        ytEnd: null,
+        loaded: !!audioUrl,
+        cardEl: card ? card.cardEl : null,
+      };
+    });
+    state.currentIdx = -1;
+    state.linkedSetlistId = null;
+    persistStateNow();
+    schedulePush();
+    setSetlistsMode(false);
+    showBar();
+    renderQueue();
+    renderCardButtons();
+    renderTrack();
+    showToast('Loaded: ' + set.name);
+    if (state.queue.length > 0) playIdx(0);
+  }
+
   function saveCurrentAsSetlist() {
     if (state.queue.length === 0) {
       showToast('Nothing to save — queue is empty');
@@ -1840,13 +1982,31 @@
   function toggleSetlistsMode() { setSetlistsMode(!setlistsMode); }
 
   function renderSetlistsList(list) {
-    const all = loadNamedSetlists();
-    const arr = Object.values(all).sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
-    if (arr.length === 0) {
-      list.innerHTML = `<div class="mmp-queue-empty">No saved setlists yet. Build a queue, then tap Save.</div>`;
-      return;
-    }
-    list.innerHTML = arr.map(s => {
+    ensureStarterSetlists();
+    const starterArr = CONFIG.starterSetlists.map(s => {
+      const data = starterSetlistsData && starterSetlistsData[s.id];
+      return {
+        id: s.id, name: s.name,
+        songs: (data && data.songs) || [],
+        _starter: true,
+        _loading: !data,
+      };
+    });
+    const userAll = loadNamedSetlists();
+    const userArr = Object.values(userAll).sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
+    const all = [...starterArr, ...userArr];
+    list.innerHTML = all.map(s => {
+      if (s._starter) {
+        const meta = s._loading
+          ? 'loading…'
+          : (s.songs.length + ' ' + (s.songs.length === 1 ? 'song' : 'songs'));
+        return `
+        <div class="mmp-setlist-item is-starter" data-id="${escapeHtml(s.id)}">
+          <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
+          <div class="mmp-setlist-meta">${meta}</div>
+        </div>
+      `;
+      }
       const shareCls = s.shareId ? ' is-shared' : '';
       const shareLabel = s.shareId ? 'Open share link' : 'Share';
       return `
@@ -1860,6 +2020,11 @@
     }).join('');
     $$('.mmp-setlist-item', list).forEach(el => {
       el.addEventListener('click', (e) => {
+        const id = el.dataset.id;
+        if (id && id.indexOf('_starter_') === 0) {
+          loadStarterSetlist(id);
+          return;
+        }
         const shareBtn = e.target.closest('.mmp-setlist-share');
         if (shareBtn) {
           e.stopPropagation();
@@ -1872,7 +2037,7 @@
           deleteNamedSetlist(delBtn.dataset.id);
           return;
         }
-        loadNamedSetlist(el.dataset.id);
+        loadNamedSetlist(id);
       });
     });
   }
@@ -2357,6 +2522,8 @@
     startObserver();
 
     showBar();
+
+    setTimeout(() => ensureStarterSetlists(), 800);
 
     // If the user was actively playing when they navigated, resume that
     // exact track at the saved position (must be in the persisted playlist).
