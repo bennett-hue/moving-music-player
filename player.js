@@ -1849,6 +1849,45 @@
     refreshStarterSetlists();
   }
 
+  function starterShareId(starterId) {
+    // Stable, deterministic shareId per starter so the URL never changes.
+    return 'mmstart' + starterId.replace(/^_starter_/, '').replace(/[^a-z0-9]/gi, '');
+  }
+
+  async function shareStarterSetlist(id) {
+    const def = CONFIG.starterSetlists.find(s => s.id === id);
+    const set = starterSetlistsData && starterSetlistsData[id];
+    if (!def || !set || !Array.isArray(set.songs) || set.songs.length === 0) {
+      showToast('Setlist is still loading…');
+      refreshStarterSetlists();
+      return;
+    }
+    const shareId = starterShareId(id);
+    const payload = {
+      shareId,
+      name: def.name,
+      songs: set.songs,
+      owner_name: memberName || null,
+      shared_at: Date.now(),
+    };
+    showToast('Creating share link…');
+    let ok = false;
+    try {
+      const r = await fetch(`${CONFIG.syncUrl}/shared/${shareId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      ok = r.ok;
+    } catch (e) {}
+    if (!ok) {
+      showToast('Share failed — check connection');
+      return;
+    }
+    const url = `${location.origin}/?setlist=${shareId}`;
+    openShareModal({ name: def.name, songs: set.songs }, url);
+  }
+
   function loadStarterSetlist(id) {
     const set = starterSetlistsData && starterSetlistsData[id];
     if (!set || !Array.isArray(set.songs) || set.songs.length === 0) {
@@ -2006,6 +2045,7 @@
         <div class="mmp-setlist-item is-starter" data-id="${escapeHtml(s.id)}">
           <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
           <div class="mmp-setlist-meta">${meta}</div>
+          <button class="mmp-setlist-share" data-id="${escapeHtml(s.id)}" aria-label="Share" title="Share">${ICONS.share}</button>
         </div>
       `;
       }
@@ -2023,11 +2063,16 @@
     $$('.mmp-setlist-item', list).forEach(el => {
       el.addEventListener('click', (e) => {
         const id = el.dataset.id;
+        const shareBtn = e.target.closest('.mmp-setlist-share');
         if (id && id.indexOf('_starter_') === 0) {
+          if (shareBtn) {
+            e.stopPropagation();
+            shareStarterSetlist(id);
+            return;
+          }
           loadStarterSetlist(id);
           return;
         }
-        const shareBtn = e.target.closest('.mmp-setlist-share');
         if (shareBtn) {
           e.stopPropagation();
           shareSetlist(shareBtn.dataset.id);
