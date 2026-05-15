@@ -55,8 +55,11 @@
     starterCacheTtl: 6 * 60 * 60 * 1000,
     starterSetlists: [
       { id: '_starter_intro', name: 'Intro Songs', tag: 'free' },
+      { id: '_starter_peace', name: 'Songs of Peace', tag: 'peace' },
+      { id: '_starter_animals', name: 'Songs With Animals In Them', tag: 'animals' },
       { id: '_starter_courage', name: 'Songs of Courage', tag: 'courage' },
       { id: '_starter_sea', name: 'Sea Songs & Shanties', tag: 'sea-shanties' },
+      { id: '_starter_honk', name: 'More Honk, More Tonk', tag: 'honk-tonk' },
       { id: '_starter_field', name: 'In The Field, In The Dusk, In The Summer (2015)', tag: 'album-in-the-field' },
       { id: '_starter_mm', name: 'Mountain Mover (2026)', tag: 'album-mountain-mover' },
     ],
