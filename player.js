@@ -51,10 +51,19 @@
     syncUrl: 'https://mmp-sync.bennett-727.workers.dev',
     sortableCdn: 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js',
     namedSetlistsKey: 'mm-named-setlists-v1',
-    starterCacheKey: 'mm-starter-setlists-v1',
+    starterCacheKey: 'mm-starter-setlists-v2',
     starterCacheTtl: 6 * 60 * 60 * 1000,
     starterSetlists: [
-      { id: '_starter_intro', name: 'Intro Songs', tag: 'intro' },
+      { id: '_starter_intro', name: 'Intro Songs', songs: [
+        { slug: 'i-love-you-simply', title: 'I Love You Simply' },
+        { slug: 'one-more-day', title: 'One More Day' },
+        { slug: 'barnyard-polska', title: 'Barnyard Polska' },
+        { slug: 'embers-in-the-dark', title: 'Embers in the Dark' },
+        { slug: 'mountain-mover', title: 'Mountain Mover' },
+        { slug: 'huckleberry-hunting', title: 'Huckleberry Hunting' },
+        { slug: 'may-o', title: 'May-o' },
+        { slug: 'the-senses', title: 'The Senses' },
+      ] },
       { id: '_starter_peace', name: 'Songs of Peace', tag: 'peace' },
       { id: '_starter_animals', name: 'Songs With Animals In Them', tag: 'animals' },
       { id: '_starter_courage', name: 'Songs of Courage', tag: 'courage' },
@@ -1489,14 +1498,21 @@
       return;
     }
     const cards = (state.cardsOnPage || []).filter(c => c && !lockedFor(c));
-    if (cards.length >= 2) {
-      addAllToPlaylist();
-      return;
-    }
+    // Single post page → just play that song.
     if (cards.length === 1) {
       addToPlaylist(cards[0]);
       return;
     }
+    // Themed tag/page list with a manageable count → play the whole list
+    // in its on-page order. Cap protects the Index (~69 songs) from
+    // flooding the queue; above the cap we fall back to Intro Songs.
+    const MAX_AUTO = 30;
+    if (cards.length >= 2 && cards.length <= MAX_AUTO) {
+      addAllToPlaylist();
+      return;
+    }
+    // No cards (home/about/songbooks/etc) OR an oversized list (Index) →
+    // load Intro Songs in the curated order.
     loadStarterSetlist('_starter_intro');
   }
 
@@ -1899,11 +1915,23 @@
     starterFetchInFlight = (async () => {
       try {
         const results = await Promise.all(
-          CONFIG.starterSetlists.map(s =>
-            fetchStarterTagSongs(s.tag)
+          CONFIG.starterSetlists.map(s => {
+            // Hardcoded ordered list — skip the API and preserve order.
+            if (Array.isArray(s.songs)) {
+              return Promise.resolve({
+                id: s.id, name: s.name,
+                songs: s.songs.map(x => ({
+                  slug: x.slug, title: x.title,
+                  audioUrl: null, youtubeId: null,
+                  ytStart: 0, ytEnd: null,
+                  isPaid: !!x.isPaid, isMembers: !!x.isMembers,
+                })),
+              });
+            }
+            return fetchStarterTagSongs(s.tag)
               .then(songs => ({ id: s.id, name: s.name, tag: s.tag, songs }))
-              .catch(e => { console.warn('[mmp] starter fetch failed', s.tag, e); return null; })
-          )
+              .catch(e => { console.warn('[mmp] starter fetch failed', s.tag, e); return null; });
+          })
         );
         const data = {};
         results.forEach(r => { if (r) data[r.id] = r; });
