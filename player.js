@@ -54,7 +54,7 @@
     starterCacheKey: 'mm-starter-setlists-v1',
     starterCacheTtl: 6 * 60 * 60 * 1000,
     starterSetlists: [
-      { id: '_starter_intro', name: 'Intro Songs', tag: 'free' },
+      { id: '_starter_intro', name: 'Intro Songs', tag: 'intro' },
       { id: '_starter_peace', name: 'Songs of Peace', tag: 'peace' },
       { id: '_starter_animals', name: 'Songs With Animals In Them', tag: 'animals' },
       { id: '_starter_courage', name: 'Songs of Courage', tag: 'courage' },
@@ -178,6 +178,19 @@
       transition: color 0.15s;
     }
     .mmp-title a.mmp-title-link:hover { color: ${CONFIG.accentColor}; }
+    .mmp-title .mmp-title-idle {
+      background: transparent;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      text-align: left;
+      touch-action: manipulation;
+      width: 100%;
+    }
+    .mmp-title .mmp-title-idle:hover { color: ${CONFIG.accentColor}; }
     .mmp-controls {
       display: flex; align-items: center; gap: 2px;
       flex: 0 0 auto;
@@ -1464,7 +1477,34 @@
     playIdx(i);
   }
 
+  // Tap the idle bar (title text "Tap play to begin" / "Tap + on a song
+  // to start" or the play button with no queue) and the player figures
+  // out what you probably want based on the page you're on. Tag/list
+  // page → add all visible songs and play. Single post → load that one.
+  // Anywhere else (home/about) → load the Intro Songs starter setlist.
+  function handleIdleTap() {
+    if (state.queue.length > 0) {
+      const idx = state.queue.findIndex(t => !lockedFor(t));
+      if (idx >= 0) playIdx(idx);
+      return;
+    }
+    const cards = (state.cardsOnPage || []).filter(c => c && !lockedFor(c));
+    if (cards.length >= 2) {
+      addAllToPlaylist();
+      return;
+    }
+    if (cards.length === 1) {
+      addToPlaylist(cards[0]);
+      return;
+    }
+    loadStarterSetlist('_starter_intro');
+  }
+
   function togglePlay() {
+    if (state.queue.length === 0) {
+      handleIdleTap();
+      return;
+    }
     if (state.currentIdx < 0) {
       const idx = state.queue.findIndex(t => !lockedFor(t));
       if (idx >= 0) playIdx(idx);
@@ -1669,10 +1709,13 @@
     const t = state.queue[state.currentIdx];
     const titleEl = $('.mmp-title', barEl);
     if (!t) {
-      titleEl.textContent = state.queue.length === 0
-        ? 'Tap + on a song to start'
+      const msg = state.queue.length === 0
+        ? 'Tap to start playing'
         : 'Tap play to begin';
+      titleEl.innerHTML = '<button type="button" class="mmp-title-idle">' + escapeHtml(msg) + '</button>';
       titleEl.classList.add('mmp-title-empty');
+      const idleBtn = $('.mmp-title-idle', titleEl);
+      if (idleBtn) idleBtn.addEventListener('click', handleIdleTap);
     } else {
       const href = t.slug ? '/' + encodeURIComponent(t.slug) + '/' : null;
       titleEl.innerHTML = href
