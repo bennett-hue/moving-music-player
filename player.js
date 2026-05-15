@@ -1199,7 +1199,9 @@
       tagBtn.textContent = document.body.classList.contains('mm-tags-hidden')
         ? 'Show tags' : 'Hide tags';
     };
-    if (localStorage.getItem(TAGS_KEY) === '1') {
+    // Default to hidden on tag/page lists; user can opt in via the toggle
+    // and we remember their choice. Only an explicit '0' means show.
+    if (localStorage.getItem(TAGS_KEY) !== '0') {
       document.body.classList.add('mm-tags-hidden');
     }
     refresh();
