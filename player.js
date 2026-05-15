@@ -56,7 +56,6 @@
     starterSetlists: [
       { id: '_starter_intro', name: 'Intro Songs', tag: 'free' },
       { id: '_starter_courage', name: 'Songs of Courage', tag: 'courage' },
-      { id: '_starter_woods', name: 'Forest & Wood', tag: 'woods' },
       { id: '_starter_sea', name: 'Sea Songs & Shanties', tag: 'sea-shanties' },
       { id: '_starter_field', name: 'In The Field, In The Dusk, In The Summer (2015)', tag: 'album-in-the-field' },
       { id: '_starter_mm', name: 'Mountain Mover (2026)', tag: 'album-mountain-mover' },
