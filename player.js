@@ -54,7 +54,7 @@
     starterCacheKey: 'mm-starter-setlists-v1',
     starterCacheTtl: 6 * 60 * 60 * 1000,
     starterSetlists: [
-      { id: '_starter_intro', name: 'Intro Songs', tag: 'easier' },
+      { id: '_starter_intro', name: 'Intro Songs', tag: 'free' },
       { id: '_starter_courage', name: 'Songs of Courage', tag: 'courage' },
       { id: '_starter_woods', name: 'Forest & Wood', tag: 'woods' },
       { id: '_starter_sea', name: 'Sea Songs & Shanties', tag: 'sea-shanties' },
