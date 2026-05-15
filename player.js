@@ -1527,6 +1527,7 @@
             <button class="mmp-setlist-btn mmp-setlist-load" aria-label="Load setlist">Load</button>
             <button class="mmp-setlist-btn mmp-queue-clear" aria-label="Clear playlist">Clear</button>
             <button class="mmp-setlist-btn mmp-setlist-btn-icon mmp-btn-expand-top" aria-label="Collapse queue" title="Collapse queue">${ICONS.collapse}</button>
+            <button class="mmp-setlist-btn mmp-setlist-btn-icon mmp-btn-fullscreen-top" aria-label="Full-screen queue" title="Full-screen queue">${ICONS.fullscreenOn}</button>
           </div>
         </div>
         <div class="mmp-queue-list"></div>
@@ -1558,6 +1559,7 @@
     $('.mmp-btn-next', barEl).addEventListener('click', () => advance(+1));
     $('.mmp-btn-expand', barEl).addEventListener('click', toggleExpanded);
     $('.mmp-btn-expand-top', barEl).addEventListener('click', toggleExpanded);
+    $('.mmp-btn-fullscreen-top', barEl).addEventListener('click', toggleFullscreen);
     $('.mmp-btn-fullscreen', barEl).addEventListener('click', toggleFullscreen);
     $('.mmp-btn-close', barEl).addEventListener('click', closeBar);
     $('.mmp-queue-clear', barEl).addEventListener('click', clearPlaylist);
@@ -1648,9 +1650,11 @@
       syncExpandIcons();
     }
     barEl.classList.toggle('is-fullscreen', state.fullscreen);
-    $('.mmp-btn-fullscreen', barEl).innerHTML = state.fullscreen
-      ? ICONS.fullscreenOff
-      : ICONS.fullscreenOn;
+    const fsHtml = state.fullscreen ? ICONS.fullscreenOff : ICONS.fullscreenOn;
+    const fsBottom = $('.mmp-btn-fullscreen', barEl);
+    const fsTop = $('.mmp-btn-fullscreen-top', barEl);
+    if (fsBottom) fsBottom.innerHTML = fsHtml;
+    if (fsTop) fsTop.innerHTML = fsHtml;
   }
 
   function renderTrack() {
