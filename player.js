@@ -430,6 +430,14 @@
       color: ${CONFIG.accentColor};
       border-color: ${CONFIG.accentColor};
     }
+    .mmp-setlist-btn-icon {
+      padding: 3px 8px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .mmp-setlist-btn-icon svg {
+      width: 14px; height: 14px; fill: currentColor;
+      display: block;
+    }
     .mmp-bar.is-setlists-mode .mmp-setlist-save,
     .mmp-bar.is-setlists-mode .mmp-setlist-share-toolbar,
     .mmp-bar.is-setlists-mode .mmp-queue-clear { display: none; }
@@ -1518,6 +1526,7 @@
             <button class="mmp-setlist-btn mmp-setlist-share-toolbar" aria-label="Share setlist">Share</button>
             <button class="mmp-setlist-btn mmp-setlist-load" aria-label="Load setlist">Load</button>
             <button class="mmp-setlist-btn mmp-queue-clear" aria-label="Clear playlist">Clear</button>
+            <button class="mmp-setlist-btn mmp-setlist-btn-icon mmp-btn-expand-top" aria-label="Collapse queue" title="Collapse queue">${ICONS.collapse}</button>
           </div>
         </div>
         <div class="mmp-queue-list"></div>
@@ -1548,6 +1557,7 @@
     $('.mmp-btn-play', barEl).addEventListener('click', togglePlay);
     $('.mmp-btn-next', barEl).addEventListener('click', () => advance(+1));
     $('.mmp-btn-expand', barEl).addEventListener('click', toggleExpanded);
+    $('.mmp-btn-expand-top', barEl).addEventListener('click', toggleExpanded);
     $('.mmp-btn-fullscreen', barEl).addEventListener('click', toggleFullscreen);
     $('.mmp-btn-close', barEl).addEventListener('click', closeBar);
     $('.mmp-queue-clear', barEl).addEventListener('click', clearPlaylist);
@@ -1609,10 +1619,18 @@
     renderCardButtons();
   }
 
+  function syncExpandIcons() {
+    const html = state.expanded ? ICONS.collapse : ICONS.expand;
+    const bottom = $('.mmp-btn-expand', barEl);
+    const top = $('.mmp-btn-expand-top', barEl);
+    if (bottom) bottom.innerHTML = html;
+    if (top) top.innerHTML = html;
+  }
+
   function toggleExpanded() {
     state.expanded = !state.expanded;
     barEl.classList.toggle('is-open', state.expanded);
-    $('.mmp-btn-expand', barEl).innerHTML = state.expanded ? ICONS.collapse : ICONS.expand;
+    syncExpandIcons();
     // Exiting expanded also exits fullscreen.
     if (!state.expanded && state.fullscreen) {
       state.fullscreen = false;
@@ -1627,7 +1645,7 @@
     if (state.fullscreen && !state.expanded) {
       state.expanded = true;
       barEl.classList.add('is-open');
-      $('.mmp-btn-expand', barEl).innerHTML = ICONS.collapse;
+      syncExpandIcons();
     }
     barEl.classList.toggle('is-fullscreen', state.fullscreen);
     $('.mmp-btn-fullscreen', barEl).innerHTML = state.fullscreen
@@ -2560,7 +2578,7 @@
     if (saved && saved.expanded) {
       state.expanded = true;
       barEl.classList.add('is-open');
-      $('.mmp-btn-expand', barEl).innerHTML = ICONS.collapse;
+      syncExpandIcons();
     }
 
     renderQueue();
