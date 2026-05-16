@@ -645,6 +645,10 @@
     // flow back to the saved setlist; if the setlist has a shareId, the
     // change also pushes to the Worker so recipients see live updates.
     linkedSetlistId: null,
+    // Display-only label for the queue header. Set when loading a named
+    // saved playlist (linked or starter); cleared on any manual mutation
+    // so an edited copy reads as "Custom playlist".
+    queueLabel: null,
   };
   let audio = null;
   let barEl = null;
@@ -783,6 +787,7 @@
           ytEnd: q.ytEnd || null,
         })),
         linkedSetlistId: state.linkedSetlistId || null,
+        queueLabel: state.queueLabel || null,
         expanded: !!state.expanded,
         savedAt: Date.now(),
       }));
@@ -1133,6 +1138,7 @@
   function addToPlaylist(card) {
     const wasEmpty = state.queue.length === 0;
     if (!pushCardToQueue(card)) return;
+    if (state.queueLabel) state.queueLabel = null;
     persistStateNow();
     schedulePush();
     syncLinkedSetlist();
@@ -1157,6 +1163,7 @@
       showToast('All songs already in playlist');
       return;
     }
+    if (state.queueLabel) state.queueLabel = null;
     persistStateNow();
     schedulePush();
     syncLinkedSetlist();
@@ -1177,6 +1184,7 @@
     state.queue = [];
     state.currentIdx = -1;
     state.linkedSetlistId = null;
+    state.queueLabel = null;
     setProgressPct(0);
     const titleEl = $('.mmp-title', barEl);
     if (titleEl) {
@@ -1286,6 +1294,7 @@
     if (idx < 0) return;
     const wasCurrent = state.currentIdx === idx;
     state.queue.splice(idx, 1);
+    if (state.queueLabel) state.queueLabel = null;
     if (wasCurrent) {
       if (audio) audio.pause();
       state.currentIdx = state.queue.length > 0 ? Math.min(idx, state.queue.length - 1) : -1;
@@ -1776,7 +1785,12 @@
       ? (loadNamedSetlists()[state.linkedSetlistId] || null)
       : null;
     if (label) {
-      label.textContent = linked ? linked.name : 'Up next';
+      let displayName;
+      if (linked) displayName = linked.name;
+      else if (state.queueLabel) displayName = state.queueLabel;
+      else if (state.queue.length > 0) displayName = 'Custom playlist';
+      else displayName = 'Up next';
+      label.textContent = displayName;
     }
     const saveBtn = $('.mmp-setlist-save', barEl);
     if (saveBtn) saveBtn.textContent = linked ? 'Save as new' : 'Save';
@@ -2044,6 +2058,7 @@
     });
     state.currentIdx = -1;
     state.linkedSetlistId = null;
+    state.queueLabel = set.name;
     persistStateNow();
     schedulePush();
     setSetlistsMode(false);
@@ -2482,6 +2497,7 @@
     state.currentIdx = currentSlug
       ? state.queue.findIndex(t => t.slug === currentSlug)
       : -1;
+    if (state.queueLabel) state.queueLabel = null;
     persistStateNow();
     schedulePush();
     syncLinkedSetlist();
@@ -2690,6 +2706,9 @@
     }
     if (saved && saved.linkedSetlistId) {
       state.linkedSetlistId = saved.linkedSetlistId;
+    }
+    if (saved && saved.queueLabel) {
+      state.queueLabel = saved.queueLabel;
     }
     if (saved && saved.expanded) {
       state.expanded = true;
