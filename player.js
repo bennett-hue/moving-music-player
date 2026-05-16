@@ -2146,7 +2146,7 @@
     const loadBtn = barEl && $('.mmp-setlist-load', barEl);
     if (loadBtn) loadBtn.textContent = setlistsMode ? 'Done' : 'Load';
     const label = barEl && $('.mmp-queue-label', barEl);
-    if (label) label.textContent = setlistsMode ? 'Saved setlists' : 'Up next';
+    if (label) label.textContent = setlistsMode ? 'Saved playlists' : 'Up next';
     renderQueue();
   }
 
