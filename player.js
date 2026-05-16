@@ -2836,13 +2836,31 @@
 
     setTimeout(() => ensureStarterSetlists(), 800);
 
+    let wasPlayingBeforeNav = false;
     window.addEventListener('pagehide', () => {
+      wasPlayingBeforeNav = !!(audio && !audio.paused) || isYtPlaying();
       persistStateNow();
       if (pushTimer && memberUuid) pushPlaylistNow();
     });
     window.addEventListener('beforeunload', () => {
       persistStateNow();
       if (pushTimer && memberUuid) pushPlaylistNow();
+    });
+    // Back/Forward → browser restores from bfcache. The audio element is
+    // preserved but the browser pauses it on freeze. Resume if (and only
+    // if) we were actively playing at pagehide.
+    window.addEventListener('pageshow', (e) => {
+      if (!e.persisted) return;
+      if (!wasPlayingBeforeNav) return;
+      if (state.currentIdx < 0) return;
+      const t = state.queue[state.currentIdx];
+      if (!t) return;
+      if (t.audioUrl && audio && audio.paused) {
+        audio.play().catch(() => {});
+      } else if (t.youtubeId && ytPlayer && ytReady && !isYtPlaying()) {
+        try { ytPlayer.playVideo(); } catch (err) {}
+      }
+      wasPlayingBeforeNav = false;
     });
 
     // Fire-and-forget remote sync. Local state renders first so signed-out
