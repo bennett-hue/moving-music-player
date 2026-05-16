@@ -490,22 +490,18 @@
       border-bottom: 1px solid rgba(0,0,0,0.04);
     }
     .mmp-setlist-item:hover { background: rgba(0,0,0,0.04); }
-    .mmp-setlist-text {
+    .mmp-setlist-name {
       flex: 1; min-width: 0;
+      font-weight: 600; color: #222;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .mmp-setlist-name {
-      font-weight: 600; color: #222;
-    }
-    .mmp-setlist-author {
-      font-size: 11px;
-      color: #888;
-      font-weight: 400;
-      margin-left: 8px;
-    }
     .mmp-setlist-meta {
-      flex: 0 0 auto;
-      font-size: 12px; color: #888;
+      flex: 0 1 auto;
+      max-width: 55%;
+      font-size: 12px;
+      color: #888;
+      text-align: right;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .mmp-setlist-del {
       flex: 0 0 auto;
@@ -1867,19 +1863,24 @@
     refreshQueuePlayIcons();
   }
 
-  function formatSetlistAuthor(set) {
+  function formatAuthorNames(set) {
     if (!set) return '';
     const owner = set.owner_name || '';
     const others = Array.isArray(set.collaborators)
       ? set.collaborators.filter(Boolean) : [];
     if (!owner && others.length === 0) return '';
-    if (others.length === 0) return owner ? 'a playlist made by ' + owner : '';
-    const head = owner || others[0];
-    const tail = owner ? others : others.slice(1);
-    if (tail.length === 0) return 'a playlist made by ' + head;
-    if (tail.length === 1) return 'a playlist made by ' + head + ' with ' + tail[0];
-    const last = tail[tail.length - 1];
-    return 'a playlist made by ' + head + ' with ' + tail.slice(0, -1).join(', ') + ', and ' + last;
+    const names = owner ? [owner, ...others] : others;
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return names[0] + ' & ' + names[1];
+    return names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
+  }
+
+  function formatSetlistMeta(set) {
+    const count = (set && set.songs && set.songs.length) || 0;
+    const songsWord = count === 1 ? 'song' : 'songs';
+    const names = formatAuthorNames(set);
+    if (!names) return count + ' ' + songsWord;
+    return 'a playlist made by ' + names + ' with ' + count + ' ' + songsWord;
   }
 
   function escapeHtml(s) {
@@ -2193,19 +2194,12 @@
     const userArr = Object.values(userAll).sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
     const all = [...starterArr, ...userArr];
     list.innerHTML = all.map(s => {
-      const authorLine = formatSetlistAuthor(s);
-      const authorHtml = authorLine
-        ? `<span class="mmp-setlist-author">${escapeHtml(authorLine)}</span>` : '';
       if (s._starter) {
-        const meta = s._loading
-          ? 'loading…'
-          : (s.songs.length + ' ' + (s.songs.length === 1 ? 'song' : 'songs'));
+        const meta = s._loading ? 'loading…' : formatSetlistMeta(s);
         return `
         <div class="mmp-setlist-item is-starter" data-id="${escapeHtml(s.id)}">
-          <div class="mmp-setlist-text">
-            <span class="mmp-setlist-name">${escapeHtml(s.name)}</span>${authorHtml}
-          </div>
-          <div class="mmp-setlist-meta">${meta}</div>
+          <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
+          <div class="mmp-setlist-meta">${escapeHtml(meta)}</div>
           <button class="mmp-setlist-share" data-id="${escapeHtml(s.id)}" aria-label="Share" title="Share">${ICONS.share}</button>
         </div>
       `;
@@ -2214,10 +2208,8 @@
       const shareLabel = s.shareId ? 'Open share link' : 'Share';
       return `
       <div class="mmp-setlist-item" data-id="${escapeHtml(s.id)}">
-        <div class="mmp-setlist-text">
-          <span class="mmp-setlist-name">${escapeHtml(s.name)}</span>${authorHtml}
-        </div>
-        <div class="mmp-setlist-meta">${s.songs.length} ${s.songs.length === 1 ? 'song' : 'songs'}</div>
+        <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
+        <div class="mmp-setlist-meta">${escapeHtml(formatSetlistMeta(s))}</div>
         <button class="mmp-setlist-share${shareCls}" data-id="${escapeHtml(s.id)}" aria-label="${shareLabel}" title="${shareLabel}">${ICONS.share}</button>
         <button class="mmp-setlist-del" data-id="${escapeHtml(s.id)}" aria-label="Delete">${ICONS.close}</button>
       </div>
