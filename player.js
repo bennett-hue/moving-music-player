@@ -1603,10 +1603,10 @@
         <div class="mmp-queue-header">
           <span class="mmp-queue-label">Up next</span>
           <div class="mmp-queue-actions">
-            <button class="mmp-setlist-btn mmp-setlist-save" aria-label="Save as setlist">Save</button>
-            <button class="mmp-setlist-btn mmp-setlist-share-toolbar" aria-label="Share setlist">Share</button>
-            <button class="mmp-setlist-btn mmp-setlist-load" aria-label="Load setlist">Load</button>
-            <button class="mmp-setlist-btn mmp-queue-clear" aria-label="Clear playlist">Clear</button>
+            <button class="mmp-setlist-btn mmp-setlist-save" aria-label="Save this playlist" title="Save this playlist">Save</button>
+            <button class="mmp-setlist-btn mmp-setlist-share-toolbar" aria-label="Share this playlist" title="Share this playlist">Share</button>
+            <button class="mmp-setlist-btn mmp-setlist-load" aria-label="Load a saved playlist" title="Load a saved playlist">Load</button>
+            <button class="mmp-setlist-btn mmp-queue-clear" aria-label="Clear the playlist" title="Clear the playlist">Clear</button>
             <button class="mmp-setlist-btn mmp-setlist-btn-icon mmp-btn-expand-top" aria-label="Collapse queue" title="Collapse queue">${ICONS.collapse}</button>
             <button class="mmp-setlist-btn mmp-setlist-btn-icon mmp-btn-fullscreen-top" aria-label="Full-screen queue" title="Full-screen queue">${ICONS.fullscreenOn}</button>
           </div>
@@ -1793,7 +1793,12 @@
       label.textContent = displayName;
     }
     const saveBtn = $('.mmp-setlist-save', barEl);
-    if (saveBtn) saveBtn.textContent = linked ? 'Save as new' : 'Save';
+    if (saveBtn) {
+      saveBtn.textContent = linked ? 'Save as new' : 'Save';
+      const saveTip = linked ? 'Save as a new playlist (the original keeps auto-saving)' : 'Save this playlist';
+      saveBtn.setAttribute('title', saveTip);
+      saveBtn.setAttribute('aria-label', saveTip);
+    }
     if (barEl) barEl.classList.toggle('is-linked-queue', !!linked);
     const shareToolbarBtn = $('.mmp-setlist-share-toolbar', barEl);
     if (shareToolbarBtn) {
@@ -2159,7 +2164,12 @@
     teardownQueueSortable();
     if (barEl) barEl.classList.toggle('is-setlists-mode', setlistsMode);
     const loadBtn = barEl && $('.mmp-setlist-load', barEl);
-    if (loadBtn) loadBtn.textContent = setlistsMode ? 'Done' : 'Load';
+    if (loadBtn) {
+      loadBtn.textContent = setlistsMode ? 'Done' : 'Load';
+      const loadTip = setlistsMode ? 'Back to the queue' : 'Load a saved playlist';
+      loadBtn.setAttribute('title', loadTip);
+      loadBtn.setAttribute('aria-label', loadTip);
+    }
     const label = barEl && $('.mmp-queue-label', barEl);
     if (label) label.textContent = setlistsMode ? 'Saved playlists' : 'Up next';
     renderQueue();
