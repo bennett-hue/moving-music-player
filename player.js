@@ -490,6 +490,32 @@
       border-bottom: 1px solid rgba(0,0,0,0.04);
     }
     .mmp-setlist-item:hover { background: rgba(0,0,0,0.04); }
+    .mmp-setlist-section {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #999;
+      background: transparent;
+      border: 0;
+      width: 100%;
+      text-align: left;
+    }
+    button.mmp-setlist-section { cursor: pointer; }
+    button.mmp-setlist-section:hover { color: #444; }
+    .mmp-setlist-section-caret {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 14px; height: 14px;
+      transition: transform 0.15s ease;
+    }
+    .mmp-setlist-section-caret svg {
+      width: 12px; height: 12px; fill: currentColor;
+    }
+    .mmp-setlist-section.is-collapsed .mmp-setlist-section-caret {
+      transform: rotate(180deg);
+    }
     .mmp-setlist-name {
       flex: 1; min-width: 0;
       font-weight: 600; color: #222;
@@ -2192,33 +2218,21 @@
     });
     const userAll = loadNamedSetlists();
     const userArr = Object.values(userAll).sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
-    const all = [...starterArr, ...userArr];
-    list.innerHTML = all.map(s => {
-      if (s._starter) {
-        const meta = s._loading
-          ? 'loading…'
-          : (s.songs.length + ' ' + (s.songs.length === 1 ? 'song' : 'songs'));
-        const tip = formatSetlistMeta(s);
-        return `
-        <div class="mmp-setlist-item is-starter" data-id="${escapeHtml(s.id)}" title="${escapeHtml(tip)}">
-          <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
-          <div class="mmp-setlist-meta">${escapeHtml(meta)}</div>
-          <button class="mmp-setlist-share" data-id="${escapeHtml(s.id)}" aria-label="Share" title="Share">${ICONS.share}</button>
-        </div>
-      `;
-      }
-      const shareCls = s.shareId ? ' is-shared' : '';
-      const shareLabel = s.shareId ? 'Open share link' : 'Share';
-      const tip = formatSetlistMeta(s);
-      return `
-      <div class="mmp-setlist-item" data-id="${escapeHtml(s.id)}" title="${escapeHtml(tip)}">
-        <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
-        <div class="mmp-setlist-meta">${s.songs.length} ${s.songs.length === 1 ? 'song' : 'songs'}</div>
-        <button class="mmp-setlist-share${shareCls}" data-id="${escapeHtml(s.id)}" aria-label="${shareLabel}" title="${shareLabel}">${ICONS.share}</button>
-        <button class="mmp-setlist-del" data-id="${escapeHtml(s.id)}" aria-label="Delete">${ICONS.close}</button>
-      </div>
+
+    const picksHidden = localStorage.getItem('mm-picks-hidden') === '1';
+    const picksHeader = `
+      <button class="mmp-setlist-section mmp-picks-toggle${picksHidden ? ' is-collapsed' : ''}" type="button" aria-expanded="${picksHidden ? 'false' : 'true'}" title="${picksHidden ? "Show Bennett's Picks" : "Hide Bennett's Picks"}">
+        <span class="mmp-setlist-section-title">Bennett's Picks</span>
+        <span class="mmp-setlist-section-caret">${ICONS.collapse}</span>
+      </button>
     `;
-    }).join('');
+    const myListsHeader = userArr.length > 0
+      ? `<div class="mmp-setlist-section"><span class="mmp-setlist-section-title">My lists</span></div>`
+      : '';
+    const starterRows = picksHidden ? '' : starterArr.map(s => renderSetlistRow(s)).join('');
+    const userRows = userArr.map(s => renderSetlistRow(s)).join('');
+    list.innerHTML = picksHeader + starterRows + myListsHeader + userRows;
+
     $$('.mmp-setlist-item', list).forEach(el => {
       el.addEventListener('click', (e) => {
         const id = el.dataset.id;
@@ -2246,6 +2260,42 @@
         loadNamedSetlist(id);
       });
     });
+
+    const picksToggle = $('.mmp-picks-toggle', list);
+    if (picksToggle) {
+      picksToggle.addEventListener('click', () => {
+        const nowHidden = !(localStorage.getItem('mm-picks-hidden') === '1');
+        localStorage.setItem('mm-picks-hidden', nowHidden ? '1' : '0');
+        renderSetlistsList(list);
+      });
+    }
+  }
+
+  function renderSetlistRow(s) {
+    if (s._starter) {
+      const meta = s._loading
+        ? 'loading…'
+        : (s.songs.length + ' ' + (s.songs.length === 1 ? 'song' : 'songs'));
+      const tip = formatSetlistMeta(s);
+      return `
+      <div class="mmp-setlist-item is-starter" data-id="${escapeHtml(s.id)}" title="${escapeHtml(tip)}">
+        <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
+        <div class="mmp-setlist-meta">${escapeHtml(meta)}</div>
+        <button class="mmp-setlist-share" data-id="${escapeHtml(s.id)}" aria-label="Share" title="Share">${ICONS.share}</button>
+      </div>
+    `;
+    }
+    const shareCls = s.shareId ? ' is-shared' : '';
+    const shareLabel = s.shareId ? 'Open share link' : 'Share';
+    const tip = formatSetlistMeta(s);
+    return `
+    <div class="mmp-setlist-item" data-id="${escapeHtml(s.id)}" title="${escapeHtml(tip)}">
+      <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
+      <div class="mmp-setlist-meta">${s.songs.length} ${s.songs.length === 1 ? 'song' : 'songs'}</div>
+      <button class="mmp-setlist-share${shareCls}" data-id="${escapeHtml(s.id)}" aria-label="${shareLabel}" title="${shareLabel}">${ICONS.share}</button>
+      <button class="mmp-setlist-del" data-id="${escapeHtml(s.id)}" aria-label="Delete">${ICONS.close}</button>
+    </div>
+  `;
   }
 
   // ----- share / import shared setlists -----
