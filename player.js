@@ -741,7 +741,7 @@
   // ----- state persistence (cross-page) -----
   function saveState() {
     const now = Date.now();
-    if (now - lastSaveAt < 2000) return;
+    if (now - lastSaveAt < 700) return;
     lastSaveAt = now;
     persistStateNow();
   }
@@ -2628,33 +2628,27 @@
     initAudio();
     createBar();
 
-    // The user's playlist is the persisted source of truth — load it,
-    // then scan the current page just to render the per-card +/✓ icons.
+    // The user's playlist is the persisted source of truth. Build the
+    // queue from localStorage FIRST so audio can resume before we scan
+    // the new page's DOM — DOM work was adding ~hundreds of ms of gap
+    // (sometimes >10s on slow pages) between navigation and resume.
     const saved = loadSavedTrack();
-    state.cardsOnPage = scanCards();
-    simplifyAudioCards();
-    const cardBySlug = new Map(state.cardsOnPage.map(c => [c.slug, c]));
 
     if (saved && Array.isArray(saved.queue)) {
       state.queue = saved.queue.map(sq => {
-        const card = cardBySlug.get(sq.slug);
-        const audioUrl = (card && card.audioUrl) || sq.audioUrl || null;
         const youtubeId = sq.youtubeId || null;
-        // YT tracks from pre-v0.3.4 don't have ytStart/ytEnd, so refetch on
-        // first play to get the timestamp. HTML5 audio URLs are complete on
-        // their own.
         const hasYtTimestamp = youtubeId && (sq.ytStart != null);
         return {
           slug: sq.slug,
           title: sq.title,
           isPaid: !!sq.isPaid,
           isMembers: !!sq.isMembers,
-          audioUrl,
+          audioUrl: sq.audioUrl || null,
           youtubeId,
           ytStart: sq.ytStart || 0,
           ytEnd: sq.ytEnd || null,
-          loaded: !!audioUrl || hasYtTimestamp,
-          cardEl: card ? card.cardEl : null,
+          loaded: !!sq.audioUrl || hasYtTimestamp,
+          cardEl: null,
         };
       });
     }
@@ -2667,19 +2661,12 @@
       syncExpandIcons();
     }
 
-    renderQueue();
-    renderCardButtons();
-    ensureAddAllButton();
-    startObserver();
-
-    showBar();
-
-    setTimeout(() => ensureStarterSetlists(), 800);
-
-    // If the user was actively playing when they navigated, resume that
-    // exact track at the saved position (must be in the persisted playlist).
+    // RESUME PLAYBACK IMMEDIATELY (before scanning the new page) if the
+    // user was actively playing when they navigated. Window bumped from
+    // 10s → 60s; slow networks were exceeding 10s.
     const age = saved ? Date.now() - (saved.savedAt || 0) : Infinity;
-    if (saved && saved.slug && saved.isPlaying && age < 10 * 1000) {
+    let resumed = false;
+    if (saved && saved.slug && saved.isPlaying && age < 60 * 1000) {
       const idx = state.queue.findIndex(t => t.slug === saved.slug);
       if (idx >= 0) {
         state.currentIdx = idx;
@@ -2690,26 +2677,47 @@
           try {
             audio.src = saved.audioUrl;
             audio.currentTime = saved.position || 0;
+            audio.play().catch(() => {});
           } catch (e) {}
-          renderTrack(); renderQueue(); renderCardButtons();
-          audio.play().catch(() => {});
+          resumed = true;
         } else if (saved.youtubeId) {
           t.youtubeId = saved.youtubeId;
           t.loaded = true;
-          renderTrack(); renderQueue(); renderCardButtons();
           ensureYtPlayer().then(() => {
             try {
               ytPlayer.loadVideoById({ videoId: saved.youtubeId, startSeconds: saved.position || 0 });
               ytPlayer.playVideo();
             } catch (e) {}
           });
-        } else {
-          renderTrack(); renderQueue(); renderCardButtons();
+          resumed = true;
         }
       }
-    } else {
-      renderTrack();
     }
+
+    // Now scan the page (for + buttons, card → queue cross-references).
+    state.cardsOnPage = scanCards();
+    simplifyAudioCards();
+    const cardBySlug = new Map(state.cardsOnPage.map(c => [c.slug, c]));
+    state.queue.forEach(q => {
+      const card = cardBySlug.get(q.slug);
+      if (card) {
+        q.cardEl = card.cardEl;
+        if (!q.audioUrl && card.audioUrl) {
+          q.audioUrl = card.audioUrl;
+          q.loaded = true;
+        }
+      }
+    });
+
+    renderQueue();
+    renderCardButtons();
+    renderTrack();
+    ensureAddAllButton();
+    startObserver();
+
+    showBar();
+
+    setTimeout(() => ensureStarterSetlists(), 800);
 
     window.addEventListener('pagehide', () => {
       persistStateNow();
