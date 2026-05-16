@@ -1536,6 +1536,13 @@
       if (idx >= 0) playIdx(idx);
       return;
     }
+    // Home page: ignore the hidden post-feed (CSS-hidden but still in DOM
+    // — scanCards would otherwise see ~10-15 articles and auto-add the
+    // most-recent home feed). Always start with Intro Songs here.
+    if (document.body.classList.contains('home-template')) {
+      loadStarterSetlist('_starter_intro');
+      return;
+    }
     const cards = (state.cardsOnPage || []).filter(c => c && !lockedFor(c));
     // Single post page → just play that song.
     if (cards.length === 1) {
@@ -1550,8 +1557,7 @@
       addAllToPlaylist();
       return;
     }
-    // No cards (home/about/songbooks/etc) OR an oversized list (Index) →
-    // load Intro Songs in the curated order.
+    // No cards OR oversized list (Index) → load Intro Songs.
     loadStarterSetlist('_starter_intro');
   }
 
