@@ -490,9 +490,18 @@
       border-bottom: 1px solid rgba(0,0,0,0.04);
     }
     .mmp-setlist-item:hover { background: rgba(0,0,0,0.04); }
-    .mmp-setlist-name {
+    .mmp-setlist-text {
       flex: 1; min-width: 0;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .mmp-setlist-name {
       font-weight: 600; color: #222;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .mmp-setlist-author {
+      font-size: 11px;
+      color: #888;
+      font-weight: 400;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .mmp-setlist-meta {
@@ -1840,6 +1849,21 @@
     refreshQueuePlayIcons();
   }
 
+  function formatSetlistAuthor(set) {
+    if (!set) return '';
+    const owner = set.owner_name || '';
+    const others = Array.isArray(set.collaborators)
+      ? set.collaborators.filter(Boolean) : [];
+    if (!owner && others.length === 0) return '';
+    if (others.length === 0) return owner ? 'Made by ' + owner : '';
+    const head = owner || others[0];
+    const tail = owner ? others : others.slice(1);
+    if (tail.length === 0) return 'Made by ' + head;
+    if (tail.length === 1) return 'Made by ' + head + ' with ' + tail[0];
+    const last = tail[tail.length - 1];
+    return 'Made by ' + head + ' with ' + tail.slice(0, -1).join(', ') + ', and ' + last;
+  }
+
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -2056,6 +2080,9 @@
         ytStart: t.ytStart || 0,
         ytEnd: t.ytEnd || null,
       })),
+      owner_name: memberName || null,
+      // collaborators[] reserved for future collaborative setlists.
+      collaborators: [],
       created_at: Date.now(),
       updated_at: Date.now(),
     };
@@ -2133,6 +2160,7 @@
       return {
         id: s.id, name: s.name,
         songs: (data && data.songs) || [],
+        owner_name: 'Bennett',
         _starter: true,
         _loading: !data,
       };
@@ -2141,13 +2169,19 @@
     const userArr = Object.values(userAll).sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0));
     const all = [...starterArr, ...userArr];
     list.innerHTML = all.map(s => {
+      const authorLine = formatSetlistAuthor(s);
+      const authorHtml = authorLine
+        ? `<div class="mmp-setlist-author">${escapeHtml(authorLine)}</div>` : '';
       if (s._starter) {
         const meta = s._loading
           ? 'loading…'
           : (s.songs.length + ' ' + (s.songs.length === 1 ? 'song' : 'songs'));
         return `
         <div class="mmp-setlist-item is-starter" data-id="${escapeHtml(s.id)}">
-          <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
+          <div class="mmp-setlist-text">
+            <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
+            ${authorHtml}
+          </div>
           <div class="mmp-setlist-meta">${meta}</div>
           <button class="mmp-setlist-share" data-id="${escapeHtml(s.id)}" aria-label="Share" title="Share">${ICONS.share}</button>
         </div>
@@ -2157,7 +2191,10 @@
       const shareLabel = s.shareId ? 'Open share link' : 'Share';
       return `
       <div class="mmp-setlist-item" data-id="${escapeHtml(s.id)}">
-        <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
+        <div class="mmp-setlist-text">
+          <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
+          ${authorHtml}
+        </div>
         <div class="mmp-setlist-meta">${s.songs.length} ${s.songs.length === 1 ? 'song' : 'songs'}</div>
         <button class="mmp-setlist-share${shareCls}" data-id="${escapeHtml(s.id)}" aria-label="${shareLabel}" title="${shareLabel}">${ICONS.share}</button>
         <button class="mmp-setlist-del" data-id="${escapeHtml(s.id)}" aria-label="Delete">${ICONS.close}</button>
@@ -2361,6 +2398,8 @@
       id,
       name: (data.name || 'Shared setlist') + owner,
       songs: data.songs,
+      owner_name: data.owner_name || null,
+      collaborators: [],
       created_at: Date.now(),
       updated_at: Date.now(),
       from_shareId: data.shareId || null,
