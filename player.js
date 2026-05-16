@@ -2195,9 +2195,12 @@
     const all = [...starterArr, ...userArr];
     list.innerHTML = all.map(s => {
       if (s._starter) {
-        const meta = s._loading ? 'loading…' : formatSetlistMeta(s);
+        const meta = s._loading
+          ? 'loading…'
+          : (s.songs.length + ' ' + (s.songs.length === 1 ? 'song' : 'songs'));
+        const tip = formatSetlistMeta(s);
         return `
-        <div class="mmp-setlist-item is-starter" data-id="${escapeHtml(s.id)}">
+        <div class="mmp-setlist-item is-starter" data-id="${escapeHtml(s.id)}" title="${escapeHtml(tip)}">
           <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
           <div class="mmp-setlist-meta">${escapeHtml(meta)}</div>
           <button class="mmp-setlist-share" data-id="${escapeHtml(s.id)}" aria-label="Share" title="Share">${ICONS.share}</button>
@@ -2206,10 +2209,11 @@
       }
       const shareCls = s.shareId ? ' is-shared' : '';
       const shareLabel = s.shareId ? 'Open share link' : 'Share';
+      const tip = formatSetlistMeta(s);
       return `
-      <div class="mmp-setlist-item" data-id="${escapeHtml(s.id)}">
+      <div class="mmp-setlist-item" data-id="${escapeHtml(s.id)}" title="${escapeHtml(tip)}">
         <div class="mmp-setlist-name">${escapeHtml(s.name)}</div>
-        <div class="mmp-setlist-meta">${escapeHtml(formatSetlistMeta(s))}</div>
+        <div class="mmp-setlist-meta">${s.songs.length} ${s.songs.length === 1 ? 'song' : 'songs'}</div>
         <button class="mmp-setlist-share${shareCls}" data-id="${escapeHtml(s.id)}" aria-label="${shareLabel}" title="${shareLabel}">${ICONS.share}</button>
         <button class="mmp-setlist-del" data-id="${escapeHtml(s.id)}" aria-label="Delete">${ICONS.close}</button>
       </div>
