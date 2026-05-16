@@ -491,7 +491,7 @@
     }
     .mmp-setlist-item:hover { background: rgba(0,0,0,0.04); }
     .mmp-setlist-section {
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: center; gap: 8px;
       padding: 10px 16px 4px;
       font-size: 10px;
       font-weight: 700;
@@ -507,11 +507,11 @@
     button.mmp-setlist-section:hover { color: #444; }
     .mmp-setlist-section-caret {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 14px; height: 14px;
+      width: 24px; height: 24px;
       transition: transform 0.15s ease;
     }
     .mmp-setlist-section-caret svg {
-      width: 12px; height: 12px; fill: currentColor;
+      width: 24px; height: 24px; fill: currentColor;
     }
     .mmp-setlist-section.is-collapsed .mmp-setlist-section-caret {
       transform: rotate(180deg);
@@ -2222,8 +2222,8 @@
     const picksHidden = localStorage.getItem('mm-picks-hidden') === '1';
     const picksHeader = `
       <button class="mmp-setlist-section mmp-picks-toggle${picksHidden ? ' is-collapsed' : ''}" type="button" aria-expanded="${picksHidden ? 'false' : 'true'}" title="${picksHidden ? "Show Bennett's Picks" : "Hide Bennett's Picks"}">
-        <span class="mmp-setlist-section-title">Bennett's Picks</span>
         <span class="mmp-setlist-section-caret">${ICONS.collapse}</span>
+        <span class="mmp-setlist-section-title">Bennett's Picks</span>
       </button>
     `;
     const myListsHeader = userArr.length > 0
