@@ -2716,21 +2716,25 @@
     });
     authObs.observe(document.body, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
 
-    // SPA navigation when audio is playing: fetch + swap content without
-    // tearing down the audio element (which is a detached `new Audio()`,
-    // unaffected by DOM swaps). Covers feed permalinks and the player's
-    // own queue title link.
+    // SPA navigation when audio is playing: intercept any internal link
+    // click and fetch + swap content without tearing down the audio.
+    // Audio = detached `new Audio()`, unaffected by DOM swaps.
     document.addEventListener('click', (e) => {
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const link = e.target.closest('a.u-permalink, a.mmp-title-link');
+      if (e.defaultPrevented) return;
+      const link = e.target.closest('a[href]');
       if (!link) return;
+      if (link.target && link.target !== '_self') return;
+      if (link.hasAttribute('download')) return;
+      const rawHref = link.getAttribute('href') || '';
+      if (rawHref.startsWith('#') || rawHref.startsWith('mailto:') || rawHref.startsWith('tel:')) return;
       const playing = (audio && !audio.paused && audio.currentTime > 0) || isYtPlaying();
       if (!playing) return;
       let url;
       try { url = new URL(link.href, location.href); } catch (err) { return; }
       if (url.origin !== location.origin) return;
-      if (url.pathname === location.pathname) return;
-      if (!isPostLikeUrl(url)) return;
+      if (url.pathname === location.pathname && url.search === location.search) return;
+      if (!isSpaableUrl(url)) return;
       e.preventDefault();
       e.stopPropagation();
       spaNavigate(link.href);
@@ -2738,12 +2742,13 @@
     window.addEventListener('popstate', () => { spaSwapTo(location.href); });
   }
 
-  // ----- SPA navigation: keep audio alive across post-link clicks -----
-  function isPostLikeUrl(url) {
-    const path = url.pathname.replace(/\/$/, '');
-    if (!path) return false;
-    if (/^\/(tag|author|page|members|api|ghost|search|sitemap)\b/i.test(path)) return false;
-    return /^\/[a-z0-9][a-z0-9_-]*$/i.test(path);
+  // ----- SPA navigation: keep audio alive across page navigations -----
+  // Covers any same-origin URL except portal/auth, API, and feeds.
+  // Skips anchor-only (same path) and external links.
+  function isSpaableUrl(url) {
+    const path = url.pathname;
+    if (/^\/(members|api|ghost|r|rss|sitemap|content|robots)\b/i.test(path)) return false;
+    return true;
   }
   let spaInFlight = false;
   async function spaSwapTo(href) {
@@ -2762,11 +2767,16 @@
       if (!newMain || !curMain) return false;
       curMain.innerHTML = newMain.innerHTML;
       window.scrollTo(0, 0);
+      // Re-fire DOMContentLoaded so code-injection IIFEs that registered
+      // listeners re-run their inits on the freshly swapped DOM (alpha
+      // sort, library count, course gate, etc.). Idempotent for our cases.
       setTimeout(() => {
         state.cardsOnPage = scanCards();
         simplifyAudioCards();
         renderCardButtons();
         ensureAddAllButton();
+        try { document.dispatchEvent(new Event('DOMContentLoaded')); } catch (e) {}
+        try { window.dispatchEvent(new Event('mm:swap')); } catch (e) {}
       }, 0);
       return true;
     } catch (e) {
