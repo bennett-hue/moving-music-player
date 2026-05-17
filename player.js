@@ -1783,6 +1783,7 @@
         ? '<a class="mmp-title-link" href="' + href + '">' + escapeHtml(t.title) + '</a>'
         : escapeHtml(t.title);
       titleEl.classList.remove('mmp-title-empty');
+      updateMediaSession();
     }
     renderPlayPause();
   }
@@ -2715,23 +2716,92 @@
     });
     authObs.observe(document.body, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
 
-    // Navigating to a post page tears down the audio element, and browser
-    // autoplay rules often prevent a clean auto-resume on the new page. If
-    // audio is actively playing when the user clicks a song link, open the
-    // post in a new tab so the original tab keeps playing.
+    // SPA navigation when audio is playing: fetch + swap content without
+    // tearing down the audio element (which is a detached `new Audio()`,
+    // unaffected by DOM swaps). Covers feed permalinks and the player's
+    // own queue title link.
     document.addEventListener('click', (e) => {
-      // Let the browser handle modifier-clicks (cmd/ctrl/shift/middle) and
-      // anything that's not a primary left click — those already open new
-      // tabs or windows on their own.
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      const link = e.target.closest('a.u-permalink');
+      const link = e.target.closest('a.u-permalink, a.mmp-title-link');
       if (!link) return;
       const playing = (audio && !audio.paused && audio.currentTime > 0) || isYtPlaying();
       if (!playing) return;
+      let url;
+      try { url = new URL(link.href, location.href); } catch (err) { return; }
+      if (url.origin !== location.origin) return;
+      if (url.pathname === location.pathname) return;
+      if (!isPostLikeUrl(url)) return;
       e.preventDefault();
       e.stopPropagation();
-      window.open(link.href, '_blank', 'noopener');
+      spaNavigate(link.href);
     }, true);
+    window.addEventListener('popstate', () => { spaSwapTo(location.href); });
+  }
+
+  // ----- SPA navigation: keep audio alive across post-link clicks -----
+  function isPostLikeUrl(url) {
+    const path = url.pathname.replace(/\/$/, '');
+    if (!path) return false;
+    if (/^\/(tag|author|page|members|api|ghost|search|sitemap)\b/i.test(path)) return false;
+    return /^\/[a-z0-9][a-z0-9_-]*$/i.test(path);
+  }
+  let spaInFlight = false;
+  async function spaSwapTo(href) {
+    if (spaInFlight) return false;
+    spaInFlight = true;
+    try {
+      const r = await fetch(href, { credentials: 'same-origin', headers: { 'Accept': 'text/html' } });
+      if (!r.ok) return false;
+      const html = await r.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      if (doc.title) document.title = doc.title;
+      if (doc.body) document.body.className = doc.body.className;
+      const sel = '.gh-main, main.site-main, main';
+      const newMain = doc.querySelector(sel);
+      const curMain = document.querySelector(sel);
+      if (!newMain || !curMain) return false;
+      curMain.innerHTML = newMain.innerHTML;
+      window.scrollTo(0, 0);
+      setTimeout(() => {
+        state.cardsOnPage = scanCards();
+        simplifyAudioCards();
+        renderCardButtons();
+        ensureAddAllButton();
+      }, 0);
+      return true;
+    } catch (e) {
+      return false;
+    } finally {
+      spaInFlight = false;
+    }
+  }
+  async function spaNavigate(href) {
+    history.pushState({ mmpSpa: true }, '', href);
+    const ok = await spaSwapTo(href);
+    if (!ok) location.href = href;
+  }
+
+  // ----- Media Session: lock-screen controls + background audio survival -----
+  function updateMediaSession() {
+    if (!('mediaSession' in navigator) || !window.MediaMetadata) return;
+    const t = state.queue[state.currentIdx];
+    if (!t) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: t.title || 'Moving Music',
+        artist: 'Bennett Konesni',
+        album: "Bennett's Songbook: Moving Music",
+      });
+    } catch (e) {}
+  }
+  function setupMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+    try {
+      navigator.mediaSession.setActionHandler('play', () => { if (audio) audio.play().catch(() => {}); });
+      navigator.mediaSession.setActionHandler('pause', () => { if (audio) audio.pause(); });
+      navigator.mediaSession.setActionHandler('previoustrack', () => advance(-1));
+      navigator.mediaSession.setActionHandler('nexttrack', () => advance(+1));
+    } catch (e) {}
   }
 
   // ----- init -----
@@ -2741,6 +2811,7 @@
     injectStyles();
     initAudio();
     createBar();
+    setupMediaSession();
 
     // The user's playlist is the persisted source of truth. Build the
     // queue from localStorage FIRST so audio can resume before we scan
