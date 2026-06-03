@@ -101,7 +101,7 @@
     .mmp-simple-audio {
       display: flex; align-items: center; gap: 14px;
       width: 100%;
-      padding: 10px 12px 10px 18px;
+      padding: 10px 12px 10px 12px;
       background: ${CONFIG.panelBg};
       border: 1px solid #d8d4cc;
       border-radius: 8px;
@@ -112,22 +112,22 @@
       background: rgba(42, 140, 130, 0.06);
     }
     .mmp-simple-audio-play {
-      flex: 1 1 auto; min-width: 0;
-      display: flex; align-items: center; gap: 14px;
-      padding: 4px 0;
+      flex: 0 0 auto;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 44px; height: 44px;
+      padding: 0;
       background: transparent;
       border: 0;
+      border-radius: 50%;
       cursor: pointer;
-      font-family: inherit;
-      font-size: 15px;
-      font-weight: 600;
-      color: #222;
-      text-align: left;
       touch-action: manipulation;
+      transition: transform 0.1s;
     }
-    .mmp-simple-audio-play:hover .mmp-simple-audio-title { color: ${CONFIG.accentColor}; }
+    .mmp-simple-audio-play:hover { transform: scale(1.05); }
+    .mmp-simple-audio-play:active { transform: scale(0.95); }
     .mmp-simple-audio-icon {
-      flex: 0 0 36px; width: 36px; height: 36px;
+      pointer-events: none;
+      width: 36px; height: 36px;
       border-radius: 50%;
       background: ${CONFIG.accentColor};
       color: #fff;
@@ -136,9 +136,9 @@
     .mmp-simple-audio-icon svg { width: 20px; height: 20px; fill: currentColor; }
     .mmp-simple-audio-title {
       flex: 1 1 auto; min-width: 0;
-      font-weight: 600; color: #222;
+      font-family: inherit;
+      font-weight: 600; font-size: 15px; color: #222;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      transition: color 0.15s;
     }
     .mmp-simple-audio-add {
       flex: 0 0 auto;
@@ -1056,10 +1056,14 @@
       playBtn.dataset.slug = slug;
       playBtn.dataset.audioUrl = audioUrl;
       playBtn.dataset.title = titleText;
-      playBtn.innerHTML = '<span class="mmp-simple-audio-icon">' + ICONS.play + '</span>' +
-        '<span class="mmp-simple-audio-title">' + escapeHtml(titleText) + '</span>';
+      playBtn.setAttribute('aria-label', 'Play');
+      playBtn.innerHTML = '<span class="mmp-simple-audio-icon">' + ICONS.play + '</span>';
       playBtn.addEventListener('click', handleSimpleAudioClick);
       box.appendChild(playBtn);
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'mmp-simple-audio-title';
+      titleSpan.textContent = titleText;
+      box.appendChild(titleSpan);
       const addBtn = document.createElement('button');
       addBtn.className = 'mmp-simple-audio-add';
       addBtn.type = 'button';
