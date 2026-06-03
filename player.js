@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.10.0
+ * Moving Music Player v0.11.0
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -97,10 +97,16 @@
     body.mmp-active .kg-audio-card[data-mmp-simplified="1"] {
       display: none !important;
     }
-    .mmp-simple-audio-wrapper { margin: 1.2em 0; }
+    .mmp-simple-audio-wrapper {
+      margin: 1.2em 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
     .mmp-simple-audio {
       display: flex; align-items: center; gap: 14px;
-      width: 100%;
+      flex: 1 1 280px;
       padding: 14px 18px;
       background: ${CONFIG.panelBg};
       border: 1px solid #d8d4cc;
@@ -134,6 +140,33 @@
       flex: 1 1 auto; min-width: 0;
       font-weight: 600; color: #222;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .mmp-simple-audio-add {
+      flex: 0 0 auto;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 18px;
+      background: ${CONFIG.accentColor};
+      color: #fff;
+      border: 1px solid ${CONFIG.accentColor};
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: opacity 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+    .mmp-simple-audio-add:hover { opacity: 0.88; }
+    .mmp-simple-audio-add.is-in-playlist {
+      background: rgba(42, 140, 130, 0.15);
+      color: ${CONFIG.accentColor};
+      cursor: default;
+    }
+    .mmp-simple-audio-add-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px;
+      font-size: 18px; line-height: 1;
     }
     .mmp-progress {
       position: absolute; top: 0; left: 0; right: 0;
@@ -1020,10 +1053,37 @@
         '<span class="mmp-simple-audio-title">' + escapeHtml(titleText) + '</span>';
       btn.addEventListener('click', handleSimpleAudioClick);
       wrap.appendChild(btn);
+      const addBtn = document.createElement('button');
+      addBtn.className = 'mmp-simple-audio-add';
+      addBtn.type = 'button';
+      addBtn.dataset.slug = slug;
+      addBtn.dataset.audioUrl = audioUrl;
+      addBtn.dataset.title = titleText;
+      addBtn.setAttribute('aria-label', 'Add to playlist');
+      addBtn.innerHTML = '<span class="mmp-simple-audio-add-icon">+</span>' +
+        '<span class="mmp-simple-audio-add-label">Add to playlist</span>';
+      addBtn.addEventListener('click', handleSimpleAudioAddClick);
+      wrap.appendChild(addBtn);
       card.parentNode.insertBefore(wrap, card);
       card.dataset.mmpSimplified = '1';
     });
     refreshSimpleAudioState();
+  }
+
+  function cardFromSimpleBtn(btn) {
+    const slug = btn.dataset.slug;
+    let card = state.cardsOnPage.find(c => c.slug === slug);
+    if (!card) {
+      card = {
+        slug,
+        title: btn.dataset.title || 'Audio',
+        audioUrl: btn.dataset.audioUrl || null,
+        isPaid: false, isMembers: false,
+        loaded: !!btn.dataset.audioUrl,
+        cardEl: btn.closest('.mmp-simple-audio-wrapper'),
+      };
+    }
+    return card;
   }
 
   function handleSimpleAudioClick(e) {
@@ -1045,18 +1105,48 @@
       requestAnimationFrame(() => playIdx(idxCopy));
       return;
     }
-    let card = state.cardsOnPage.find(c => c.slug === slug);
-    if (!card) {
-      card = {
-        slug,
-        title: btn.dataset.title || 'Audio',
-        audioUrl: btn.dataset.audioUrl || null,
-        isPaid: false, isMembers: false,
-        loaded: !!btn.dataset.audioUrl,
-        cardEl: btn.closest('.mmp-simple-audio-wrapper'),
-      };
+    playNowCutInLine(cardFromSimpleBtn(btn));
+  }
+
+  function handleSimpleAudioAddClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    if (inPlaylist(btn.dataset.slug) >= 0) {
+      showToast('Already in playlist');
+      return;
     }
-    addToPlaylist(card);
+    addToPlaylist(cardFromSimpleBtn(btn));
+  }
+
+  // "Cut in line" semantics: insert this song right after the currently
+  // playing track (or at position 0 if the queue is empty) and start
+  // playing immediately. The rest of the queue is preserved and resumes
+  // after this song finishes. Distinct from addToPlaylist, which only
+  // appends and auto-starts when the queue was empty.
+  function playNowCutInLine(card) {
+    if (!card) return;
+    const insertAt = state.currentIdx >= 0
+      ? Math.min(state.currentIdx + 1, state.queue.length)
+      : 0;
+    state.queue.splice(insertAt, 0, {
+      slug: card.slug,
+      title: card.title,
+      isPaid: !!card.isPaid,
+      isMembers: !!card.isMembers,
+      audioUrl: card.audioUrl || null,
+      loaded: !!card.audioUrl,
+      cardEl: card.cardEl,
+    });
+    if (state.queueLabel) state.queueLabel = null;
+    persistStateNow();
+    schedulePush();
+    syncLinkedSetlist();
+    renderQueue();
+    renderCardButtons();
+    flipPlayIconsOptimistic(true);
+    requestAnimationFrame(() => playIdx(insertAt));
+    showToast('Now playing: ' + card.title);
   }
 
   function refreshSimpleAudioState() {
@@ -1079,6 +1169,19 @@
       if (btn.getAttribute('aria-label') !== label) {
         btn.setAttribute('aria-label', label);
       }
+    });
+    $$('.mmp-simple-audio-add').forEach(btn => {
+      const slug = btn.dataset.slug;
+      const inQueue = !!slug && inPlaylist(slug) >= 0;
+      btn.classList.toggle('is-in-playlist', inQueue);
+      const labelEl = btn.querySelector('.mmp-simple-audio-add-label');
+      const iconEl = btn.querySelector('.mmp-simple-audio-add-icon');
+      const wantLabel = inQueue ? 'In playlist' : 'Add to playlist';
+      const wantIcon = inQueue ? '\u2713' : '+';
+      if (labelEl && labelEl.textContent !== wantLabel) labelEl.textContent = wantLabel;
+      if (iconEl && iconEl.textContent !== wantIcon) iconEl.textContent = wantIcon;
+      const aria = inQueue ? 'In playlist' : 'Add to playlist';
+      if (btn.getAttribute('aria-label') !== aria) btn.setAttribute('aria-label', aria);
     });
   }
 
@@ -2690,7 +2793,9 @@
             // swaps don't trigger a rebuild → refresh → swap loop.
             if (n.classList && n.classList.contains('mmp-card-play')) return false;
             if (n.classList && n.classList.contains('mmp-simple-audio-wrapper')) return false;
+            if (n.classList && n.classList.contains('mmp-simple-audio-add')) return false;
             if (n.closest && n.closest('.mmp-simple-audio')) return false;
+            if (n.closest && n.closest('.mmp-simple-audio-add')) return false;
             if (n.closest && n.closest('.mmp-card-play')) return false;
             if (n.closest && n.closest('.mmp-simple-audio-wrapper')) return false;
             if (n.closest && n.closest('.mmp-bar')) return false;
