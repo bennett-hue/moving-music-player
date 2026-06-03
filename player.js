@@ -97,37 +97,35 @@
     body.mmp-active .kg-audio-card[data-mmp-simplified="1"] {
       display: none !important;
     }
-    .mmp-simple-audio-wrapper {
-      margin: 1.2em 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-    }
+    .mmp-simple-audio-wrapper { margin: 1.2em 0; }
     .mmp-simple-audio {
       display: flex; align-items: center; gap: 14px;
-      flex: 1 1 280px;
-      padding: 14px 18px;
+      width: 100%;
+      padding: 10px 12px 10px 18px;
       background: ${CONFIG.panelBg};
       border: 1px solid #d8d4cc;
       border-radius: 8px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .mmp-simple-audio.is-current {
+      border-color: ${CONFIG.accentColor};
+      background: rgba(42, 140, 130, 0.06);
+    }
+    .mmp-simple-audio-play {
+      flex: 1 1 auto; min-width: 0;
+      display: flex; align-items: center; gap: 14px;
+      padding: 4px 0;
+      background: transparent;
+      border: 0;
       cursor: pointer;
       font-family: inherit;
       font-size: 15px;
       font-weight: 600;
       color: #222;
       text-align: left;
-      transition: background 0.15s, border-color 0.15s;
       touch-action: manipulation;
     }
-    .mmp-simple-audio:hover {
-      background: rgba(42, 140, 130, 0.08);
-      border-color: ${CONFIG.accentColor};
-    }
-    .mmp-simple-audio.is-current {
-      border-color: ${CONFIG.accentColor};
-      background: rgba(42, 140, 130, 0.06);
-    }
+    .mmp-simple-audio-play:hover .mmp-simple-audio-title { color: ${CONFIG.accentColor}; }
     .mmp-simple-audio-icon {
       flex: 0 0 36px; width: 36px; height: 36px;
       border-radius: 50%;
@@ -140,11 +138,12 @@
       flex: 1 1 auto; min-width: 0;
       font-weight: 600; color: #222;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      transition: color 0.15s;
     }
     .mmp-simple-audio-add {
       flex: 0 0 auto;
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 10px 18px;
+      padding: 8px 16px;
       background: ${CONFIG.accentColor};
       color: #fff;
       border: 1px solid ${CONFIG.accentColor};
@@ -167,6 +166,11 @@
       display: inline-flex; align-items: center; justify-content: center;
       width: 16px; height: 16px;
       font-size: 18px; line-height: 1;
+    }
+    @media (max-width: 520px) {
+      .mmp-simple-audio { padding: 10px 10px 10px 14px; gap: 8px; }
+      .mmp-simple-audio-add-label { display: none; }
+      .mmp-simple-audio-add { padding: 8px 12px; }
     }
     .mmp-progress {
       position: absolute; top: 0; left: 0; right: 0;
@@ -1043,16 +1047,19 @@
       const slug = slugFromHref(location.pathname) || ('audio-' + i);
       const wrap = document.createElement('div');
       wrap.className = 'mmp-simple-audio-wrapper';
-      const btn = document.createElement('button');
-      btn.className = 'mmp-simple-audio';
-      btn.type = 'button';
-      btn.dataset.slug = slug;
-      btn.dataset.audioUrl = audioUrl;
-      btn.dataset.title = titleText;
-      btn.innerHTML = '<span class="mmp-simple-audio-icon">' + ICONS.play + '</span>' +
+      const box = document.createElement('div');
+      box.className = 'mmp-simple-audio';
+      box.dataset.slug = slug;
+      const playBtn = document.createElement('button');
+      playBtn.className = 'mmp-simple-audio-play';
+      playBtn.type = 'button';
+      playBtn.dataset.slug = slug;
+      playBtn.dataset.audioUrl = audioUrl;
+      playBtn.dataset.title = titleText;
+      playBtn.innerHTML = '<span class="mmp-simple-audio-icon">' + ICONS.play + '</span>' +
         '<span class="mmp-simple-audio-title">' + escapeHtml(titleText) + '</span>';
-      btn.addEventListener('click', handleSimpleAudioClick);
-      wrap.appendChild(btn);
+      playBtn.addEventListener('click', handleSimpleAudioClick);
+      box.appendChild(playBtn);
       const addBtn = document.createElement('button');
       addBtn.className = 'mmp-simple-audio-add';
       addBtn.type = 'button';
@@ -1063,7 +1070,8 @@
       addBtn.innerHTML = '<span class="mmp-simple-audio-add-icon">+</span>' +
         '<span class="mmp-simple-audio-add-label">Add to playlist</span>';
       addBtn.addEventListener('click', handleSimpleAudioAddClick);
-      wrap.appendChild(addBtn);
+      box.appendChild(addBtn);
+      wrap.appendChild(box);
       card.parentNode.insertBefore(wrap, card);
       card.dataset.mmpSimplified = '1';
     });
@@ -1153,10 +1161,14 @@
     const currentSlug = state.currentIdx >= 0 && state.queue[state.currentIdx]
       ? state.queue[state.currentIdx].slug : null;
     const playing = isCurrentlyPlaying();
-    $$('.mmp-simple-audio').forEach(btn => {
+    $$('.mmp-simple-audio').forEach(box => {
+      const slug = box.dataset.slug;
+      const isCurrent = !!slug && slug === currentSlug;
+      box.classList.toggle('is-current', isCurrent);
+    });
+    $$('.mmp-simple-audio-play').forEach(btn => {
       const slug = btn.dataset.slug;
       const isCurrent = !!slug && slug === currentSlug;
-      btn.classList.toggle('is-current', isCurrent);
       const iconEl = btn.querySelector('.mmp-simple-audio-icon');
       if (iconEl) {
         const want = (isCurrent && playing) ? ICONS.pause : ICONS.play;
