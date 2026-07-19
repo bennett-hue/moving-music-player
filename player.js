@@ -70,7 +70,18 @@
       { id: '_starter_sea', name: 'Sea Songs & Shanties', tag: 'sea-shanties' },
       { id: '_starter_honk', name: 'More Honk, More Tonk', tag: 'honk-tonk' },
       { id: '_starter_field', name: 'In The Field, In The Dusk, In The Summer (2015)', tag: 'album-in-the-field' },
-      { id: '_starter_mm', name: 'Mountain Mover (2026)', tag: 'album-mountain-mover' },
+      { id: '_starter_mm', name: 'Mountain Mover (2026)', songs: [
+        { slug: 'i-love-you-simply', title: 'I Love You Simply' },
+        { slug: 'love-is-so-short', title: 'Love Is So Short' },
+        { slug: 'mountain-mover', title: 'Mountain Mover' },
+        { slug: 'embers-in-the-dark', title: 'Embers in the Dark' },
+        { slug: 'adam-in-the-garden-forbidden-fruit', title: 'Forbidden Fruit' },
+        { slug: 'waves-upon-the-sand', title: 'Waves Upon the Sand' },
+        { slug: 'death-of-a-dream', title: 'Death of a Dream' },
+        { slug: 'bare-bones-of-winter', title: 'Bare Bones of Winter' },
+        { slug: 'sanding-the-floor', title: 'Sanding the Floor' },
+        { slug: 'ghost-thunderbird', title: 'Ghost Thunderbird' },
+      ] },
     ],
   };
 
