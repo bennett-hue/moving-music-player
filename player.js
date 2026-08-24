@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.11.0
+ * Moving Music Player v0.11.1
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -99,6 +99,14 @@
       display: flex; flex-direction: column;
     }
     .mmp-bar.is-visible { transform: translateY(0); }
+    /* Reserve space at the bottom of the page so the footer isn't
+       obscured by the mini transport. Mirrors the bar's 0.25s
+       transform transition so padding animates in sync. */
+    body { transition: padding-bottom 0.25s ease; }
+    body.mmp-visible { padding-bottom: 76px; }
+    @media (max-width: 520px) {
+      body.mmp-visible { padding-bottom: 72px; }
+    }
     .mmp-bar.is-fullscreen { top: 0; max-height: none; }
     .mmp-bar.is-fullscreen .mmp-expanded { max-height: none; }
     /* Ghost's audio card has a custom JS-rendered player UI (scrubber,
@@ -1847,13 +1855,17 @@
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
   }
 
-  function showBar() { barEl.classList.add('is-visible'); }
+  function showBar() {
+    barEl.classList.add('is-visible');
+    document.body.classList.add('mmp-visible');
+  }
   function closeBar() {
     try { audio.pause(); } catch (e) {}
     try { if (ytPlayer && ytReady) ytPlayer.pauseVideo(); } catch (e) {}
     stopYtTimer();
     barEl.classList.remove('is-visible');
     barEl.classList.remove('is-open');
+    document.body.classList.remove('mmp-visible');
     state.currentIdx = -1;
     state.expanded = false;
     try { localStorage.removeItem(CONFIG.storageKey); } catch (e) {}
