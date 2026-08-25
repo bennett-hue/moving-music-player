@@ -703,11 +703,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .fpill { padding: 3px 10px; border-radius: 999px; font-size: 12px; background: #f4f2ec; color: #555; border: 1px solid #d8d4cc; cursor: pointer; user-select: none; font-family: inherit; }
   .fpill:hover { background: #e8e4dc; }
   .fpill.is-active { background: #2A8C82; color: #fff; border-color: #2A8C82; }
-  .fpill[data-fam="d"] { border-left-width: 4px; }
-  .fpill[data-slug="at-work"] { border-left-color: #2A8C82; }
-  .fpill[data-slug="shared"] { border-left-color: #a67c52; }
-  .fpill[data-slug="concert"] { border-left-color: #7b6d9a; }
-  .fpill[data-fam="d"][data-slug=""] { border-left-color: #ccc; }
+  /* Delivery pills use their delivery-mode color when active */
+  .fpill[data-fam="d"].is-active[data-slug="at-work"] { background: #2A8C82; border-color: #2A8C82; color: #fff; }
+  .fpill[data-fam="d"].is-active[data-slug="shared"] { background: #a67c52; border-color: #a67c52; color: #fff; }
+  .fpill[data-fam="d"].is-active[data-slug="concert"] { background: #7b6d9a; border-color: #7b6d9a; color: #fff; }
+  .fpill[data-fam="d"].is-active[data-slug=""] { background: #999; border-color: #999; color: #fff; }
+  .fpill[data-fam="d"]:not(.is-active) { opacity: 0.55; }
   .atlas-links { margin-top: 10px; font-size: 13px; }
   .atlas-links a { color: #2A8C82; margin-right: 16px; text-decoration: none; border-bottom: 1px solid #2A8C82; }
   .popup-badge { display: inline-block; padding: 1px 6px; margin-left: 4px; border-radius: 999px; font-size: 9px; font-weight: 700; color: #fff; text-transform: lowercase; letter-spacing: 0.02em; vertical-align: baseline; }
