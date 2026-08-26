@@ -742,19 +742,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <button class="fpill is-active" data-fam="u" data-slug="communal-work-party">communal</button>
     <button class="fpill is-active" data-fam="u" data-slug="devotional">devotional</button>
   </div>
-  <div class="filter-row">
-    <span class="filter-label">region</span>
-    <button class="fpill is-active" data-fam="r" data-slug="british-isles">British Isles</button>
-    <button class="fpill is-active" data-fam="r" data-slug="nordic">Nordic</button>
-    <button class="fpill is-active" data-fam="r" data-slug="europe">Europe</button>
-    <button class="fpill is-active" data-fam="r" data-slug="caucasus">Caucasus</button>
-    <button class="fpill is-active" data-fam="r" data-slug="mena">Middle East / N. Africa</button>
-    <button class="fpill is-active" data-fam="r" data-slug="sub-saharan-africa">Sub-Saharan Africa</button>
-    <button class="fpill is-active" data-fam="r" data-slug="south-asia">S. Asia</button>
-    <button class="fpill is-active" data-fam="r" data-slug="east-asia">E. Asia</button>
-    <button class="fpill is-active" data-fam="r" data-slug="oceania">Oceania</button>
-    <button class="fpill is-active" data-fam="r" data-slug="americas">Americas</button>
-  </div>
 </div>
 <div id="worksong-map"></div>
 
@@ -940,7 +927,7 @@ D.forEach(function (d) {
 });
 
 // Filter logic
-var activeFilters = { d: new Set(['at-work','shared','concert','']), u: new Set(), r: new Set() };
+var activeFilters = { d: new Set(['at-work','shared','concert','']), u: new Set() };
 document.querySelectorAll('.fpill').forEach(function (btn) {
   activeFilters[btn.dataset.fam].add(btn.dataset.slug);
   var longPressTimer = null;
@@ -1000,7 +987,7 @@ function anyMatch(entryList, activeSet) {
 function applyFilters() {
   markers.forEach(function (m) {
     var e = m._entry;
-    var ok = anyMatch(e.d, activeFilters.d) && anyMatch(e.u, activeFilters.u) && anyMatch(e.r, activeFilters.r);
+    var ok = anyMatch(e.d, activeFilters.d) && anyMatch(e.u, activeFilters.u);
     if (ok) { if (!map.hasLayer(m)) m.addTo(map); }
     else { if (map.hasLayer(m)) map.removeLayer(m); }
   });
