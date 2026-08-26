@@ -720,6 +720,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <div class="atlas-controls">
   <h1 style="display:none">The Worksong Atlas</h1>
   <p class="atlas-intro">A living map of singing-while-working traditions around the world. Each colored dot marks a tradition; click for video citations. Colors show how the recording captures the song. Options: <span style="color:#2A8C82;font-weight:600">at work</span>, <span style="color:#a67c52;font-weight:600">shared</span> in a teaching or informal setting, or <span style="color:#7b6d9a;font-weight:600">in concert</span> before an audience.</p>
+<div style="font-size:11px;color:#888;margin-top:6px;font-style:italic">Click a pill to solo it (see just that group). Click again to restore all. Shift-click or long-press to add to selection.</div>
   <div class="filter-row">
     <span class="filter-label">delivery</span>
     <button class="fpill is-active" data-fam="d" data-slug="at-work">at work</button>
@@ -924,13 +925,53 @@ D.forEach(function (d) {
 var activeFilters = { d: new Set(['at-work','shared','concert','']), u: new Set(), r: new Set() };
 document.querySelectorAll('.fpill').forEach(function (btn) {
   activeFilters[btn.dataset.fam].add(btn.dataset.slug);
-  btn.addEventListener('click', function () {
+  var longPressTimer = null;
+  var longPressFired = false;
+
+  function additive(fam, slug) {
     btn.classList.toggle('is-active');
-    var fam = btn.dataset.fam, slug = btn.dataset.slug;
     if (btn.classList.contains('is-active')) activeFilters[fam].add(slug);
     else activeFilters[fam].delete(slug);
     applyFilters();
+  }
+
+  function soloOrAll(fam, slug) {
+    var famPills = document.querySelectorAll('.fpill[data-fam="' + fam + '"]');
+    var isSolo = activeFilters[fam].size === 1 && activeFilters[fam].has(slug);
+    if (isSolo) {
+      // Restore all in family
+      activeFilters[fam].clear();
+      famPills.forEach(function (p) {
+        activeFilters[fam].add(p.dataset.slug);
+        p.classList.add('is-active');
+      });
+    } else {
+      // Solo this pill
+      activeFilters[fam].clear();
+      famPills.forEach(function (p) { p.classList.remove('is-active'); });
+      activeFilters[fam].add(slug);
+      btn.classList.add('is-active');
+    }
+    applyFilters();
+  }
+
+  btn.addEventListener('click', function (e) {
+    if (longPressFired) { longPressFired = false; return; }
+    var fam = btn.dataset.fam, slug = btn.dataset.slug;
+    if (e.shiftKey || e.metaKey || e.ctrlKey) additive(fam, slug);
+    else soloOrAll(fam, slug);
   });
+
+  btn.addEventListener('touchstart', function () {
+    longPressFired = false;
+    longPressTimer = setTimeout(function () {
+      longPressFired = true;
+      additive(btn.dataset.fam, btn.dataset.slug);
+    }, 500);
+  }, { passive: true });
+  btn.addEventListener('touchend', function () { clearTimeout(longPressTimer); });
+  btn.addEventListener('touchmove', function () { clearTimeout(longPressTimer); });
+  btn.addEventListener('touchcancel', function () { clearTimeout(longPressTimer); });
 });
 
 function anyMatch(entryList, activeSet) {
