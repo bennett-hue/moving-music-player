@@ -904,6 +904,13 @@ map.fitBounds(bounds);
 var DELIVERY_COLOR = { 'at-work': '#2A8C82', 'shared': '#a67c52', 'concert': '#7b6d9a', '': '#bbb' };
 var DELIVERY_LABEL = { 'at-work': 'at work', 'shared': 'shared', 'concert': 'in concert' };
 
+function yt(u){
+  var m = u.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/);
+  if (!m) return null;
+  var t = u.match(/[?&](?:t|start)=(\d+)/);
+  return 'https://www.youtube-nocookie.com/embed/' + m[1] + (t ? '?start=' + t[1] : '');
+}
+
 var markers = [];
 D.forEach(function (d) {
   var primary = d.d && d.d.length ? d.d[0] : '';
@@ -913,11 +920,16 @@ D.forEach(function (d) {
     return '<div style="margin-top:3px">· <a href="'+x.u+'" target="_blank" rel="noopener noreferrer">'+x.t+'</a>'+badge+'</div>';
   }).join('');
   if (!vidHtml) vidHtml = '<div style="color:#999;margin-top:4px">(no video yet)</div>';
-  var html = '<div class="wm-popup"><strong>'+d.n+'</strong><br><span style="color:#666;font-size:12px">'+d.p+'</span>'+vidHtml+'</div>';
+  var embedHtml = '';
+  if (d.v && d.v.length) {
+    var e = yt(d.v[0].u);
+    if (e) embedHtml = '<iframe src="'+e+'" style="width:100%;aspect-ratio:16/9;border:0;margin-top:6px;border-radius:4px" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>';
+  }
+  var html = '<div class="wm-popup"><strong>'+d.n+'</strong><br><span style="color:#666;font-size:12px">'+d.p+'</span>'+embedHtml+vidHtml+'</div>';
   var m = L.circleMarker(project(d.la, d.lo), {
     radius: 7, color: '#ffffff', weight: 1.5,
     fillColor: color, fillOpacity: 0.9
-  }).bindPopup(html);
+  }).bindPopup(html, { maxWidth: 340, minWidth: 300 });
   m._entry = d;
   m.addTo(map);
   markers.push(m);
