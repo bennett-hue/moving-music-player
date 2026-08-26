@@ -673,8 +673,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .wm-popup { font-family: Georgia, serif; font-size: 14px; line-height: 1.4; }
 .wm-popup strong { font-size: 15px; }
 .wm-popup a { font-weight: bold; }
-.wm-popup a.vid-swap[data-current="1"] { color: #444; text-decoration: none; border-bottom: 0; cursor: default; }
-.wm-popup a.vid-swap[data-current="1"]::before { content: "▶ "; color: #2A8C82; font-size: 10px; }
+.wm-popup a.vid-swap { display: inline-flex; align-items: center; gap: 4px; }
+.wm-popup a.vid-swap svg.mm-play { width: 11px; height: 11px; fill: currentColor; opacity: 0.55; flex-shrink: 0; }
+.wm-popup a.vid-swap:hover svg.mm-play { opacity: 0.9; }
+.wm-popup a.vid-swap[data-current="1"] { color: #444; }
+.wm-popup a.vid-swap[data-current="1"] svg.mm-play { fill: #2A8C82; opacity: 1; }
 #worksong-map .leaflet-bottom.leaflet-left { left: 0; right: 0; text-align: center; pointer-events: none; }
 #worksong-map .leaflet-bottom.leaflet-left .leaflet-control { pointer-events: auto; display: inline-block; float: none; margin: 0 auto 8px auto; }
 #worksong-map .leaflet-control-layers-expanded { max-width: 780px; padding: 6px 12px; background: rgba(255,255,255,0.92); font-size: 13px; }
@@ -904,13 +907,15 @@ var markers = [];
 D.forEach(function (d) {
   var primary = d.d && d.d.length ? d.d[0] : '';
   var color = DELIVERY_COLOR[primary] || DELIVERY_COLOR[''];
+  var PLAY_SVG = '<svg class="mm-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
   var vidHtml = d.v.map(function (x, i) {
     var badge = x.d ? '<span class="popup-badge" style="background:'+DELIVERY_COLOR[x.d]+'">'+DELIVERY_LABEL[x.d]+'</span>' : '';
     var emb = yt(x.u);
     var cls = emb ? 'vid-swap' : '';
     var cur = (i === 0 && emb) ? ' data-current="1"' : '';
     var dataAttr = emb ? ' data-embed="'+emb+'"' : '';
-    return '<div style="margin-top:3px">· <a href="'+x.u+'" target="_blank" rel="noopener noreferrer" class="'+cls+'"'+dataAttr+cur+'>'+x.t+'</a>'+badge+'</div>';
+    var icon = emb ? PLAY_SVG : '';
+    return '<div style="margin-top:3px"><a href="'+x.u+'" target="_blank" rel="noopener noreferrer" class="'+cls+'"'+dataAttr+cur+'>'+icon+x.t+'</a>'+badge+'</div>';
   }).join('');
   if (!vidHtml) vidHtml = '<div style="color:#999;margin-top:4px">(no video yet)</div>';
   var embedHtml = '';
