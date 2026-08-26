@@ -791,7 +791,7 @@ var D = [
 {n:"Spinnstube songs",p:"Central Germany",c:"wp",la:50.7,lo:9.5,d:[],u:["communal-work-party"],r:["europe"],v:[]},
 {n:"Alpine herding calls, Betruf",p:"Entlebuch, Switzerland",c:"si",la:46.88,lo:8.02,d:["at-work"],u:["animal-directed", "signaling"],r:["europe"],v:[{t:"Watch",u:"https://www.youtube.com/watch?v=7OmkEk2bf4U",d:"at-work"}]},
 {n:"Mondine songs",p:"Vercelli, Po Valley",c:"wp",la:45.32,lo:8.42,d:["shared"],u:["communal-work-party"],r:["europe"],v:[{t:"Watch",u:"https://www.youtube.com/watch?v=8kliz98CA1c",d:"shared"}]},
-{n:"Cialoma",p:"Favignana, Sicily",c:"co",la:37.93,lo:12.32,d:["shared"],u:["hauling"],r:["europe"],v:[{t:"Vincenzo Sercia - Cialoma: Aiamola e vvai avanti",u:"https://www.youtube.com/watch?v=LZy6Stzjzok",d:"shared"}]},
+{n:"Cialoma",p:"Favignana, Sicily",c:"co",la:37.93,lo:12.32,d:["shared"],u:["hauling"],r:["europe"],v:[{t:"L'antico canto della mattanza a Favignana",u:"https://www.youtube.com/watch?v=7suCcMga1Ls",d:"shared"}]},
 {n:"Trallalero",p:"Genoa, Italy",c:"oc",la:44.41,lo:8.93,d:["concert"],u:["communal-work-party"],r:["europe"],v:[{t:"Watch",u:"https://www.youtube.com/watch?v=iyK9MBOXRGo",d:"concert"}]},
 {n:"Cantes de trilla",p:"Bujalance, Andalusia",c:"so",la:37.9,lo:-4.38,d:["concert"],u:["solo-pacing"],r:["europe"],v:[{t:"Watch",u:"https://www.youtube.com/watch?v=RgsLx2d3inM",d:"concert"}]},
 {n:"Cante alentejano",p:"Alentejo, Portugal",c:"sd",la:38.0,lo:-7.86,d:["concert"],u:["devotional"],r:["europe"],v:[{t:"Kennedy Center Millennium Stage",u:"https://www.youtube.com/watch?v=KqCQ7Kxof00",d:"concert"}]},
@@ -929,7 +929,10 @@ D.forEach(function (d) {
   var m = L.circleMarker(project(d.la, d.lo), {
     radius: 7, color: '#ffffff', weight: 1.5,
     fillColor: color, fillOpacity: 0.9
-  }).bindPopup(html, { maxWidth: 340, minWidth: 300 });
+  }).bindPopup(html, {
+    maxWidth: 340, minWidth: 300, maxHeight: 380,
+    autoPan: true, autoPanPadding: [30, 30]
+  });
   m._entry = d;
   m.addTo(map);
   markers.push(m);
