@@ -673,6 +673,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .wm-popup { font-family: Georgia, serif; font-size: 14px; line-height: 1.4; }
 .wm-popup strong { font-size: 15px; }
 .wm-popup a { font-weight: bold; }
+.wm-popup a.vid-swap[data-current="1"] { color: #444; text-decoration: none; border-bottom: 0; cursor: default; }
+.wm-popup a.vid-swap[data-current="1"]::before { content: "▶ "; color: #2A8C82; font-size: 10px; }
 #worksong-map .leaflet-bottom.leaflet-left { left: 0; right: 0; text-align: center; pointer-events: none; }
 #worksong-map .leaflet-bottom.leaflet-left .leaflet-control { pointer-events: auto; display: inline-block; float: none; margin: 0 auto 8px auto; }
 #worksong-map .leaflet-control-layers-expanded { max-width: 780px; padding: 6px 12px; background: rgba(255,255,255,0.92); font-size: 13px; }
@@ -902,15 +904,19 @@ var markers = [];
 D.forEach(function (d) {
   var primary = d.d && d.d.length ? d.d[0] : '';
   var color = DELIVERY_COLOR[primary] || DELIVERY_COLOR[''];
-  var vidHtml = d.v.map(function (x) {
+  var vidHtml = d.v.map(function (x, i) {
     var badge = x.d ? '<span class="popup-badge" style="background:'+DELIVERY_COLOR[x.d]+'">'+DELIVERY_LABEL[x.d]+'</span>' : '';
-    return '<div style="margin-top:3px">· <a href="'+x.u+'" target="_blank" rel="noopener noreferrer">'+x.t+'</a>'+badge+'</div>';
+    var emb = yt(x.u);
+    var cls = emb ? 'vid-swap' : '';
+    var cur = (i === 0 && emb) ? ' data-current="1"' : '';
+    var dataAttr = emb ? ' data-embed="'+emb+'"' : '';
+    return '<div style="margin-top:3px">· <a href="'+x.u+'" target="_blank" rel="noopener noreferrer" class="'+cls+'"'+dataAttr+cur+'>'+x.t+'</a>'+badge+'</div>';
   }).join('');
   if (!vidHtml) vidHtml = '<div style="color:#999;margin-top:4px">(no video yet)</div>';
   var embedHtml = '';
   if (d.v && d.v.length) {
     var e = yt(d.v[0].u);
-    if (e) embedHtml = '<iframe src="'+e+'" style="width:100%;aspect-ratio:16/9;border:0;margin-top:6px;border-radius:4px" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>';
+    if (e) embedHtml = '<iframe class="wm-embed" src="'+e+'" style="width:100%;aspect-ratio:16/9;border:0;margin-top:6px;border-radius:4px" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>';
   }
   var html = '<div class="wm-popup"><strong>'+d.n+'</strong><br><span style="color:#666;font-size:12px">'+d.p+'</span>'+embedHtml+vidHtml+'</div>';
   var m = L.circleMarker(project(d.la, d.lo), {
@@ -992,6 +998,21 @@ function applyFilters() {
     else { if (map.hasLayer(m)) map.removeLayer(m); }
   });
 }
+
+// Swap the popup's embed iframe when a video link is clicked
+document.addEventListener('click', function (ev) {
+  var a = ev.target.closest && ev.target.closest('a.vid-swap');
+  if (!a) return;
+  if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button !== 0) return;
+  var popup = a.closest('.wm-popup');
+  if (!popup) return;
+  var iframe = popup.querySelector('iframe.wm-embed');
+  if (!iframe) return;
+  ev.preventDefault();
+  iframe.src = a.dataset.embed;
+  popup.querySelectorAll('a.vid-swap').forEach(function (el) { el.removeAttribute('data-current'); });
+  a.setAttribute('data-current', '1');
+});
 
 </script>
 
