@@ -1025,6 +1025,34 @@ document.addEventListener('click', function (ev) {
   a.setAttribute('data-current', '1');
 });
 
+// Deep-link: open a specific pin's popup on load.
+// The Ghost /atlas/ page passes the parent's hash via ?state=<encoded-hash>.
+// We accept #tradition=slug or ?state=tradition=slug.
+(function () {
+  function slugify(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+  function parseState(){
+    var s = '';
+    var qp = new URLSearchParams(location.search);
+    if (qp.get('state')) s = qp.get('state');
+    else if (location.hash) s = location.hash.replace(/^#/, '');
+    if (!s) return null;
+    var m = s.match(/tradition=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  var slug = parseState();
+  if (!slug) return;
+  setTimeout(function () {
+    var target = null;
+    for (var i = 0; i < markers.length; i++) {
+      if (slugify(markers[i]._entry.n) === slug) { target = markers[i]; break; }
+    }
+    if (!target) return;
+    if (!map.hasLayer(target)) target.addTo(map);
+    map.setView(target.getLatLng(), Math.max(map.getZoom(), 0), { animate: true });
+    setTimeout(function(){ target.openPopup(); }, 250);
+  }, 150);
+})();
+
 </script>
 
 </body>
