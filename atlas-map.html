@@ -982,6 +982,14 @@ D.forEach(function (d) {
   markers.push(m);
 });
 
+// Stop YouTube audio when a popup closes (belt-and-suspenders for iframe teardown)
+map.on('popupclose', function (ev) {
+  var el = ev.popup && ev.popup.getElement && ev.popup.getElement();
+  if (!el) return;
+  var iframes = el.querySelectorAll('iframe');
+  iframes.forEach(function (f) { f.src = 'about:blank'; });
+});
+
 // Filter logic
 var activeFilters = { d: new Set(['at-work','shared','concert','']), u: new Set() };
 document.querySelectorAll('.fpill').forEach(function (btn) {
