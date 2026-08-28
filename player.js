@@ -1,5 +1,5 @@
 /*!
- * Moving Music Player v0.11.1
+ * Moving Music Player v0.12.0
  * Fixed-bottom playlist audio player for movingmusic.works
  * https://github.com/bennett-hue/moving-music-player
  *
@@ -1294,6 +1294,109 @@
     });
     return true;
   }
+
+  // ---- YouTube injection (Atlas → Player) ----
+  // The queue's existing YouTube path (see playIdx) already handles items with
+  // youtubeId. These helpers build such items from an external caller — the
+  // atlas popups and any other page that wants to hand a video to the
+  // transport bar.
+  function pushYouTubeToQueue(opts) {
+    if (!opts || !opts.videoId) return false;
+    const slug = 'yt:' + opts.videoId + (opts.startSec ? ('@' + opts.startSec) : '');
+    if (inPlaylist(slug) >= 0) return false;
+    state.queue.push({
+      slug: slug,
+      title: opts.label || ('YouTube: ' + opts.videoId),
+      isPaid: false,
+      isMembers: false,
+      audioUrl: null,
+      loaded: true,
+      youtubeId: opts.videoId,
+      ytStart: opts.startSec || 0,
+      ytEnd: opts.endSec || null,
+      sourceUrl: opts.sourceUrl || null,
+    });
+    return true;
+  }
+
+  function addYouTubeToPlaylist(opts) {
+    const wasEmpty = state.queue.length === 0;
+    if (!pushYouTubeToQueue(opts)) {
+      showToast('Already in playlist');
+      return;
+    }
+    if (state.queueLabel) state.queueLabel = null;
+    persistStateNow();
+    schedulePush();
+    syncLinkedSetlist();
+    renderQueue();
+    renderCardButtons();
+    if (wasEmpty) {
+      playIdx(0);
+      showToast('Now playing: ' + (opts.label || 'YouTube video'));
+    } else {
+      showToast('Added: ' + (opts.label || 'YouTube video'));
+    }
+  }
+
+  function playYouTubeNow(opts) {
+    if (!opts || !opts.videoId) return;
+    const insertAt = state.currentIdx >= 0
+      ? Math.min(state.currentIdx + 1, state.queue.length)
+      : 0;
+    const slug = 'yt:' + opts.videoId + (opts.startSec ? ('@' + opts.startSec) : '');
+    // If already in queue, just jump to it
+    const existingIdx = inPlaylist(slug);
+    if (existingIdx >= 0) {
+      playIdx(existingIdx);
+      showToast('Now playing: ' + (opts.label || 'YouTube video'));
+      return;
+    }
+    state.queue.splice(insertAt, 0, {
+      slug: slug,
+      title: opts.label || ('YouTube: ' + opts.videoId),
+      isPaid: false,
+      isMembers: false,
+      audioUrl: null,
+      loaded: true,
+      youtubeId: opts.videoId,
+      ytStart: opts.startSec || 0,
+      ytEnd: opts.endSec || null,
+      sourceUrl: opts.sourceUrl || null,
+    });
+    if (state.queueLabel) state.queueLabel = null;
+    persistStateNow();
+    schedulePush();
+    syncLinkedSetlist();
+    renderQueue();
+    renderCardButtons();
+    flipPlayIconsOptimistic(true);
+    requestAnimationFrame(() => playIdx(insertAt));
+    showToast('Now playing: ' + (opts.label || 'YouTube video'));
+  }
+
+  // Public API on window so any page (including cross-origin iframes via
+  // postMessage below) can hand videos to the player.
+  window.MMP = window.MMP || {};
+  window.MMP.playYouTubeNow = playYouTubeNow;
+  window.MMP.addYouTubeToQueue = addYouTubeToPlaylist;
+  window.MMP.isReady = () => true;
+
+  // Cross-origin bridge for the atlas map iframe (served from raw.githack.com).
+  // Messages: { source:'mmp-atlas', action:'play'|'queue', videoId, label, startSec?, endSec?, sourceUrl? }
+  window.addEventListener('message', function (ev) {
+    const data = ev && ev.data;
+    if (!data || data.source !== 'mmp-atlas') return;
+    const opts = {
+      videoId: data.videoId,
+      label: data.label,
+      startSec: data.startSec,
+      endSec: data.endSec,
+      sourceUrl: data.sourceUrl,
+    };
+    if (data.action === 'play') playYouTubeNow(opts);
+    else if (data.action === 'queue') addYouTubeToPlaylist(opts);
+  });
 
   function addToPlaylist(card) {
     const wasEmpty = state.queue.length === 0;

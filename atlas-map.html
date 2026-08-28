@@ -678,6 +678,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .wm-popup a.vid-swap:hover svg.mm-play { opacity: 0.9; }
 .wm-popup a.vid-swap[data-current="1"] { color: #444; }
 .wm-popup a.vid-swap[data-current="1"] svg.mm-play { fill: #2A8C82; opacity: 1; }
+.wm-popup .send-to-player { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: baseline; }
+.wm-popup .send-to-player button { font: inherit; font-size: 10px; padding: 1px 6px; border: 1px solid #d0d0d0; background: #f8f6f0; color: #444; border-radius: 4px; cursor: pointer; line-height: 1.4; font-family: Georgia, serif; }
+.wm-popup .send-to-player button:hover { background: #2A8C82; color: #fff; border-color: #2A8C82; }
+.wm-popup .send-to-player button.playnow { background: #2A8C82; color: #fff; border-color: #2A8C82; }
+.wm-popup .send-to-player button.playnow:hover { background: #1f6b63; border-color: #1f6b63; }
 .leaflet-tooltip.wm-tooltip { font-family: Georgia, serif; font-size: 12px; color: #222; background: #fff; border: 1px solid #d8d4cc; border-radius: 4px; padding: 3px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); pointer-events: none; }
 .leaflet-tooltip.wm-tooltip::before { border-top-color: #d8d4cc; }
 #worksong-map .leaflet-bottom.leaflet-left { left: 0; right: 0; text-align: center; pointer-events: none; }
@@ -951,14 +956,26 @@ D.forEach(function (d) {
   var primary = d.d && d.d.length ? d.d[0] : '';
   var color = DELIVERY_COLOR[primary] || DELIVERY_COLOR[''];
   var PLAY_SVG = '<svg class="mm-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+  function ytIdOf(u){ var m = u && u.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/); return m ? m[1] : null; }
+  function ytStartOf(u){ var t = u && u.match(/[?&](?:t|start)=(\d+)/); return t ? parseInt(t[1], 10) : 0; }
   var vidHtml = d.v.map(function (x, i) {
     var badge = x.d ? '<span class="popup-badge" style="background:'+DELIVERY_COLOR[x.d]+'">'+DELIVERY_LABEL[x.d]+'</span>' : '';
     var emb = yt(x.u);
+    var vid = ytIdOf(x.u);
+    var vst = ytStartOf(x.u);
     var cls = emb ? 'vid-swap' : '';
     var cur = (i === 0 && emb) ? ' data-current="1"' : '';
     var dataAttr = emb ? ' data-embed="'+emb+'"' : '';
     var icon = emb ? PLAY_SVG : '';
-    return '<div style="margin-top:3px"><a href="'+x.u+'" target="_blank" rel="noopener noreferrer" class="'+cls+'"'+dataAttr+cur+'>'+icon+x.t+'</a>'+badge+'</div>';
+    var transport = '';
+    if (vid) {
+      var lbl = x.t.replace(/"/g, '&quot;');
+      transport = '<span class="send-to-player">'
+        + '<button class="playnow send-play" data-vid="'+vid+'" data-vst="'+vst+'" data-label="'+lbl+'" data-src="'+x.u+'" title="Play in transport bar">Play in bar</button>'
+        + '<button class="send-queue" data-vid="'+vid+'" data-vst="'+vst+'" data-label="'+lbl+'" data-src="'+x.u+'" title="Add to queue">+ Queue</button>'
+        + '</span>';
+    }
+    return '<div style="margin-top:3px"><a href="'+x.u+'" target="_blank" rel="noopener noreferrer" class="'+cls+'"'+dataAttr+cur+'>'+icon+x.t+'</a>'+badge+transport+'</div>';
   }).join('');
   if (!vidHtml) vidHtml = '<div style="color:#999;margin-top:4px">(no video yet)</div>';
   var embedHtml = '';
@@ -1057,8 +1074,33 @@ function applyFilters() {
   });
 }
 
-// Swap the popup's embed iframe when a video link is clicked
+// Swap the popup's embed iframe when a video link is clicked;
+// also route the transport buttons to the parent player via postMessage.
+function sendAtlasToPlayer(btn, action) {
+  var msg = {
+    source: 'mmp-atlas',
+    action: action,
+    videoId: btn.dataset.vid,
+    label: btn.dataset.label,
+    startSec: parseInt(btn.dataset.vst || '0', 10) || 0,
+    sourceUrl: btn.dataset.src,
+  };
+  try { window.parent.postMessage(msg, '*'); } catch (e) {}
+  if (action === 'play') {
+    // Close the map popup so its iframe stops competing with the transport bar.
+    var popup = btn.closest('.wm-popup');
+    if (popup) {
+      var iframe = popup.querySelector('iframe.wm-embed');
+      if (iframe) iframe.src = 'about:blank';
+    }
+    map.closePopup();
+  }
+}
 document.addEventListener('click', function (ev) {
+  var sendPlay = ev.target.closest && ev.target.closest('button.send-play');
+  if (sendPlay) { ev.preventDefault(); sendAtlasToPlayer(sendPlay, 'play'); return; }
+  var sendQ = ev.target.closest && ev.target.closest('button.send-queue');
+  if (sendQ) { ev.preventDefault(); sendAtlasToPlayer(sendQ, 'queue'); return; }
   var a = ev.target.closest && ev.target.closest('a.vid-swap');
   if (!a) return;
   if (ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.button !== 0) return;
