@@ -18,6 +18,10 @@
 
 const ALLOWED_ORIGIN = 'https://movingmusic.works';
 
+// Repo the atlas map is served from. Bumped by editing this constant.
+const ATLAS_MAP_REPO = 'bennett-hue/moving-music-player';
+const ATLAS_MAP_SHA = 'd64503a';
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
@@ -40,6 +44,27 @@ function routeKey(pathname) {
   return null;
 }
 
+async function serveAtlasMap(request) {
+  const upstream = `https://raw.githubusercontent.com/${ATLAS_MAP_REPO}/${ATLAS_MAP_SHA}/atlas-map.html`;
+  const upstreamRes = await fetch(upstream, {
+    cf: { cacheTtl: 3600, cacheEverything: true },
+  });
+  if (!upstreamRes.ok) {
+    return new Response('atlas map upstream error', { status: 502 });
+  }
+  const body = await upstreamRes.arrayBuffer();
+  return new Response(body, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=300, s-maxage=3600',
+      'Access-Control-Allow-Origin': '*',
+      // Allow embedding on movingmusic.works
+      'X-Frame-Options': 'ALLOWALL',
+    },
+  });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') {
@@ -47,6 +72,13 @@ export default {
     }
 
     const url = new URL(request.url);
+
+    // Public route: serve the atlas map HTML via Cloudflare so airport /
+    // hotel Wi-Fi that blocks raw.githack.com still works.
+    if (url.pathname === '/atlas-map.html' && request.method === 'GET') {
+      return serveAtlasMap(request);
+    }
+
     const key = routeKey(url.pathname);
     if (!key) {
       return new Response('not found', { status: 404, headers: corsHeaders() });
