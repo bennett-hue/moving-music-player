@@ -20,7 +20,7 @@ const ALLOWED_ORIGIN = 'https://movingmusic.works';
 
 // Repo the atlas map is served from. Bumped by editing this constant.
 const ATLAS_MAP_REPO = 'bennett-hue/moving-music-player';
-const ATLAS_MAP_SHA = 'd64503a';
+const ATLAS_MAP_SHA = 'ab0ec31';
 
 function corsHeaders() {
   return {
