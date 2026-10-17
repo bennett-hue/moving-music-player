@@ -159,12 +159,25 @@
     var s = document.createElement('style');
     s.id = STYLE_ID;
     s.textContent = [
+      // Dim the card when the viewer doesn't have access.
       '.route.' + DIM_CLASS + '{',
       '  opacity:0.45;',
       '  transition:opacity 160ms ease;',
       '}',
       '.route.' + DIM_CLASS + ':hover{',
-      '  opacity:0.75;',
+      '  opacity:0.85;',
+      '}',
+      // Hide tier labels by default; reveal on hover/focus of the',
+      // card so anyone curious can read why.',
+      '.route .tier-hint{',
+      '  opacity:0;',
+      '  transition:opacity 160ms ease;',
+      '  pointer-events:none;',
+      '}',
+      '.route:hover .tier-hint,',
+      '.route:focus-within .tier-hint{',
+      '  opacity:1;',
+      '  pointer-events:auto;',
       '}'
     ].join('\n');
     document.head.appendChild(s);
