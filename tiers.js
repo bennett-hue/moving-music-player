@@ -109,46 +109,43 @@
     var hint = cardEl.querySelector('.tier-hint');
     if (!hint) return;
 
-    // Songs of Courage and any always-free route: no label at all.
+    // Songs of Courage and any always-free route: no label.
     if (ALWAYS_FREE.indexOf(slug) !== -1) {
       hint.style.display = 'none';
       return;
     }
 
-    var isPickerRoute = ROUTES.indexOf(slug) !== -1;
+    // Non-picker routes: leave as-is (defensive).
+    if (ROUTES.indexOf(slug) === -1) return;
 
-    // Anonymous visitor: leave HTML label as-is (prompts signup).
+    // Normalize stale "Free with email signup" wording — under the
+    // picker design, every picker route requires either a route pick
+    // or Full Songbook. Keep the link, update the text.
+    var link = hint.querySelector('a');
+    var current = (link ? link.textContent : hint.textContent) || '';
+    if (/free with email signup/i.test(current)) {
+      if (link) {
+        link.textContent = 'Full access with membership';
+      } else {
+        hint.textContent = 'Full access with membership';
+      }
+    }
+
+    // Anonymous visitor: label stays visible so they know to sign up.
     if (!member || !member.uuid) return;
 
-    // Paid or legacy-free: full access to everything.
+    // Paid or legacy-free: full access, no prompt needed.
     if (isPaid(member) || isLegacy(member)) {
       hint.style.display = 'none';
       return;
     }
 
-    // Free member with a picked route.
-    if (isPickerRoute) {
-      var picked = memberRoute(member);
-      if (picked === slug) {
-        hint.style.display = 'none';   // this is their route
-        return;
-      }
-      // Different route than theirs: offer the Full Songbook upgrade.
-      var a = hint.querySelector('a');
-      if (a) {
-        a.textContent = 'Join Full Songbook';
-        a.setAttribute(
-          'href',
-          'https://movingmusic.works/#/portal/signup/paid'
-        );
-      } else {
-        hint.textContent = 'Join Full Songbook';
-      }
-      return;
+    // Free member — hide the label on their picked route only.
+    var picked = memberRoute(member);
+    if (picked === slug) {
+      hint.style.display = 'none';
     }
-
-    // Non-picker, non-courage route (shouldn't exist under new
-    // design, but leave label untouched if encountered).
+    // Otherwise the "Full access with membership" label stays.
   }
 
   function rewriteAll(member) {
