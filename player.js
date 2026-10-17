@@ -3236,7 +3236,7 @@
   var base =
     'https://cdn.jsdelivr.net/gh/bennett-hue/' +
     'moving-music-player@' + sha + '/';
-  ['picker.js', 'gate.js'].forEach(function (f) {
+  ['picker.js', 'gate.js', 'tiers.js'].forEach(function (f) {
     var el = document.createElement('script');
     el.src = base + f;
     el.defer = true;
