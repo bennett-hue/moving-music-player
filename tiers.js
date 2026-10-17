@@ -161,23 +161,28 @@
     s.textContent = [
       // Dim the card when the viewer doesn't have access.
       '.route.' + DIM_CLASS + '{',
-      '  opacity:0.45;',
+      '  opacity:0.45 !important;',
       '  transition:opacity 160ms ease;',
       '}',
       '.route.' + DIM_CLASS + ':hover{',
-      '  opacity:0.85;',
+      '  opacity:0.9 !important;',
       '}',
-      // Hide tier labels by default; reveal on hover/focus of the',
-      // card so anyone curious can read why.',
-      '.route .tier-hint{',
-      '  opacity:0;',
-      '  transition:opacity 160ms ease;',
+      // Hide tier labels by default; reveal on hover/focus of the
+      // card so anyone curious can read why.
+      '.route p.tier-hint{',
+      '  visibility:hidden !important;',
+      '  opacity:0 !important;',
+      '  transition:opacity 160ms ease,',
+      '    visibility 0ms linear 160ms;',
       '  pointer-events:none;',
       '}',
-      '.route:hover .tier-hint,',
-      '.route:focus-within .tier-hint{',
-      '  opacity:1;',
+      '.route:hover p.tier-hint,',
+      '.route:focus-within p.tier-hint{',
+      '  visibility:visible !important;',
+      '  opacity:1 !important;',
       '  pointer-events:auto;',
+      '  transition:opacity 160ms ease,',
+      '    visibility 0ms linear 0ms;',
       '}'
     ].join('\n');
     document.head.appendChild(s);
