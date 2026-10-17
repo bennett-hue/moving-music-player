@@ -35,6 +35,8 @@ const ALLOWED_ROUTES = [
   'maine', 'shaker', 'love', 'gathering'
 ];
 
+const UUID_RE = /^[A-Za-z0-9_-]{8,64}$/;
+
 const GHOST_ADMIN_HOST = 'https://moving-music.ghost.io';
 
 // Repo the atlas map is served from. Bumped by editing this constant.
@@ -110,6 +112,54 @@ async function ghostJwt(adminKey) {
     'HMAC', key, enc.encode(signingInput)
   );
   return signingInput + '.' + b64url(sig);
+}
+
+async function memberLabelsHandler(request, env, uuid) {
+  if (!env.GHOST_ADMIN_KEY) {
+    return new Response(
+      'server misconfigured: no admin key',
+      { status: 500, headers: corsHeaders() }
+    );
+  }
+  if (!UUID_RE.test(uuid)) {
+    return new Response(
+      'bad uuid', { status: 400, headers: corsHeaders() }
+    );
+  }
+  const token = await ghostJwt(env.GHOST_ADMIN_KEY);
+  const url = GHOST_ADMIN_HOST +
+    '/ghost/api/admin/members/?' +
+    'filter=' + encodeURIComponent('uuid:' + uuid) +
+    '&include=labels&limit=1';
+  const r = await fetch(url, {
+    headers: { Authorization: 'Ghost ' + token }
+  });
+  if (!r.ok) {
+    return new Response(
+      'ghost lookup failed: ' + r.status,
+      { status: 502, headers: corsHeaders() }
+    );
+  }
+  const data = await r.json();
+  const m = data.members && data.members[0];
+  if (!m) {
+    return new Response(
+      JSON.stringify({ uuid: uuid, labels: [], found: false }),
+      { status: 200, headers: jsonHeaders() }
+    );
+  }
+  const labels = (m.labels || []).map(function (l) {
+    return { slug: l.slug, name: l.name };
+  });
+  return new Response(
+    JSON.stringify({
+      uuid: uuid,
+      labels: labels,
+      status: m.status,
+      found: true
+    }),
+    { status: 200, headers: jsonHeaders() }
+  );
 }
 
 async function pickRouteHandler(request, env) {
@@ -254,6 +304,28 @@ export default {
     // Route picker: writes "route-<slug>" label on a Ghost member.
     if (url.pathname === '/pick-route' && request.method === 'POST') {
       return pickRouteHandler(request, env);
+    }
+
+    // Member labels: GET /member/<uuid> returns {uuid, labels, status}.
+    // The frontend /members/api/member/ endpoint doesn't expose labels,
+    // so this proxies the Admin API.
+    const mm = url.pathname.match(/^\/member\/([A-Za-z0-9_-]{8,64})$/);
+    if (mm && request.method === 'GET') {
+      return memberLabelsHandler(request, env, mm[1]);
+    }
+
+    // Debug: lists env keys and whether GHOST_ADMIN_KEY is readable.
+    // Remove after launch.
+    if (url.pathname === '/env-check' && request.method === 'GET') {
+      const keys = Object.keys(env || {});
+      const hasAdmin = !!(env && env.GHOST_ADMIN_KEY);
+      const adminLen = env && env.GHOST_ADMIN_KEY
+        ? env.GHOST_ADMIN_KEY.length : 0;
+      return new Response(JSON.stringify({
+        keys: keys,
+        hasAdminKey: hasAdmin,
+        adminKeyLength: adminLen
+      }), { status: 200, headers: jsonHeaders() });
     }
 
     const key = routeKey(url.pathname);

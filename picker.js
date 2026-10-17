@@ -58,6 +58,9 @@
 
   // ------------------------------------------------------------
   // Member state
+  //
+  // Ghost's /members/api/member/ endpoint does not include labels,
+  // so we fetch labels via a worker proxy that uses the Admin API.
   // ------------------------------------------------------------
 
   var memberCache = null;
@@ -69,11 +72,26 @@
     return fetch('/members/api/member/', {
       credentials: 'same-origin'
     }).then(function (r) {
-      if (!r.ok) return null;
+      if (r.status === 204 || !r.ok) return null;
       return r.json();
     }).then(function (d) {
-      memberCache = d || null;
-      return memberCache;
+      if (!d || !d.uuid) {
+        memberCache = d || null;
+        return memberCache;
+      }
+      // Attach labels via worker proxy; fall back to [] on error.
+      return fetch(SYNC_URL + '/member/' + d.uuid).then(function (r) {
+        if (!r.ok) return { labels: [] };
+        return r.json();
+      }).then(function (lx) {
+        d.labels = (lx && lx.labels) || [];
+        memberCache = d;
+        return memberCache;
+      }).catch(function () {
+        d.labels = [];
+        memberCache = d;
+        return memberCache;
+      });
     }).catch(function () {
       memberCache = null;
       return null;
@@ -85,6 +103,22 @@
     return member.labels.map(function (l) {
       return (l && l.slug) ? l.slug : '';
     });
+  }
+
+  function localPickedKey(uuid) {
+    return 'mm-picker-picked:' + uuid;
+  }
+
+  function localPicked(uuid) {
+    try {
+      return !!localStorage.getItem(localPickedKey(uuid));
+    } catch (e) { return false; }
+  }
+
+  function markPickedLocal(uuid, slug) {
+    try {
+      localStorage.setItem(localPickedKey(uuid), slug);
+    } catch (e) { /* noop */ }
   }
 
   function hasAnyRouteLabel(member) {
@@ -374,6 +408,7 @@
           route: slug
         })
       }).then(function (r) {
+        if (r.ok) markPickedLocal(m.uuid, slug);
         return r.ok;
       }).catch(function () {
         return false;
@@ -390,6 +425,7 @@
     if (member.status === 'paid') return false;
     if (hasLegacyLabel(member)) return false;
     if (hasAnyRouteLabel(member)) return false;
+    if (localPicked(member.uuid)) return false;
     if (sessionSkipped()) return false;
     return true;
   }

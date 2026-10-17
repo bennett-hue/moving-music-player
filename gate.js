@@ -26,6 +26,7 @@
 
   var VERSION = '0.1.0';
   var ACCENT = '#2A8C82';
+  var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-gate-style';
   var CARD_CLASS = 'mm-gate-card';
 
@@ -84,11 +85,26 @@
     return fetch('/members/api/member/', {
       credentials: 'same-origin'
     }).then(function (r) {
-      if (!r.ok) return null;
+      if (r.status === 204 || !r.ok) return null;
       return r.json();
     }).then(function (d) {
-      memberCache = d || null;
-      return memberCache;
+      if (!d || !d.uuid) {
+        memberCache = d || null;
+        return memberCache;
+      }
+      // /members/api/member/ doesn't include labels — proxy via worker.
+      return fetch(SYNC_URL + '/member/' + d.uuid).then(function (r) {
+        if (!r.ok) return { labels: [] };
+        return r.json();
+      }).then(function (lx) {
+        d.labels = (lx && lx.labels) || [];
+        memberCache = d;
+        return memberCache;
+      }).catch(function () {
+        d.labels = [];
+        memberCache = d;
+        return memberCache;
+      });
     }).catch(function () {
       return null;
     });
