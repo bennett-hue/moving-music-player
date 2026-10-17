@@ -36,16 +36,24 @@
   // Routes offered in the picker. Keep order deliberate — most common
   // first, more specific later. Each route has a slug (matches the
   // Ghost tag slug exactly) and a short, Bennett-voice description.
+  // Palette lifted from the nautical chart on the home page.
+  //   WATER  — pale chart teal
+  //   SAGE   — chart landmass green
+  //   CREAM  — chart parchment / sand
+  var C_WATER = '#d4e2e0';
+  var C_SAGE  = '#c7cfae';
+  var C_CREAM = '#e8dcbe';
+
   var ROUTES = [
-    { slug: 'rowing',        name: 'Rowing' },
-    { slug: 'sea-shanties',  name: 'Sea Shanties' },
-    { slug: 'walking',       name: 'Walking' },
-    { slug: 'farm',          name: 'Farm' },
-    { slug: 'woods',         name: 'Woods' },
-    { slug: 'maine',         name: 'Maine' },
-    { slug: 'shaker',        name: 'Shaker' },
-    { slug: 'love',          name: 'Love' },
-    { slug: 'gathering',     name: 'Gathering' }
+    { slug: 'rowing',       name: 'Rowing',       bg: C_WATER },
+    { slug: 'sea-shanties', name: 'Sea Shanties', bg: C_WATER },
+    { slug: 'walking',      name: 'Walking',      bg: C_CREAM },
+    { slug: 'farm',         name: 'Farm',         bg: C_SAGE  },
+    { slug: 'woods',        name: 'Woods',        bg: C_SAGE  },
+    { slug: 'maine',        name: 'Maine',        bg: C_WATER },
+    { slug: 'shaker',       name: 'Shaker',       bg: C_CREAM },
+    { slug: 'love',         name: 'Love',         bg: C_CREAM },
+    { slug: 'gathering',    name: 'Gathering',    bg: C_SAGE  }
   ];
 
   // ------------------------------------------------------------
@@ -154,26 +162,26 @@
       '  margin:0 0 1.6rem;',
       '}',
       '#' + MODAL_ID + ' .mm-picker-opt{',
-      '  background:#f6f6f6;',
+      '  background:#f3ead9;',
       '  border:2px solid transparent;',
       '  border-radius:6px;',
-      '  padding:1.2rem 1rem;',
-      '  text-align:left;',
+      '  padding:1.4rem 1rem;',
+      '  text-align:center;',
       '  cursor:pointer;',
       '  font:inherit;',
       '  touch-action:manipulation;',
       '  transition:border-color 80ms ease,',
-      '    background 80ms ease;',
+      '    filter 80ms ease;',
       '}',
       '#' + MODAL_ID + ' .mm-picker-opt:hover,',
       '#' + MODAL_ID + ' .mm-picker-opt:focus{',
       '  border-color:' + ACCENT + ';',
-      '  background:#eef7f5;',
+      '  filter:brightness(1.04);',
       '  outline:none;',
       '}',
       '#' + MODAL_ID + ' .mm-picker-opt[aria-selected="true"]{',
       '  border-color:' + ACCENT + ';',
-      '  background:#eef7f5;',
+      '  filter:brightness(1.08);',
       '}',
       '#' + MODAL_ID + ' .mm-picker-opt-name{',
       '  display:block;',
@@ -276,6 +284,7 @@
       btn.type = 'button';
       btn.setAttribute('data-slug', r.slug);
       btn.setAttribute('aria-selected', 'false');
+      if (r.bg) btn.style.background = r.bg;
 
       var n = document.createElement('span');
       n.className = 'mm-picker-opt-name';
