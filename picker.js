@@ -37,51 +37,15 @@
   // first, more specific later. Each route has a slug (matches the
   // Ghost tag slug exactly) and a short, Bennett-voice description.
   var ROUTES = [
-    {
-      slug: 'rowing',
-      name: 'Rowing',
-      desc: 'Songs for pulling together. Oar, line, tide.'
-    },
-    {
-      slug: 'sea-shanties',
-      name: 'Sea Shanties',
-      desc: 'Shanties for the sea and the long haul.'
-    },
-    {
-      slug: 'walking',
-      name: 'Walking',
-      desc: 'Songs with the pace of your feet.'
-    },
-    {
-      slug: 'farm',
-      name: 'Farm',
-      desc: 'Songs for garden, harvest, field work.'
-    },
-    {
-      slug: 'woods',
-      name: 'Woods',
-      desc: 'Songs for the ax, the saw, the stacked logs.'
-    },
-    {
-      slug: 'maine',
-      name: 'Maine',
-      desc: 'Songs rooted in the Maine coast and woods.'
-    },
-    {
-      slug: 'shaker',
-      name: 'Shaker',
-      desc: 'Shaker songs for simple work and gathering.'
-    },
-    {
-      slug: 'love',
-      name: 'Love',
-      desc: 'Songs for the heart. Waltzes, laments, affection.'
-    },
-    {
-      slug: 'gathering',
-      name: 'Gathering',
-      desc: 'Songs for coming together. Table, hearth, circle.'
-    }
+    { slug: 'rowing',        name: 'Rowing' },
+    { slug: 'sea-shanties',  name: 'Sea Shanties' },
+    { slug: 'walking',       name: 'Walking' },
+    { slug: 'farm',          name: 'Farm' },
+    { slug: 'woods',         name: 'Woods' },
+    { slug: 'maine',         name: 'Maine' },
+    { slug: 'shaker',        name: 'Shaker' },
+    { slug: 'love',          name: 'Love' },
+    { slug: 'gathering',     name: 'Gathering' }
   ];
 
   // ------------------------------------------------------------
@@ -301,13 +265,6 @@
     h.id = 'mm-picker-title';
     h.textContent = 'Pick your free route';
 
-    var sub = document.createElement('p');
-    sub.className = 'mm-picker-sub';
-    sub.textContent =
-      'Your free account unlocks one route. ' +
-      'You can change it later in your account settings. ' +
-      'Full Songbook members unlock all routes.';
-
     var grid = document.createElement('div');
     grid.className = 'mm-picker-grid';
 
@@ -324,12 +281,7 @@
       n.className = 'mm-picker-opt-name';
       n.textContent = r.name;
 
-      var d = document.createElement('span');
-      d.className = 'mm-picker-opt-desc';
-      d.textContent = r.desc;
-
       btn.appendChild(n);
-      btn.appendChild(d);
 
       btn.addEventListener('click', function () {
         selected = r.slug;
@@ -359,7 +311,7 @@
     var confirmBtn = document.createElement('button');
     confirmBtn.className = 'mm-picker-confirm';
     confirmBtn.type = 'button';
-    confirmBtn.textContent = 'Unlock this route';
+    confirmBtn.textContent = 'Choose this route';
     confirmBtn.disabled = true;
     confirmBtn.addEventListener('click', function () {
       if (!selected) return;
@@ -372,7 +324,7 @@
           window.location.reload();
         } else {
           confirmBtn.disabled = false;
-          confirmBtn.textContent = 'Unlock this route';
+          confirmBtn.textContent = 'Choose this route';
           errBox.textContent =
             'Could not save your pick. Try again?';
         }
@@ -386,7 +338,6 @@
     errBox.className = 'mm-picker-err';
 
     card.appendChild(h);
-    card.appendChild(sub);
     card.appendChild(grid);
     card.appendChild(actions);
     card.appendChild(errBox);

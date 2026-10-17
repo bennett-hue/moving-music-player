@@ -190,9 +190,11 @@
     h.textContent = opts.title;
     w.appendChild(h);
 
-    var p = document.createElement('p');
-    p.textContent = opts.body;
-    w.appendChild(p);
+    if (opts.body) {
+      var p = document.createElement('p');
+      p.textContent = opts.body;
+      w.appendChild(p);
+    }
 
     opts.buttons.forEach(function (b) {
       var a = document.createElement('a');
@@ -249,12 +251,11 @@
       var thisName = ROUTE_NAMES[postTags[0]] || postTags[0];
       var card = buildUpgradeCard({
         title: 'This song is in ' + thisName + '.',
-        body: 'You unlocked ' + pickedName + '. ' +
-          'Join Full Songbook to unlock every route, the ' +
-          'album, and Sing in the Suds every week.',
+        body: 'You chose ' + pickedName +
+          '. Join the Full Songbook for all of it.',
         buttons: [
           {
-            label: 'See Full Songbook',
+            label: 'Join the Full Songbook',
             href: '#/portal/signup/paid'
           },
           {
@@ -262,23 +263,20 @@
             alt: true,
             href: '#pick-route'
           }
-        ],
-        note: 'Full Songbook members get everything.'
+        ]
       });
       replaceContent(card);
     } else {
       // Free member who hasn't picked yet.
       var pcard = buildUpgradeCard({
         title: 'Pick your free route',
-        body: 'Your free account unlocks one route. ' +
-          'Pick one and this song may already be in it.',
+        body: '',
         buttons: [
           {
             label: 'Pick a route',
             href: '#pick-route'
           }
-        ],
-        note: 'Full Songbook members unlock all routes.'
+        ]
       });
       replaceContent(pcard);
     }
