@@ -23,15 +23,16 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.0';
+  var VERSION = '0.2.0';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
+  var STYLE_ID = 'mm-tiers-style';
+  var DIM_CLASS = 'mm-tier-dim';
 
   // Must stay in sync with picker.js and gate.js.
   var ROUTES = [
     'rowing', 'sea-shanties', 'walking', 'farm', 'woods',
     'maine', 'shaker', 'love', 'gathering'
   ];
-  var ALWAYS_FREE = ['courage'];
 
   // ------------------------------------------------------------
   // Member state
@@ -103,49 +104,47 @@
     return m ? m[1] : null;
   }
 
+  function hasAccess(slug, labelText, member) {
+    // Public to everyone: the HTML label says "No account needed".
+    if (/no account needed/i.test(labelText || '')) return true;
+    // Signed-in paid or legacy-free: full access to everything.
+    if (member) {
+      if (isPaid(member)) return true;
+      if (isLegacy(member)) return true;
+      if (ROUTES.indexOf(slug) !== -1) {
+        var picked = memberRoute(member);
+        if (picked === slug) return true;
+      }
+    }
+    return false;
+  }
+
   function rewriteCard(cardEl, member) {
     var slug = routeSlugFromCard(cardEl);
     if (!slug) return;
     var hint = cardEl.querySelector('.tier-hint');
-    if (!hint) return;
-
-    // Songs of Courage and any always-free route: no label.
-    if (ALWAYS_FREE.indexOf(slug) !== -1) {
-      hint.style.display = 'none';
-      return;
-    }
-
-    // Non-picker routes: leave as-is (defensive).
-    if (ROUTES.indexOf(slug) === -1) return;
 
     // Normalize stale "Free with email signup" wording — under the
-    // picker design, every picker route requires either a route pick
-    // or Full Songbook. Keep the link, update the text.
-    var link = hint.querySelector('a');
-    var current = (link ? link.textContent : hint.textContent) || '';
-    if (/free with email signup/i.test(current)) {
-      if (link) {
-        link.textContent = 'Full access with membership';
-      } else {
-        hint.textContent = 'Full access with membership';
+    // picker design that tier no longer exists. Keep the link, swap
+    // the text to the unified "Full access with membership" prompt.
+    if (hint) {
+      var link = hint.querySelector('a');
+      var current = (link ? link.textContent : hint.textContent) || '';
+      if (/free with email signup/i.test(current)) {
+        if (link) {
+          link.textContent = 'Full access with membership';
+        } else {
+          hint.textContent = 'Full access with membership';
+        }
       }
     }
 
-    // Anonymous visitor: label stays visible so they know to sign up.
-    if (!member || !member.uuid) return;
-
-    // Paid or legacy-free: full access, no prompt needed.
-    if (isPaid(member) || isLegacy(member)) {
-      hint.style.display = 'none';
-      return;
+    var labelText = hint ? hint.textContent : '';
+    if (hasAccess(slug, labelText, member)) {
+      cardEl.classList.remove(DIM_CLASS);
+    } else {
+      cardEl.classList.add(DIM_CLASS);
     }
-
-    // Free member — hide the label on their picked route only.
-    var picked = memberRoute(member);
-    if (picked === slug) {
-      hint.style.display = 'none';
-    }
-    // Otherwise the "Full access with membership" label stays.
   }
 
   function rewriteAll(member) {
@@ -155,7 +154,24 @@
     }
   }
 
+  function injectStyle() {
+    if (document.getElementById(STYLE_ID)) return;
+    var s = document.createElement('style');
+    s.id = STYLE_ID;
+    s.textContent = [
+      '.route.' + DIM_CLASS + '{',
+      '  opacity:0.45;',
+      '  transition:opacity 160ms ease;',
+      '}',
+      '.route.' + DIM_CLASS + ':hover{',
+      '  opacity:0.75;',
+      '}'
+    ].join('\n');
+    document.head.appendChild(s);
+  }
+
   function start() {
+    injectStyle();
     fetchMember().then(function (m) {
       rewriteAll(m);
       // Re-run after a short delay in case the page content loads
