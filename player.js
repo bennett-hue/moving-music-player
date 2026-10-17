@@ -3206,3 +3206,40 @@
     init();
   }
 })();
+
+/* --------------------------------------------------------------
+ * Sibling loaders: pull picker.js and gate.js from the same
+ * commit as this player.js, so the code injection in Ghost only
+ * needs the single <script src="player.js"> tag it already has.
+ *
+ * Updating this player.js file's SHA in the code injection
+ * automatically pulls new picker.js and gate.js versions along
+ * with it (same commit = same SHA).
+ * -------------------------------------------------------------- */
+(function loadSiblings() {
+  'use strict';
+  var m = /\/moving-music-player@([^/]+)\//.exec(
+    document.currentScript ? document.currentScript.src : ''
+  );
+  // Fallback: scan existing <script> tags for the matching src.
+  if (!m) {
+    var scripts = document.getElementsByTagName('script');
+    for (var i = 0; i < scripts.length; i++) {
+      var s = scripts[i].src || '';
+      var hit = /\/moving-music-player@([^/]+)\/player\.js/
+        .exec(s);
+      if (hit) { m = hit; break; }
+    }
+  }
+  if (!m) return;
+  var sha = m[1];
+  var base =
+    'https://cdn.jsdelivr.net/gh/bennett-hue/' +
+    'moving-music-player@' + sha + '/';
+  ['picker.js', 'gate.js'].forEach(function (f) {
+    var el = document.createElement('script');
+    el.src = base + f;
+    el.defer = true;
+    document.head.appendChild(el);
+  });
+})();
