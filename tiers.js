@@ -166,36 +166,66 @@
       '}',
       '.route.' + DIM_CLASS + ':hover{',
       '  opacity:0.9 !important;',
-      '}',
-      // Hide tier labels by default; reveal on hover/focus of the
-      // card so anyone curious can read why.
-      '.route p.tier-hint{',
-      '  visibility:hidden !important;',
-      '  opacity:0 !important;',
-      '  transition:opacity 160ms ease,',
-      '    visibility 0ms linear 160ms;',
-      '  pointer-events:none;',
-      '}',
-      '.route:hover p.tier-hint,',
-      '.route:focus-within p.tier-hint{',
-      '  visibility:visible !important;',
-      '  opacity:1 !important;',
-      '  pointer-events:auto;',
-      '  transition:opacity 160ms ease,',
-      '    visibility 0ms linear 0ms;',
       '}'
     ].join('\n');
     document.head.appendChild(s);
   }
 
+  // Set up hover-reveal via direct inline styles. CSS !important
+  // kept losing to some other rule; inline wins unambiguously.
+  function wireHoverReveal() {
+    var cards = document.querySelectorAll('.route');
+    cards.forEach(function (card) {
+      var hint = card.querySelector('.tier-hint');
+      if (!hint) return;
+      if (hint.getAttribute('data-mm-hover-wired') === '1') return;
+      hint.setAttribute('data-mm-hover-wired', '1');
+      hint.style.visibility = 'hidden';
+      hint.style.opacity = '0';
+      hint.style.pointerEvents = 'none';
+      hint.style.transition =
+        'opacity 160ms ease, visibility 0ms linear 160ms';
+      card.addEventListener('mouseenter', function () {
+        hint.style.visibility = 'visible';
+        hint.style.opacity = '1';
+        hint.style.pointerEvents = 'auto';
+        hint.style.transition =
+          'opacity 160ms ease, visibility 0ms linear 0ms';
+      });
+      card.addEventListener('mouseleave', function () {
+        hint.style.visibility = 'hidden';
+        hint.style.opacity = '0';
+        hint.style.pointerEvents = 'none';
+        hint.style.transition =
+          'opacity 160ms ease, visibility 0ms linear 160ms';
+      });
+      card.addEventListener('focusin', function () {
+        hint.style.visibility = 'visible';
+        hint.style.opacity = '1';
+      });
+      card.addEventListener('focusout', function () {
+        hint.style.visibility = 'hidden';
+        hint.style.opacity = '0';
+      });
+    });
+  }
+
   function start() {
     injectStyle();
+    wireHoverReveal();
     fetchMember().then(function (m) {
       rewriteAll(m);
+      wireHoverReveal();
       // Re-run after a short delay in case the page content loads
       // asynchronously (details/summary toggles, etc.).
-      setTimeout(function () { rewriteAll(m); }, 500);
-      setTimeout(function () { rewriteAll(m); }, 1500);
+      setTimeout(function () {
+        rewriteAll(m);
+        wireHoverReveal();
+      }, 500);
+      setTimeout(function () {
+        rewriteAll(m);
+        wireHoverReveal();
+      }, 1500);
     });
   }
 
