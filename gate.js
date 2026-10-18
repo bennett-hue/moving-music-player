@@ -1,5 +1,8 @@
 /*
- * Moving Music — Route Gate
+ * Moving Music — Category Gate
+ *
+ * Visitors see "category". The internal name stays "route" (label
+ * route-<slug>, worker /pick-route, trigger #pick-route).
  *
  * On a single-post page, decides whether the signed-in free member can
  * see the content based on their chosen route label and the post's
@@ -24,7 +27,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.1';
+  var VERSION = '0.1.2';
   var ACCENT = '#2A8C82';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-gate-style';
@@ -287,7 +290,7 @@
             href: '#/portal/signup/paid'
           },
           {
-            label: 'Change my route',
+            label: 'Change my category',
             alt: true,
             href: '#pick-route'
           }
@@ -297,11 +300,11 @@
     } else {
       // Free member who hasn't picked yet.
       var pcard = buildUpgradeCard({
-        title: 'Pick your free route',
+        title: 'Pick your free category',
         body: '',
         buttons: [
           {
-            label: 'Pick a route',
+            label: 'Pick a category',
             href: '#pick-route'
           }
         ]

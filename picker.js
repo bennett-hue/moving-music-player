@@ -1,5 +1,9 @@
 /*
- * Moving Music — Route Picker
+ * Moving Music — Category Picker
+ *
+ * Visitors see "category". The internal name stays "route": the
+ * member label is route-<slug>, the worker endpoint is /pick-route,
+ * the trigger hash is #pick-route.
  *
  * Free members pick ONE route to unlock. The chosen route is stored on
  * the Ghost member record as a label of the form "route-<slug>" via the
@@ -26,7 +30,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.1';
+  var VERSION = '0.1.2';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STORAGE_SKIPPED = 'mm-picker-skipped-this-session';
   var ACCENT = '#2A8C82';
@@ -321,7 +325,7 @@
 
     var h = document.createElement('h2');
     h.id = 'mm-picker-title';
-    h.textContent = 'Pick your free route';
+    h.textContent = 'Pick your free category';
 
     var grid = document.createElement('div');
     grid.className = 'mm-picker-grid';
@@ -370,7 +374,7 @@
     var confirmBtn = document.createElement('button');
     confirmBtn.className = 'mm-picker-confirm';
     confirmBtn.type = 'button';
-    confirmBtn.textContent = 'Choose this route';
+    confirmBtn.textContent = 'Choose this category';
     confirmBtn.disabled = true;
     confirmBtn.addEventListener('click', function () {
       if (!selected) return;
@@ -383,7 +387,7 @@
           window.location.reload();
         } else {
           confirmBtn.disabled = false;
-          confirmBtn.textContent = 'Choose this route';
+          confirmBtn.textContent = 'Choose this category';
           errBox.textContent =
             'Could not save your pick. Try again?';
         }
