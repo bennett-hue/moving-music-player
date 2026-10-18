@@ -358,20 +358,6 @@ export default {
       return memberLabelsHandler(request, env, mm[1]);
     }
 
-    // Debug: lists env keys and whether GHOST_ADMIN_KEY is readable.
-    // Remove after launch.
-    if (url.pathname === '/env-check' && request.method === 'GET') {
-      const keys = Object.keys(env || {});
-      const hasAdmin = !!(env && env.GHOST_ADMIN_KEY);
-      const adminLen = env && env.GHOST_ADMIN_KEY
-        ? env.GHOST_ADMIN_KEY.length : 0;
-      return new Response(JSON.stringify({
-        keys: keys,
-        hasAdminKey: hasAdmin,
-        adminKeyLength: adminLen
-      }), { status: 200, headers: jsonHeaders() });
-    }
-
     const key = routeKey(url.pathname);
     if (!key) {
       return new Response('not found', { status: 404, headers: corsHeaders() });
