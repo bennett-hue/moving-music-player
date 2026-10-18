@@ -33,7 +33,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.7';
+  var VERSION = '0.1.8';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STORAGE_SKIPPED = 'mm-picker-skipped-this-session';
   var ACCENT = '#2A8C82';
@@ -335,8 +335,7 @@
     var sub = document.createElement('p');
     sub.className = 'mm-picker-sub';
     sub.appendChild(document.createTextNode(
-      'One category per free account, and it stays picked. ' +
-      'For all nine, '
+      'One category per free account. For all nine, '
     ));
     var allLink = document.createElement('a');
     allLink.href = '#/portal/account/plans';
