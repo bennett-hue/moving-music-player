@@ -33,7 +33,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.5';
+  var VERSION = '0.1.6';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STORAGE_SKIPPED = 'mm-picker-skipped-this-session';
   var ACCENT = '#2A8C82';
@@ -339,7 +339,7 @@
       'For all nine, '
     ));
     var allLink = document.createElement('a');
-    allLink.href = '#/portal/signup/paid';
+    allLink.href = '#/portal/account/plans';
     allLink.textContent = 'join the Full Songbook';
     allLink.style.color = ACCENT;
     allLink.style.textDecoration = 'underline';

@@ -32,7 +32,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.4';
+  var VERSION = '0.1.5';
   var ACCENT = '#2A8C82';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-gate-style';
@@ -320,7 +320,7 @@
         buttons: [
           {
             label: 'Join the Full Songbook',
-            href: '#/portal/signup/paid'
+            href: '#/portal/account/plans'
           }
         ]
       });
