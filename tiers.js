@@ -1,9 +1,17 @@
 /*
  * Moving Music — Tier Labels
  *
- * Rewrites the `.mm-tier-link` labels on route cards (Chart Your Course
- * page, and anywhere else `.route` cards appear) to reflect the current
- * viewer's access state.
+ * Rewrites the tier labels on route cards (Chart Your Course page, and
+ * anywhere else `.route` cards appear) to reflect the current viewer's
+ * access state, and keeps every label hidden until the card is hovered
+ * or focused. The dim on the card carries the access signal; the label
+ * is explanation on demand.
+ *
+ * Which element is the label: the page's inline mm-move-tier-hints
+ * script clones `p.tier-hint > a` into the h3 as `a.mm-tier-link` and
+ * hides the original p. Cards whose hint is plain text (no link) never
+ * get a clone, so there the visible label is still `p.tier-hint`.
+ * labelEl() picks whichever one the visitor can actually see.
  *
  * Rules
  *   anonymous visitor         keep whatever label is in the HTML
@@ -23,7 +31,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.2.0';
+  var VERSION = '0.2.1';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-tiers-style';
   var DIM_CLASS = 'mm-tier-dim';
@@ -104,6 +112,13 @@
     return m ? m[1] : null;
   }
 
+  // The label the visitor can see: the h3 clone when the inline page
+  // script has made one, otherwise the original p.tier-hint.
+  function labelEl(cardEl) {
+    return cardEl.querySelector('.mm-tier-link') ||
+      cardEl.querySelector('.tier-hint');
+  }
+
   function hasAccess(slug, labelText, member) {
     // Public to everyone: the HTML label says "No account needed".
     if (/no account needed/i.test(labelText || '')) return true;
@@ -122,7 +137,7 @@
   function rewriteCard(cardEl, member) {
     var slug = routeSlugFromCard(cardEl);
     if (!slug) return;
-    var hint = cardEl.querySelector('.mm-tier-link');
+    var hint = labelEl(cardEl);
 
     // Normalize stale "Free with email signup" wording — under the
     // picker design that tier no longer exists. Keep the link, swap
@@ -176,7 +191,7 @@
   function wireHoverReveal() {
     var cards = document.querySelectorAll('.route');
     cards.forEach(function (card) {
-      var hint = card.querySelector('.mm-tier-link');
+      var hint = labelEl(card);
       if (!hint) return;
       if (hint.getAttribute('data-mm-hover-wired') === '1') return;
       hint.setAttribute('data-mm-hover-wired', '1');
