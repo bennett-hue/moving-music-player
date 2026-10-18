@@ -31,7 +31,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.2.2';
+  var VERSION = '0.2.3';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-tiers-style';
   var DIM_CLASS = 'mm-tier-dim';
@@ -167,10 +167,24 @@
     }
 
     var labelText = hint ? hint.textContent : '';
-    if (hasAccess(slug, labelText, member)) {
+    var canSee = hasAccess(slug, labelText, member);
+    if (canSee) {
       cardEl.classList.remove(DIM_CLASS);
     } else {
       cardEl.classList.add(DIM_CLASS);
+    }
+
+    // A signed-in member gets no label at all on a collection they can
+    // open (their picked category, or everything for paid and
+    // legacy-free), the same as a paid member sees everywhere. The
+    // hover label stays only on dimmed cards, where it explains the
+    // dim. Anonymous visitors keep every label on hover.
+    if (hint) {
+      if (member && member.uuid && canSee) {
+        hint.style.display = 'none';
+      } else if (hint.style.display === 'none') {
+        hint.style.display = '';
+      }
     }
   }
 
