@@ -16,8 +16,13 @@
  *     post tagged with X            → show content
  *   free member, route-X label but
  *     post NOT tagged with X        → hide content, show upgrade card
- *   free member, no route label     → hide content, show "pick a route"
- *                                     card (picker opens on CTA)
+ *                                     (one pick per member: the only
+ *                                     way to another category is the
+ *                                     Full Songbook)
+ *   free member, no route label     → hide content, show "pick a
+ *                                     category" card (picker opens
+ *                                     on CTA)
+ *   public post                     → never gated, whoever is viewing
  *
  * Reads body class list for `.post-template` and `.tag-<slug>` entries.
  * Reads the signed-in member via /members/api/member/.
@@ -27,11 +32,14 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.3';
+  var VERSION = '0.1.4';
   var ACCENT = '#2A8C82';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-gate-style';
   var CARD_CLASS = 'mm-gate-card';
+  // Content API (read-only, public key, same one the site header uses).
+  var CONTENT_API = 'https://moving-music.ghost.io/ghost/api/content/';
+  var CONTENT_KEY = '4bb24d5f52e1f7397cb4fe24a5';
 
   // Routes that a free member can unlock via the picker. Must stay in
   // sync with picker.js ROUTES and the worker ALLOWED_ROUTES.
@@ -60,6 +68,30 @@
   function isPostPage() {
     return !!(document.body &&
       document.body.classList.contains('post-template'));
+  }
+
+  function postSlug() {
+    var parts = window.location.pathname.split('/').filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : '';
+  }
+
+  // Ghost's body classes don't carry visibility, so ask the Content
+  // API. On any failure, assume gated: a public song shown to a wrong-
+  // category member for one load is cheap; a leak is not.
+  function fetchVisibility() {
+    var slug = postSlug();
+    if (!slug) return Promise.resolve(null);
+    var url = CONTENT_API + 'posts/slug/' + encodeURIComponent(slug) +
+      '/?key=' + CONTENT_KEY + '&fields=visibility';
+    return fetch(url).then(function (r) {
+      if (!r.ok) return null;
+      return r.json();
+    }).then(function (d) {
+      var p = d && d.posts && d.posts[0];
+      return p ? p.visibility : null;
+    }).catch(function () {
+      return null;
+    });
   }
 
   function postRouteTags() {
@@ -261,11 +293,12 @@
   // Gate decision
   // ------------------------------------------------------------
 
-  function decide(member) {
+  function decide(member, visibility) {
     if (!isPostPage()) return;
     if (!member || !member.uuid) return;  // anonymous: Ghost handles
     if (isPaid(member)) return;           // paid: full access
     if (isLegacy(member)) return;         // grandfathered: full access
+    if (visibility === 'public') return;  // open to everyone already
 
     var postTags = postRouteTags();
     if (postTags.length === 0) return;    // not a route-gated post
@@ -288,11 +321,6 @@
           {
             label: 'Join the Full Songbook',
             href: '#/portal/signup/paid'
-          },
-          {
-            label: 'Change my category',
-            alt: true,
-            href: '#pick-route'
           }
         ]
       });
@@ -319,7 +347,9 @@
 
   function start() {
     if (!isPostPage()) return;
-    fetchMember().then(decide);
+    Promise.all([fetchMember(), fetchVisibility()]).then(function (r) {
+      decide(r[0], r[1]);
+    });
   }
 
   if (document.readyState === 'loading') {

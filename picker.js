@@ -17,6 +17,9 @@
  * Also triggered explicitly by:
  *   - URL hash "#pick-route"
  *   - Any element with [data-mm-pick-route] (click handler attaches)
+ * Explicit triggers go through the same check: one pick per member.
+ * A member who already has a route label never gets the picker
+ * again; the worker refuses a second pick too.
  *
  * Legacy-free members (grandfathered) are treated as a wildcard and
  * never see this picker.
@@ -30,7 +33,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.3';
+  var VERSION = '0.1.4';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STORAGE_SKIPPED = 'mm-picker-skipped-this-session';
   var ACCENT = '#2A8C82';
@@ -429,6 +432,12 @@
         })
       }).then(function (r) {
         if (r.ok) markPickedLocal(m.uuid, slug);
+        // 409: the server already holds a pick for this member. Treat
+        // it as settled so the modal closes and the page reloads.
+        if (r.status === 409) {
+          markPickedLocal(m.uuid, 'server');
+          return true;
+        }
         return r.ok;
       }).catch(function () {
         return false;
@@ -440,12 +449,19 @@
   // Trigger logic
   // ------------------------------------------------------------
 
-  function shouldAutoOpen(member) {
+  // May this member pick at all? Signed in, not paid, not
+  // grandfathered, and no pick on record (server label or local flag).
+  function canPick(member) {
     if (!member || !member.uuid) return false;
     if (isPaid(member)) return false;
     if (hasLegacyLabel(member)) return false;
     if (hasAnyRouteLabel(member)) return false;
     if (localPicked(member.uuid)) return false;
+    return true;
+  }
+
+  function shouldAutoOpen(member) {
+    if (!canPick(member)) return false;
     if (sessionSkipped()) return false;
     return true;
   }
@@ -456,9 +472,15 @@
     });
   }
 
+  function openIfAllowed() {
+    fetchMember().then(function (m) {
+      if (canPick(m)) buildModal();
+    });
+  }
+
   function openByHash() {
     if (window.location.hash === '#pick-route') {
-      buildModal();
+      openIfAllowed();
       // Clear hash so refresh doesn't re-trigger forever.
       history.replaceState(
         null,
@@ -476,7 +498,7 @@
         if (t.getAttribute &&
             t.getAttribute('data-mm-pick-route') !== null) {
           e.preventDefault();
-          buildModal();
+          openIfAllowed();
           return;
         }
         t = t.parentNode;

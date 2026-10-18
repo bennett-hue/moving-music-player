@@ -8,8 +8,9 @@
 //   POST /pick-route           → write "route-<slug>" label on a Ghost
 //                                member via the Ghost Admin API. Body:
 //                                { uuid, route }. Preserves existing
-//                                non-route labels, replaces any prior
-//                                route-* label.
+//                                non-route labels. One pick per
+//                                member: 409 if a route-* label is
+//                                already on the member.
 //   OPTIONS                    → CORS preflight
 //
 // Security model (v1): UUID-in-URL trust. Anyone with the UUID can
@@ -221,9 +222,23 @@ async function pickRouteHandler(request, env) {
     );
   }
 
-  // Preserve existing non-route labels; replace any route-* with the
-  // new one. Keep legacy-free if present (should never happen since
-  // legacy-free members skip the picker, but defensive).
+  // One pick per member. A member who already holds a route-* label
+  // keeps it; the only way to another category is the Full Songbook.
+  // Bennett can still change a label by hand in Ghost Admin.
+  const current = (member.labels || []).find(function (l) {
+    return l && (l.slug || '').indexOf('route-') === 0;
+  });
+  if (current) {
+    return new Response(
+      JSON.stringify({ ok: false, reason: 'already picked',
+        route: current.slug.substring(6) }),
+      { status: 409, headers: jsonHeaders() }
+    );
+  }
+
+  // Preserve existing non-route labels. Keep legacy-free if present
+  // (should never happen since legacy-free members skip the picker,
+  // but defensive).
   //
   // Ghost's Member model drops any label object that has no `name`
   // on save (and answers 200 anyway), then matches the ones it keeps
