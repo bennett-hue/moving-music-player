@@ -2986,7 +2986,16 @@
       e.stopPropagation();
       spaNavigate(link.href);
     }, true);
-    window.addEventListener('popstate', () => { spaSwapTo(location.href); });
+    // Only swap when the path or query changed. A click on a "#..."
+    // link (Ghost Portal, the category picker) also fires popstate,
+    // and swapping on that re-fetched the page and wiped whatever the
+    // gate had put in place.
+    window.addEventListener('popstate', () => {
+      const now = location.pathname + location.search;
+      if (now === spaPath) return;
+      spaPath = now;
+      spaSwapTo(location.href);
+    });
   }
 
   // ----- SPA navigation: keep audio alive across page navigations -----
@@ -2998,6 +3007,8 @@
     return true;
   }
   let spaInFlight = false;
+  // Path + query of the page whose content is currently in the DOM.
+  let spaPath = location.pathname + location.search;
   async function spaSwapTo(href) {
     if (spaInFlight) return false;
     spaInFlight = true;
@@ -3034,6 +3045,7 @@
   }
   async function spaNavigate(href) {
     history.pushState({ mmpSpa: true }, '', href);
+    spaPath = location.pathname + location.search;
     const ok = await spaSwapTo(href);
     if (!ok) location.href = href;
   }

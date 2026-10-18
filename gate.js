@@ -32,7 +32,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.5';
+  var VERSION = '0.1.6';
   var ACCENT = '#2A8C82';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-gate-style';
@@ -357,6 +357,10 @@
   } else {
     start();
   }
+
+  // player.js swaps page content in place while audio plays and then
+  // fires mm:swap. The new page needs its own gate decision.
+  window.addEventListener('mm:swap', start);
 
   window.MM_GATE_VERSION = VERSION;
 })();

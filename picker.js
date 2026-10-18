@@ -33,7 +33,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.6';
+  var VERSION = '0.1.7';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STORAGE_SKIPPED = 'mm-picker-skipped-this-session';
   var ACCENT = '#2A8C82';
@@ -532,6 +532,9 @@
     openByHash();
     openIfNeeded();
     window.addEventListener('hashchange', openByHash);
+    // player.js swaps page content in place while audio plays; treat
+    // the swapped page like a fresh load for the auto-open rule.
+    window.addEventListener('mm:swap', openIfNeeded);
   }
 
   if (document.readyState === 'loading') {

@@ -31,7 +31,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.2.3';
+  var VERSION = '0.2.4';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-tiers-style';
   var DIM_CLASS = 'mm-tier-dim';
@@ -275,6 +275,10 @@
   } else {
     start();
   }
+
+  // Re-run after player.js swaps page content in place (mm:swap), so
+  // Contents reached that way is dimmed and labelled correctly.
+  window.addEventListener('mm:swap', start);
 
   window.MM_TIERS_VERSION = VERSION;
 })();
