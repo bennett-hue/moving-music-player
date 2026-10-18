@@ -31,7 +31,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.2.1';
+  var VERSION = '0.2.2';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-tiers-style';
   var DIM_CLASS = 'mm-tier-dim';
@@ -96,7 +96,19 @@
     return null;
   }
 
-  function isPaid(m) { return !!(m && m.status === 'paid'); }
+  // Full access: Ghost status "paid" or "comped" (owner-granted
+  // complimentary), or a live subscription. Keep in sync with
+  // picker.js and gate.js.
+  function isPaid(m) {
+    if (!m) return false;
+    if (m.status === 'paid' || m.status === 'comped') return true;
+    var subs = m.subscriptions || [];
+    for (var i = 0; i < subs.length; i++) {
+      var st = subs[i] && subs[i].status;
+      if (st === 'active' || st === 'trialing') return true;
+    }
+    return false;
+  }
   function isLegacy(m) {
     return labelSlugs(m).indexOf('legacy-free') !== -1;
   }

@@ -26,7 +26,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.0';
+  var VERSION = '0.1.1';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STORAGE_SKIPPED = 'mm-picker-skipped-this-session';
   var ACCENT = '#2A8C82';
@@ -131,6 +131,22 @@
 
   function hasLegacyLabel(member) {
     return labelSlugs(member).indexOf('legacy-free') !== -1;
+  }
+
+  // Full access: Ghost status "paid" or "comped" (owner-granted
+  // complimentary), or a live subscription. Mirrors the inline
+  // hideForPaid check on the Chart Your Course page.
+  function isPaid(member) {
+    if (!member) return false;
+    if (member.status === 'paid' || member.status === 'comped') {
+      return true;
+    }
+    var subs = member.subscriptions || [];
+    for (var i = 0; i < subs.length; i++) {
+      var st = subs[i] && subs[i].status;
+      if (st === 'active' || st === 'trialing') return true;
+    }
+    return false;
   }
 
   function sessionSkipped() {
@@ -422,7 +438,7 @@
 
   function shouldAutoOpen(member) {
     if (!member || !member.uuid) return false;
-    if (member.status === 'paid') return false;
+    if (isPaid(member)) return false;
     if (hasLegacyLabel(member)) return false;
     if (hasAnyRouteLabel(member)) return false;
     if (localPicked(member.uuid)) return false;

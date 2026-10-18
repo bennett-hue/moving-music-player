@@ -24,7 +24,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.0';
+  var VERSION = '0.1.1';
   var ACCENT = '#2A8C82';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-gate-style';
@@ -127,8 +127,20 @@
     return null;
   }
 
+  // Full access: Ghost status "paid" or "comped" (owner-granted
+  // complimentary), or a live subscription. Keep in sync with
+  // picker.js and tiers.js.
   function isPaid(member) {
-    return !!(member && member.status === 'paid');
+    if (!member) return false;
+    if (member.status === 'paid' || member.status === 'comped') {
+      return true;
+    }
+    var subs = member.subscriptions || [];
+    for (var i = 0; i < subs.length; i++) {
+      var st = subs[i] && subs[i].status;
+      if (st === 'active' || st === 'trialing') return true;
+    }
+    return false;
   }
 
   function isLegacy(member) {
