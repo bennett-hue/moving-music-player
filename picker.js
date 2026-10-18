@@ -33,7 +33,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.4';
+  var VERSION = '0.1.5';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STORAGE_SKIPPED = 'mm-picker-skipped-this-session';
   var ACCENT = '#2A8C82';
@@ -330,6 +330,22 @@
     h.id = 'mm-picker-title';
     h.textContent = 'Pick your free category';
 
+    // The pick is final. Say so where the choice is made, and point at
+    // the way to get everything.
+    var sub = document.createElement('p');
+    sub.className = 'mm-picker-sub';
+    sub.appendChild(document.createTextNode(
+      'One category per free account, and it stays picked. ' +
+      'For all nine, '
+    ));
+    var allLink = document.createElement('a');
+    allLink.href = '#/portal/signup/paid';
+    allLink.textContent = 'join the Full Songbook';
+    allLink.style.color = ACCENT;
+    allLink.style.textDecoration = 'underline';
+    sub.appendChild(allLink);
+    sub.appendChild(document.createTextNode('.'));
+
     var grid = document.createElement('div');
     grid.className = 'mm-picker-grid';
 
@@ -404,6 +420,7 @@
     errBox.className = 'mm-picker-err';
 
     card.appendChild(h);
+    card.appendChild(sub);
     card.appendChild(grid);
     card.appendChild(actions);
     card.appendChild(errBox);
