@@ -30,7 +30,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.2';
+  var VERSION = '0.1.3';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STORAGE_SKIPPED = 'mm-picker-skipped-this-session';
   var ACCENT = '#2A8C82';
@@ -49,15 +49,15 @@
   var C_CREAM = '#e8dcbe';
 
   var ROUTES = [
-    { slug: 'rowing',       name: 'Rowing',       bg: C_WATER },
-    { slug: 'sea-shanties', name: 'Sea Shanties', bg: C_WATER },
-    { slug: 'walking',      name: 'Walking',      bg: C_CREAM },
-    { slug: 'farm',         name: 'Farm',         bg: C_SAGE  },
-    { slug: 'woods',        name: 'Woods',        bg: C_SAGE  },
-    { slug: 'maine',        name: 'Maine',        bg: C_WATER },
-    { slug: 'shaker',       name: 'Shaker',       bg: C_CREAM },
-    { slug: 'love',         name: 'Love',         bg: C_CREAM },
-    { slug: 'gathering',    name: 'Gathering',    bg: C_SAGE  }
+    { slug: 'rowing', name: 'Rowing', bg: C_WATER },
+    { slug: 'sea-shanties', name: 'Sea Songs & Shanties', bg: C_WATER },
+    { slug: 'walking', name: 'Walking & Running', bg: C_CREAM },
+    { slug: 'farm', name: 'Field & Kitchen', bg: C_SAGE },
+    { slug: 'woods', name: 'Forest & Wood', bg: C_SAGE },
+    { slug: 'maine', name: 'The Maine Course', bg: C_WATER },
+    { slug: 'shaker', name: 'Shaker Songs', bg: C_CREAM },
+    { slug: 'love', name: 'Love Songs', bg: C_CREAM },
+    { slug: 'gathering', name: 'Songs for Gathering', bg: C_SAGE }
   ];
 
   // ------------------------------------------------------------

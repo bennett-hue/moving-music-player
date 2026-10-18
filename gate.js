@@ -27,7 +27,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.2';
+  var VERSION = '0.1.3';
   var ACCENT = '#2A8C82';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var STYLE_ID = 'mm-gate-style';
@@ -43,14 +43,14 @@
   // Human names for routes (for upgrade card copy).
   var ROUTE_NAMES = {
     rowing: 'Rowing',
-    'sea-shanties': 'Sea Shanties',
-    walking: 'Walking',
-    farm: 'Farm',
-    woods: 'Woods',
-    maine: 'Maine',
-    shaker: 'Shaker',
-    love: 'Love',
-    gathering: 'Gathering'
+    'sea-shanties': 'Sea Songs & Shanties',
+    walking: 'Walking & Running',
+    farm: 'Field & Kitchen',
+    woods: 'Forest & Wood',
+    maine: 'The Maine Course',
+    shaker: 'Shaker Songs',
+    love: 'Love Songs',
+    gathering: 'Songs for Gathering'
   };
 
   // ------------------------------------------------------------
