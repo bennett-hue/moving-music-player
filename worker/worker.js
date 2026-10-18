@@ -224,15 +224,25 @@ async function pickRouteHandler(request, env) {
   // Preserve existing non-route labels; replace any route-* with the
   // new one. Keep legacy-free if present (should never happen since
   // legacy-free members skip the picker, but defensive).
+  //
+  // Ghost's Member model drops any label object that has no `name`
+  // on save (and answers 200 anyway), then matches the ones it keeps
+  // to existing labels case-insensitively by name, creating the label
+  // when none exists. So every label here carries `name`. A slug-only
+  // list used to wipe the member's labels while reporting success.
   const existing = (member.labels || [])
-    .map(function (l) { return l.slug; })
-    .filter(function (slug) {
-      return slug && slug.indexOf('route-') !== 0;
+    .filter(function (l) {
+      return l && l.name &&
+        (l.slug || '').indexOf('route-') !== 0 &&
+        l.name.indexOf('route-') !== 0;
+    })
+    .map(function (l) {
+      return { id: l.id, name: l.name, slug: l.slug };
     });
-  const nextSlugs = existing.concat(['route-' + route]);
-  const nextLabels = nextSlugs.map(function (slug) {
-    return { slug: slug };
-  });
+  const nextLabels = existing.concat([{
+    name: 'route-' + route,
+    slug: 'route-' + route
+  }]);
 
   // Need updated_at for the collision check.
   const updateUrl =
@@ -260,8 +270,27 @@ async function pickRouteHandler(request, env) {
     );
   }
 
+  // Ghost can accept the write and still drop the label (see above),
+  // so confirm it is on the member before reporting success.
+  let saved = null;
+  try {
+    const upd = await updateRes.json();
+    saved = upd.members && upd.members[0];
+  } catch (e) {
+    saved = null;
+  }
+  const savedSlugs = ((saved && saved.labels) || [])
+    .map(function (l) { return l.slug; });
+  if (savedSlugs.indexOf('route-' + route) === -1) {
+    return new Response(
+      'ghost accepted the write but the label is missing: ' +
+        JSON.stringify(savedSlugs),
+      { status: 502, headers: corsHeaders() }
+    );
+  }
+
   return new Response(
-    JSON.stringify({ ok: true, route: route }),
+    JSON.stringify({ ok: true, route: route, labels: savedSlugs }),
     { status: 200, headers: jsonHeaders() }
   );
 }
