@@ -1,7 +1,7 @@
 /*
  * Moving Music — Tier Labels
  *
- * Rewrites the `.tier-hint` labels on route cards (Chart Your Course
+ * Rewrites the `.mm-tier-link` labels on route cards (Chart Your Course
  * page, and anywhere else `.route` cards appear) to reflect the current
  * viewer's access state.
  *
@@ -122,7 +122,7 @@
   function rewriteCard(cardEl, member) {
     var slug = routeSlugFromCard(cardEl);
     if (!slug) return;
-    var hint = cardEl.querySelector('.tier-hint');
+    var hint = cardEl.querySelector('.mm-tier-link');
 
     // Normalize stale "Free with email signup" wording — under the
     // picker design that tier no longer exists. Keep the link, swap
@@ -176,7 +176,7 @@
   function wireHoverReveal() {
     var cards = document.querySelectorAll('.route');
     cards.forEach(function (card) {
-      var hint = card.querySelector('.tier-hint');
+      var hint = card.querySelector('.mm-tier-link');
       if (!hint) return;
       if (hint.getAttribute('data-mm-hover-wired') === '1') return;
       hint.setAttribute('data-mm-hover-wired', '1');
