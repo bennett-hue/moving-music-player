@@ -58,7 +58,7 @@ def admin_jwt(admin_key):
 
 def call(method, path, token, body=None):
     data = None
-    headers = {'Authorization': 'Ghost ' + token, 'Accept-Version': 'v5.0'}
+    headers = {'Authorization': 'Ghost ' + token}
     if body is not None:
         data = json.dumps(body).encode()
         headers['Content-Type'] = 'application/json'
