@@ -42,7 +42,7 @@ const GHOST_ADMIN_HOST = 'https://moving-music.ghost.io';
 
 // Repo the atlas map is served from. Bumped by editing this constant.
 const ATLAS_MAP_REPO = 'bennett-hue/moving-music-player';
-const ATLAS_MAP_SHA = '27252a8';
+const ATLAS_MAP_SHA = '3323bbe';
 
 function corsHeaders() {
   return {
