@@ -36,6 +36,29 @@ git push
 # curl https://purge.jsdelivr.net/gh/bennett-hue/moving-music-player@main/player.js
 ```
 
+## Worksong Atlas
+
+The Atlas is three Ghost pages fed by one data file.
+
+- `atlas-map.html` holds the data (`var D = [...]`, one object per tradition) and the Leaflet map. It is the single source of truth. Field guide at the top of `scripts/build_atlas_pages.py`.
+- The Cloudflare worker serves the map at `https://mmp-sync.bennett-727.workers.dev/atlas-map.html` from the commit pinned in `worker/worker.js` (`ATLAS_MAP_SHA`). The Ghost page `/atlas/` embeds that URL in an iframe.
+- `scripts/build_atlas_pages.py` reads the data and writes `ghost/atlas-regions.card.html` (List By Place), `ghost/atlas-uses.card.html` (List By Activity), and `ghost/atlas.card.html` (the map page). Each file is the body of the HTML card on the matching Ghost page.
+
+To publish a data change:
+
+```bash
+# 1. edit the D array in atlas-map.html, then
+python3 scripts/build_atlas_pages.py          # validates the data, rebuilds ghost/*.card.html
+git add atlas-map.html ghost scripts && git commit -m "Atlas: ..." && git push
+# 2. pin the worker to the new commit
+sed -i '' "s/ATLAS_MAP_SHA = '.*'/ATLAS_MAP_SHA = '$(git rev-parse --short HEAD)'/" worker/worker.js
+git commit -am "Worker: bump ATLAS_MAP_SHA" && git push
+cd worker && wrangler deploy
+# 3. paste ghost/atlas-regions.card.html and ghost/atlas-uses.card.html into their Ghost pages
+```
+
+Step 3 is only needed when the data or the list-page code changed. Step 2 is only needed when atlas-map.html changed. The map page in Ghost never needs touching once it points at the worker URL.
+
 ## Roadmap
 
 - v0.1 (this) — basic queue, play/pause/skip, expanded queue, auto-advance, signup on lock
