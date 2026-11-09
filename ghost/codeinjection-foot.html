@@ -1,0 +1,28 @@
+<!-- Moving Music picker, Nov 2026. Loaded from the moving-music-player
+     repo pinned to the deployed commit, so the client matches what the
+     Worker expects. Flip the flag to false to turn the picker off
+     without redeploying the theme. -->
+<script>window.MM_PICKER_ENABLED = true;</script>
+<script src="https://cdn.jsdelivr.net/gh/bennett-hue/moving-music-player@a2a07d0/picker.js" defer></script>
+
+<!-- Keep: hide empty Lyrics / The Story / Notes sections on song pages.
+     Added 2026-11-08, carried through step 8. -->
+<style>
+.mm-hide-empty-sections .gh-content > h2 + h2,
+.mm-hide-empty-sections .gh-content > h2:last-child { display: none; }
+</style>
+<script>
+(function () {
+  var cells = document.querySelectorAll('.gh-content > h2');
+  var removed = 0;
+  Array.prototype.forEach.call(cells, function (h) {
+    var next = h.nextElementSibling;
+    // If nothing follows, or the next thing is another h2, the section
+    // is empty.
+    if (!next || next.tagName === 'H2') {
+      h.remove();
+      removed++;
+    }
+  });
+})();
+</script>
