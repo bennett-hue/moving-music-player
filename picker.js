@@ -7,9 +7,10 @@
  *
  * Gating replaces the old songbookGate() hide-after-3 behavior. On a
  * post, a song outside the pick (and outside free/courage/nasc) shows
- * only its first section plus a CTA. On tag pages and the Index, every
- * locked song keeps its link and gets a small lock mark; one CTA goes
- * at the top of locked-category lists.
+ * only its first section plus a CTA. On the page of a songbook the
+ * member did not pick, one CTA goes at the top of the list; songs get no
+ * lock mark (Bennett, Nov 9: the mark also landed on songs open through
+ * the member's own songbook).
  *
  * Load gated on window.MM_PICKER_ENABLED. Keep the flag false for
  * visitors until the switch-over; pick is final and the dozens of
@@ -356,12 +357,14 @@
           card.innerHTML = '';
           var done = document.createElement('p');
           done.className = 'mm-picker-done';
-          done.textContent = 'Done. ' + nameOf(slug) + ' is yours.';
+          // Bennett's words, Nov 9.
+          done.textContent = 'Okay! ' + nameOf(slug) + ' is all yours. '
+            + 'Enjoy and consider supporting the project if you like the site!';
           card.appendChild(done);
           setTimeout(function () {
             overlay.remove();
             if (onConfirmed) onConfirmed(slug);
-          }, 1200);
+          }, 4000);
         } else {
           err.textContent = 'Could not save. Please try again.';
           confirm.disabled = false;
@@ -445,15 +448,19 @@
   function makeCta(line) {
     var box = document.createElement('div');
     box.className = CTA_CLASS;
-    var p = document.createElement('p');
-    p.className = 'mm-picker-cta-line';
-    p.textContent = line;
+    // Only signed-in free members see this box, and Portal turns its
+    // signup page into the account page for them, so open the plans.
     var a = document.createElement('a');
     a.className = 'mm-picker-cta-btn';
-    a.href = '#/portal/signup';
-    a.setAttribute('data-portal', 'signup');
+    a.href = '#/portal/account/plans';
+    a.setAttribute('data-portal', 'account/plans');
     a.textContent = 'Join Bennett\u2019s Songbook';
-    box.appendChild(p);
+    if (line) {
+      var p = document.createElement('p');
+      p.className = 'mm-picker-cta-line';
+      p.textContent = line;
+      box.appendChild(p);
+    }
     box.appendChild(a);
     return box;
   }
@@ -493,12 +500,11 @@
     var line;
     if (cat && pick) {
       line = 'This song is in ' + nameOf(cat) + '. Your free songbook is '
-        + nameOf(pick) + '. Join Bennett\u2019s Songbook to open all six.';
+        + nameOf(pick) + '.';
     } else if (pick) {
-      line = 'Your free songbook is ' + nameOf(pick)
-        + '. Join Bennett\u2019s Songbook to open all six.';
+      line = 'Your free songbook is ' + nameOf(pick) + '.';
     } else {
-      line = 'Join Bennett\u2019s Songbook to open all six.';
+      line = '';
     }
     content.appendChild(makeCta(line));
   }
@@ -517,27 +523,10 @@
       ? document.querySelector('.post-feed, .gh-feed')
       : null;
     if (list && !list.querySelector('.' + CTA_CLASS)) {
-      var line = pick
-        ? 'This songbook is ' + nameOf(cat) + '. Your free songbook is '
-          + nameOf(pick) + '. Join to open this one too.'
-        : 'This songbook is ' + nameOf(cat)
-          + '. Pick it as your free songbook or join to open all six.';
+      var line = pick ? 'Your free songbook is ' + nameOf(pick) + '.' : '';
       list.insertBefore(makeCta(line), list.firstChild);
     }
 
-    // Per-article lock mark; keep every link clickable.
-    var articles = document.querySelectorAll(
-      '.post-card, .gh-card, article.post'
-    );
-    articles.forEach(function (art) {
-      if (art.querySelector('.' + LOCK_CLASS)) return;
-      var h = art.querySelector('h2, h3, .post-card-title');
-      if (!h) return;
-      var lock = document.createElement('span');
-      lock.className = LOCK_CLASS;
-      lock.textContent = '\u00b7 locked';
-      h.appendChild(lock);
-    });
   }
 
   function runGating(pick) {
