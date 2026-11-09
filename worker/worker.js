@@ -36,6 +36,24 @@ const ALLOWED_ROUTES = [
   'maine', 'shaker', 'love', 'gathering'
 ];
 
+// Allowed songbook slugs for the Nov 2026 picker. Must match Ghost
+// tag slugs. Keep in sync with picker.js PICKABLE.
+const PICKABLE = [
+  'walking', 'rowing', 'home-kitchen', 'field-forest',
+  'gathering', 'dance-instrumentals'
+];
+
+// Ghost normalizes the colon in a label name `pick:walking` to a
+// hyphen on save, so the slug lands as `pick-walking`. Detect either.
+function pickFromLabel(label) {
+  if (!label) return null;
+  const slug = label.slug || '';
+  const name = label.name || '';
+  if (slug.indexOf('pick-') === 0) return slug.substring(5);
+  if (name.indexOf('pick:') === 0) return name.substring(5);
+  return null;
+}
+
 const UUID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 
 const GHOST_ADMIN_HOST = 'https://moving-music.ghost.io';
@@ -310,6 +328,160 @@ async function pickRouteHandler(request, env) {
   );
 }
 
+// ---------------------------------------------------------------
+// /pick: songbook picker for the Nov 2026 rebuild. One pick per
+// free member. Separate from the earlier /pick-route handler
+// (which used route-* labels and a 9-way list); kept so the old
+// code path, which was never wired to the live site, does not
+// break if anything still touches it.
+// ---------------------------------------------------------------
+
+async function pickGetHandler(request, env) {
+  if (!env.GHOST_ADMIN_KEY) {
+    return new Response('server misconfigured: no admin key',
+      { status: 500, headers: corsHeaders() });
+  }
+  const url = new URL(request.url);
+  const uuid = url.searchParams.get('uuid');
+  if (!uuid || !UUID_RE.test(uuid)) {
+    return new Response('bad uuid', { status: 400, headers: corsHeaders() });
+  }
+  const token = await ghostJwt(env.GHOST_ADMIN_KEY);
+  const findUrl = GHOST_ADMIN_HOST +
+    '/ghost/api/admin/members/?' +
+    'filter=' + encodeURIComponent('uuid:' + uuid) +
+    '&include=labels&limit=1';
+  const r = await fetch(findUrl,
+    { headers: { Authorization: 'Ghost ' + token } });
+  if (!r.ok) {
+    return new Response('ghost lookup failed: ' + r.status,
+      { status: 502, headers: corsHeaders() });
+  }
+  const data = await r.json();
+  const member = data.members && data.members[0];
+  if (!member) {
+    return new Response(
+      JSON.stringify({ pick: null, found: false }),
+      { status: 404, headers: jsonHeaders() });
+  }
+  let pick = null;
+  for (const lab of (member.labels || [])) {
+    const p = pickFromLabel(lab);
+    if (p) { pick = p; break; }
+  }
+  return new Response(
+    JSON.stringify({ pick: pick }),
+    { status: 200, headers: jsonHeaders() });
+}
+
+async function pickPostHandler(request, env) {
+  if (!env.GHOST_ADMIN_KEY) {
+    return new Response('server misconfigured: no admin key',
+      { status: 500, headers: corsHeaders() });
+  }
+  let body;
+  try { body = await request.json(); }
+  catch (e) {
+    return new Response('invalid json',
+      { status: 400, headers: corsHeaders() });
+  }
+  const uuid = body && body.uuid;
+  const pick = body && body.pick;
+  if (!uuid || typeof uuid !== 'string' || !UUID_RE.test(uuid)) {
+    return new Response('bad uuid',
+      { status: 400, headers: corsHeaders() });
+  }
+  if (!pick || typeof pick !== 'string' ||
+      PICKABLE.indexOf(pick) === -1) {
+    return new Response('bad pick',
+      { status: 400, headers: corsHeaders() });
+  }
+
+  const token = await ghostJwt(env.GHOST_ADMIN_KEY);
+  const findUrl = GHOST_ADMIN_HOST +
+    '/ghost/api/admin/members/?' +
+    'filter=' + encodeURIComponent('uuid:' + uuid) +
+    '&include=labels&limit=1';
+  const findRes = await fetch(findUrl,
+    { headers: { Authorization: 'Ghost ' + token } });
+  if (!findRes.ok) {
+    return new Response('ghost lookup failed: ' + findRes.status,
+      { status: 502, headers: corsHeaders() });
+  }
+  const findData = await findRes.json();
+  const member = findData.members && findData.members[0];
+  if (!member) {
+    return new Response('member not found',
+      { status: 404, headers: corsHeaders() });
+  }
+
+  // One pick per member.
+  for (const lab of (member.labels || [])) {
+    const existingPick = pickFromLabel(lab);
+    if (existingPick) {
+      return new Response(
+        JSON.stringify({ pick: existingPick, alreadyPicked: true }),
+        { status: 409, headers: jsonHeaders() });
+    }
+  }
+
+  // Preserve existing non-pick labels (name required or Ghost drops).
+  const existing = (member.labels || [])
+    .filter(function (l) { return l && l.name && !pickFromLabel(l); })
+    .map(function (l) {
+      return { id: l.id, name: l.name, slug: l.slug };
+    });
+  const nextLabels = existing.concat([{
+    name: 'pick:' + pick,
+    slug: 'pick-' + pick
+  }]);
+
+  const updateUrl = GHOST_ADMIN_HOST +
+    '/ghost/api/admin/members/' + member.id + '/';
+  const updateRes = await fetch(updateUrl, {
+    method: 'PUT',
+    headers: {
+      Authorization: 'Ghost ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      members: [{
+        id: member.id,
+        labels: nextLabels,
+        updated_at: member.updated_at
+      }]
+    })
+  });
+  if (!updateRes.ok) {
+    const txt = await updateRes.text();
+    return new Response('ghost update failed: ' + updateRes.status +
+      ' ' + txt, { status: 502, headers: corsHeaders() });
+  }
+
+  // Confirm the label landed. Ghost silently drops labels without a
+  // name field, and matches names case-insensitively.
+  let saved = null;
+  try {
+    const upd = await updateRes.json();
+    saved = upd.members && upd.members[0];
+  } catch (e) { saved = null; }
+  let savedPick = null;
+  for (const lab of ((saved && saved.labels) || [])) {
+    const p = pickFromLabel(lab);
+    if (p) { savedPick = p; break; }
+  }
+  if (savedPick !== pick) {
+    return new Response(
+      'ghost accepted the write but the pick label is missing: ' +
+        JSON.stringify((saved && saved.labels) || []),
+      { status: 502, headers: corsHeaders() });
+  }
+
+  return new Response(
+    JSON.stringify({ pick: pick }),
+    { status: 200, headers: jsonHeaders() });
+}
+
 async function serveAtlasMap(request) {
   const upstream = `https://raw.githubusercontent.com/${ATLAS_MAP_REPO}/${ATLAS_MAP_SHA}/atlas-map.html`;
   const upstreamRes = await fetch(upstream, {
@@ -348,6 +520,14 @@ export default {
     // Route picker: writes "route-<slug>" label on a Ghost member.
     if (url.pathname === '/pick-route' && request.method === 'POST') {
       return pickRouteHandler(request, env);
+    }
+
+    // Songbook picker (Nov 2026): pick:<slug> label.
+    if (url.pathname === '/pick' && request.method === 'GET') {
+      return pickGetHandler(request, env);
+    }
+    if (url.pathname === '/pick' && request.method === 'POST') {
+      return pickPostHandler(request, env);
     }
 
     // Member labels: GET /member/<uuid> returns {uuid, labels, status}.
