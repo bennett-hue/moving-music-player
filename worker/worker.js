@@ -39,8 +39,8 @@ const ALLOWED_ROUTES = [
 // Allowed songbook slugs for the Nov 2026 picker. Must match Ghost
 // tag slugs. Keep in sync with picker.js PICKABLE.
 const PICKABLE = [
-  'walking', 'rowing', 'home-kitchen', 'field-forest',
-  'gathering', 'dance-instrumentals'
+  'walking', 'rowing', 'gathering', 'field-forest',
+  'originals', 'dance-instrumentals'
 ];
 
 // Ghost normalizes the colon in a label name `pick:walking` to a

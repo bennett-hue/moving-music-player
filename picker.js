@@ -32,9 +32,9 @@
   var PICKABLE = [
     { slug: 'walking',             name: 'Walking & Jogging' },
     { slug: 'rowing',              name: 'Rowing, Paddling & Sailing' },
-    { slug: 'home-kitchen',        name: 'Home & Kitchen' },
+    { slug: 'gathering',           name: 'Home, Gathering & Lullabies' },
     { slug: 'field-forest',        name: 'Field & Forest' },
-    { slug: 'gathering',           name: 'Gathering & Lullabies' },
+    { slug: 'originals',           name: 'Original Worksongs, Bluegrass & Country' },
     { slug: 'dance-instrumentals', name: 'Dance & Instrumentals' }
   ];
   var PICKABLE_SLUGS = PICKABLE.map(function (p) { return p.slug; });
