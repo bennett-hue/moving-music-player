@@ -12,6 +12,15 @@
  * lock mark (Bennett, Nov 9: the mark also landed on songs open through
  * the member's own songbook).
  *
+ * "Your free songbook" starburst (Bennett, Nov 11): green #6A744C with
+ * cream text and a thin cream ring, on the picked songbook's card
+ * (homepage and Songbooks page), on that songbook's page, and on each
+ * song in it. Songs in the songbook get the starburst and no line.
+ *
+ * Locked songs lose their audio, video and embedded players along with
+ * everything after the first section (Bennett, Nov 11: Dip Pull Swing
+ * and Sowing Grain videos still played outside the member's songbook).
+ *
  * Load gated on window.MM_PICKER_ENABLED. Keep the flag false for
  * visitors until the switch-over; pick is final and the dozens of
  * existing free members would see the picker on their next visit.
@@ -23,7 +32,7 @@
 
   if (!window.MM_PICKER_ENABLED) return;
 
-  var VERSION = '1.0.0';
+  var VERSION = '1.1.0';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var CONTENT_KEY = '4bb24d5f52e1f7397cb4fe24a5';
   var CONTENT_HOST = 'https://moving-music.ghost.io';
@@ -47,6 +56,15 @@
   var STYLE_ID = 'mm-picker-style';
   var CTA_CLASS = 'mm-picker-cta';
   var LOCK_CLASS = 'mm-picker-lock';
+  var BURST_CLASS = 'mm-free-burst';
+
+  // The same 32-point starburst as the homepage sign-up sticker.
+  var BURST_POINTS = '100.0,2.0 116.8,15.7 137.5,9.5 147.8,28.5 ' +
+    '169.3,30.7 171.5,52.2 190.5,62.5 184.3,83.2 198.0,100.0 ' +
+    '184.3,116.8 190.5,137.5 171.5,147.8 169.3,169.3 147.8,171.5 ' +
+    '137.5,190.5 116.8,184.3 100.0,198.0 83.2,184.3 62.5,190.5 ' +
+    '52.2,171.5 30.7,169.3 28.5,147.8 9.5,137.5 15.7,116.8 2.0,100.0 ' +
+    '15.7,83.2 9.5,62.5 28.5,52.2 30.7,30.7 52.2,28.5 62.5,9.5 83.2,15.7';
 
   function cacheKey(uuid) { return 'mm_pick_' + uuid; }
 
@@ -222,8 +240,12 @@
       '  margin:.9rem 0 0;color:#8a2f22;font-size:.9rem;',
       '  min-height:1.1rem;',
       '}',
+      // After the pick, the box hugs its one line (Bennett, Nov 11).
+      '#' + MODAL_ID + ' .mm-picker-card.mm-picker-card--done{',
+      '  padding:1.1rem 1.4rem;',
+      '}',
       '#' + MODAL_ID + ' .mm-picker-done{',
-      '  margin:1.4rem 0 .4rem;font-size:1.1rem;color:#231f1b;',
+      '  margin:0;font-size:1.1rem;line-height:1.4;color:#231f1b;',
       '  font-family:"EB Garamond",Garamond,serif;',
       '}',
       '@media(max-width:600px){',
@@ -233,6 +255,7 @@
       '  #' + MODAL_ID + ' h2{font-size:1.65rem;}',
       '  #' + MODAL_ID + ' .mm-picker-actions{justify-content:stretch;}',
       '  #' + MODAL_ID + ' .mm-picker-confirm{width:100%;min-width:0;}',
+      '  #' + MODAL_ID + ' .mm-picker-card.mm-picker-card--done{padding:1rem 1.2rem;}',
       '}',
       // Gating: CTA block and lock marker on tag/index pages
       '.' + CTA_CLASS + '{',
@@ -255,6 +278,43 @@
       '  display:inline-block;margin-left:.35em;',
       '  font-family:"EB Garamond",Garamond,serif;font-style:italic;',
       '  color:#8a5a47;font-size:.85em;',
+      '}',
+      // "Your free songbook" starburst. --b is its width.
+      '.' + BURST_CLASS + '{',
+      '  --b:92px;position:absolute;z-index:3;display:block;',
+      '  width:var(--b);height:var(--b);top:-16px;right:-14px;',
+      '  transform:rotate(-7deg);pointer-events:none;',
+      '  filter:drop-shadow(0 1px 1.5px rgba(35,31,27,.22))',
+      '    drop-shadow(0 2px 6px rgba(35,31,27,.14));',
+      '}',
+      // A thin cream ring keeps it visible on the green Field & Forest
+      // card and page (Bennett, Nov 11: ring on every starburst).
+      '.' + BURST_CLASS + ' svg{',
+      '  position:absolute;inset:0;width:100%;height:100%;fill:#6A744C;',
+      '  overflow:visible;',
+      '}',
+      '.' + BURST_CLASS + ' polygon{',
+      '  stroke:#fbf8f2;stroke-width:7;stroke-linejoin:round;',
+      '}',
+      '.' + BURST_CLASS + ' .mm-free-burst-text{',
+      '  position:relative;display:flex;align-items:center;',
+      '  justify-content:center;width:100%;height:100%;padding:18%;',
+      '  box-sizing:border-box;text-align:center;color:#fbf8f2;',
+      '  font-family:"Work Sans","Helvetica Neue",Arial,sans-serif;',
+      '  font-weight:600;font-size:calc(var(--b) * .13);line-height:1.12;',
+      '}',
+      '.mm-has-burst{position:relative;}',
+      '.card > .' + BURST_CLASS + ',.mm-card > .' + BURST_CLASS + '{',
+      '  --b:clamp(60px,7.4vw,92px);top:-12px;right:-10px;',
+      '}',
+      '.mm-plate > .' + BURST_CLASS + '{',
+      '  --b:clamp(76px,8vw,96px);top:-24px;right:-30px;',
+      '}',
+      '.mm-song-main > .' + BURST_CLASS + '{',
+      '  --b:84px;top:-34px;right:-24px;',
+      '}',
+      '@media(max-width:700px){',
+      '  .mm-song-main > .' + BURST_CLASS + '{--b:66px;top:-20px;right:-6px;}',
       '}'
     ].join('\n');
     document.head.appendChild(s);
@@ -355,6 +415,7 @@
           var slug = (res.body && res.body.pick) || selected;
           setCachedPick(memberCache.uuid, slug);
           card.innerHTML = '';
+          card.classList.add('mm-picker-card--done');
           var done = document.createElement('p');
           done.className = 'mm-picker-done';
           // Bennett's words, Nov 9.
@@ -465,6 +526,22 @@
     return box;
   }
 
+  // Audio, video and embedded players (YouTube, Vimeo, Bandcamp and the
+  // like). Their files are public URLs, so removing the player is the
+  // only client-side protection a locked song has.
+  var PLAYER_SEL = '.kg-audio-card, .kg-video-card, .kg-embed-card, ' +
+    'audio, video, iframe';
+
+  function removePlayer(el) {
+    var next = el.nextElementSibling;
+    el.remove();
+    // A credit line right under the player ("Video by ...") goes with it.
+    if (next && next.tagName === 'P' &&
+        /^\s*video\s*(by\b|:|credit)/i.test(next.textContent || '')) {
+      next.remove();
+    }
+  }
+
   function gatePost(slugs, pick) {
     if (openForAnyone(slugs)) return;
     if (pick && unlockedForPick(slugs, pick)) return;
@@ -472,28 +549,29 @@
     injectStyle();
 
     // Locked: keep the opening section (everything up to the first
-    // <h2>), strip any audio card from it, drop the rest, append CTA.
+    // <h2>), strip any player from it, drop the rest, append CTA.
     var content = document.querySelector('.gh-content');
     if (!content) return;
     var children = Array.prototype.slice.call(content.children);
     var sawH2 = false;
     children.forEach(function (ch) {
+      if (!ch.parentNode) return;             // already removed
       if (sawH2) { ch.remove(); return; }
       if (ch.tagName && ch.tagName.toLowerCase() === 'h2') {
         sawH2 = true;
         ch.remove();
         return;
       }
-      // Audio cards on the first section go: audio files are public
-      // URLs, so hiding the card is the only client-side protection.
-      if (ch.classList && (ch.classList.contains('kg-audio-card')
-          || ch.tagName.toLowerCase() === 'audio')) {
-        ch.remove();
+      if (ch.matches && ch.matches(PLAYER_SEL)) {
+        removePlayer(ch);
         return;
       }
-      var inner = ch.querySelectorAll
-        ? ch.querySelectorAll('.kg-audio-card, audio') : [];
-      for (var a = 0; a < inner.length; a++) inner[a].remove();
+      var inner = ch.querySelectorAll ? ch.querySelectorAll(PLAYER_SEL) : [];
+      for (var a = 0; a < inner.length; a++) {
+        var wrap = inner[a].closest ? inner[a].closest('.kg-card') : null;
+        var target = (wrap && wrap !== ch && ch.contains(wrap)) ? wrap : inner[a];
+        if (target.parentNode) removePlayer(target);
+      }
     });
 
     var cat = categoryOfPost(slugs);
@@ -537,6 +615,43 @@
   }
 
   // ------------------------------------------------------------
+  // "Your free songbook" starburst
+  // ------------------------------------------------------------
+
+  function addBurst(host) {
+    if (!host || host.getAttribute('data-mm-burst')) return;
+    host.setAttribute('data-mm-burst', '1');
+    host.classList.add('mm-has-burst');
+    var b = document.createElement('span');
+    b.className = BURST_CLASS;
+    b.setAttribute('role', 'img');
+    b.setAttribute('aria-label', 'Your free songbook');
+    b.innerHTML = '<svg viewBox="0 0 200 200" aria-hidden="true" ' +
+      'focusable="false"><polygon points="' + BURST_POINTS + '"/></svg>' +
+      '<span class="mm-free-burst-text" aria-hidden="true">' +
+      'Your free songbook</span>';
+    host.appendChild(b);
+  }
+
+  function markFreeSongbook(pick) {
+    if (!pick || PICKABLE_SLUGS.indexOf(pick) === -1) return;
+    injectStyle();
+
+    // The picked songbook's card, on the homepage and the Songbooks page.
+    var cards = document.querySelectorAll(
+      'a.card--' + pick + ', a.mm-card--' + pick);
+    for (var i = 0; i < cards.length; i++) addBurst(cards[i]);
+
+    var slugs = pageTagSlugs();
+    if (slugs.indexOf(pick) === -1) return;
+    var pt = pageTypeFromBody();
+    // That songbook's own page: on the papercut plate.
+    if (pt === 'tag') addBurst(document.querySelector('.mm-cover .mm-plate'));
+    // Each song in it: on the corner of the song's card, and no line.
+    if (pt === 'post') addBurst(document.querySelector('.mm-song-main'));
+  }
+
+  // ------------------------------------------------------------
   // Entry
   // ------------------------------------------------------------
 
@@ -556,9 +671,13 @@
       if (hasFullAccess(member)) return;          // paid or comped
       resolvePick(member).then(function (pick) {
         if (!pick) {
-          openModal(function (picked) { runGating(picked); });
+          openModal(function (picked) {
+            runGating(picked);
+            markFreeSongbook(picked);
+          });
         } else {
           runGating(pick);
+          markFreeSongbook(pick);
         }
       });
     });
