@@ -76,7 +76,7 @@ The first pass, on Nov 12, 2026, read the Instagram "Worksongs" saved collection
 Visitors can help fill the Atlas. Nothing they send goes public until you add it.
 
 - A grey dot, a tradition still seeking a video, has "Know a video of this? Send it" in its popup.
-- Every popup, and every find with its own dot, has "Something wrong here?"
+- Every popup, and every find with its own dot, has "Suggest an improvement".
 - Each ask opens a short form: the link or the fix, an optional name, an optional email for a reply, and Cloudflare Turnstile, a free bot check. A hidden field catches simple bots, and each address can send five a minute.
 - The worker stores each suggestion privately in KV as `sugg:<id>`, for up to a year. It keeps no IP address and no bot token.
 
@@ -84,7 +84,7 @@ To review, open `https://mmp-sync.bennett-727.workers.dev/review.html` on your p
 
 - A video has Add to the TV and Drop. Add puts it in the Send button inbox, tied to its tradition and credited with the sender's first name: "suggested by Ana" in the Atlas popup. The Monday filing gives it a place and a label. To add your line, send it with the Send button.
 - A link that is not YouTube, Instagram, Facebook, or TikTok can't be added in one tap. Add it by hand with Claude, or drop it.
-- A fix has Copy and Done. Copy it to Claude, then mark it done.
+- An improvement has Copy and Done. Copy it to Claude, then mark it done.
 - Add, Drop, and Done delete the suggestion, email included.
 
 The Monday filing tells you how many suggestions wait, with the link. It sees only the count: `python3 scripts/tv_intake.py suggestions`.

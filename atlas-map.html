@@ -1030,7 +1030,7 @@ D.forEach(function (d) {
   // Viewer asks: a video for a grey dot (a tradition still seeking one), a fix for any dot.
   var sgAttr = ' data-t="' + tvSlug(d.n) + '" data-title="' + d.n.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
   var askHtml = '<div class="sg-row">' + (!primary || !d.v.length ? '<a href="#" class="sg-link sg-video" data-sg="video"' + sgAttr + '>Know a video of this? Send it</a>' : '') +
-    '<a href="#" class="sg-link" data-sg="fix"' + sgAttr + '>Something wrong here?</a></div>';
+    '<a href="#" class="sg-link" data-sg="fix"' + sgAttr + '>Suggest an improvement</a></div>';
   var html = '<div class="wm-popup"><strong>'+d.n+'</strong><br><span style="color:#666;font-size:12px">'+d.p+'</span>'+summaryHtml+tvHtml+embedHtml+vidHtml+askHtml+'</div>';
   var m = L.circleMarker(project(d.la, d.lo), {
     radius: 7, color: '#ffffff', weight: 1.5,
@@ -1205,7 +1205,7 @@ document.addEventListener('click', function (ev) {
         '<div class="tv-row"><a class="tv-link" target="_top" href="' + tvUrl(f) + '">Watch on movingmusicTV</a></div>' +
         '<div style="margin-top:3px"><a href="' + esc(f.url) + '" target="_blank" rel="noopener noreferrer">' + esc(NAMES[f.platform] || 'Original') + ' post</a></div>' +
         '<div class="find-head">Bennett\'s find, not a tradition on the Atlas yet</div>' +
-        '<div class="sg-row"><a href="#" class="sg-link" data-sg="fix" data-f="' + esc(f.id) + '" data-title="' + esc(entry.n) + '">Something wrong here?</a></div></div>';
+        '<div class="sg-row"><a href="#" class="sg-link" data-sg="fix" data-f="' + esc(f.id) + '" data-title="' + esc(entry.n) + '">Suggest an improvement</a></div></div>';
       var nm = L.circleMarker(project(f.la, f.lo), { radius: 7, color: '#8A2F22', weight: 2.5, fillColor: color, fillOpacity: 0.9 })
         .bindPopup(popup, { maxWidth: 320, minWidth: 260, autoPan: true, autoPanPaddingTopLeft: [30, 90], autoPanPaddingBottomRight: [30, 30] })
         .bindTooltip(entry.n + (entry.p ? ', ' + entry.p : ''), { direction: 'top', offset: [0, -6], className: 'wm-tooltip', sticky: false });
@@ -1288,7 +1288,7 @@ document.addEventListener('click', function (ev) {
     cur = { kind: a.getAttribute('data-sg'), tradition: a.getAttribute('data-t') || '', find: a.getAttribute('data-f') || '', title: a.getAttribute('data-title') || '' };
     opener = a;
     var video = cur.kind === 'video';
-    q('#sg-h').textContent = video ? 'Know a video of ' + cur.title + '?' : 'Something wrong with ' + cur.title + '?';
+    q('#sg-h').textContent = video ? 'Know a video of ' + cur.title + '?' : 'Suggest an improvement to ' + cur.title;
     q('.sg-linkrow').hidden = !video;
     q('#sg-text-l').textContent = video ? 'Anything Bennett should know? (optional)' : 'What should change?';
     q('#sg-link').value = ''; q('#sg-text').value = ''; q('#sg-hp').value = '';
