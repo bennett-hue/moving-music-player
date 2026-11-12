@@ -59,7 +59,8 @@ function fitMeta(m) {
     const max = m.note.length - 20;
     m.note = max < 20 ? '' : cutLine(m.note.replace(/\u2026$/, ''), max);
   }
-  return m;
+  if (m.from && metaBytes(m) > META_MAX) m.from = m.from.slice(0, 40);
+  return metaBytes(m) <= META_MAX;
 }
 
 // Same rules as parse_video() in scripts/build_tv.py.
@@ -142,7 +143,7 @@ async function resolveRedirects(u) {
   return cur === u ? null : cur;
 }
 
-function safeEqual(a, b) {
+export function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
@@ -157,6 +158,58 @@ async function readBody(request) {
   try { return JSON.parse(text); } catch (e) { return Object.fromEntries(new URLSearchParams(text)); }
 }
 
+// Put a video in the inbox: the Send button, and viewer suggestions Bennett approves.
+// opts: note (Bennett's line), tradition (an Atlas slug), from (credit). Returns
+// { status, message, id, line }.
+export async function inboxAdd(env, text, opts) {
+  const o = opts || {};
+  // The share sheet sometimes passes a caption with the link inside it.
+  let raw = String(text || '').trim();
+  const found = raw.match(/https?:\/\/[^\s<>"]+/);
+  if (found) raw = found[0];
+  if (!raw || raw.length > 800) return { status: 400, message: 'No link found.' };
+
+  let pv = parseVideo(raw);
+  if (!pv || isShortLink(raw)) {
+    const resolved = await resolveRedirects(raw);
+    const pv2 = resolved && parseVideo(resolved);
+    if (pv2 && (pv2.p !== 'fb' || !isShortLink(resolved))) { pv = pv2; raw = resolved; }
+  }
+  if (!pv) return { status: 422, message: 'That link is not a YouTube, Instagram, Facebook, or TikTok video.' };
+
+  const url = canonical(raw, pv);
+  const pvc = parseVideo(url) || pv;
+  const id = await itemId(pvc);
+  const wrote = cleanLine(o.note);
+  const line = cutLine(wrote, LINE_MAX);
+  const key = INBOX_PREFIX + id;
+  const prev = await env.MMP_KV.getWithMetadata(key);
+  const old = prev && prev.value !== null ? (prev.metadata || {}) : null;
+  const what = NAME[pvc.p] + ' video';
+  const tradition = String(o.tradition || '').slice(0, 100);
+
+  let meta = null;
+  if (!old) {
+    meta = { id, url, note: line, p: pvc.p, added: new Date().toISOString().slice(0, 10) };
+    if (tradition) meta.tradition = tradition;
+    if (o.from) meta.from = String(o.from).slice(0, 100);
+  } else if (line && line !== old.note) {
+    meta = Object.assign({}, old, { note: line });  // a new line; link and date stay
+  } else if (tradition && !old.tradition) {
+    meta = Object.assign({}, old, { tradition });   // already sent; now tied to a tradition
+  }
+  if (!meta) return { status: 200, message: 'Already on movingmusicTV: ' + what + '.', id, line: old.note || '' };
+
+  if (meta.note && meta.note !== (old && old.note)) meta.noted = stamp();
+  if (!fitMeta(meta)) return { status: 400, message: 'That link is too long to store.' };
+  await env.MMP_KV.put(key, '1', { expirationTtl: INBOX_TTL, metadata: meta });
+  try { await caches.default.delete(new Request(FINDS_CACHE_KEY)); } catch (e) {}
+  const cut = meta.note && meta.note !== wrote && wrote ? ' Your line was cut to ' + meta.note.length + ' characters.' : '';
+  if (!old) return { status: 201, message: 'On movingmusicTV: ' + what + (meta.note ? ', with your line.' : '.') + cut, id, line: meta.note };
+  if (meta.note !== old.note) return { status: 200, message: 'Line updated on this ' + what + '.' + cut, id, line: meta.note };
+  return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Now tied to its tradition.', id, line: meta.note || '' };
+}
+
 export async function tvInboxPost(request, env) {
   const asText = new URL(request.url).searchParams.get('format') === 'text';
   const reply = (status, message, extra) => asText
@@ -168,47 +221,8 @@ export async function tvInboxPost(request, env) {
   let body;
   try { body = await readBody(request); } catch (e) { return reply(400, 'Could not read what was sent.'); }
   if (!body || !safeEqual(String(body.key || ''), env.TV_INBOX_KEY)) return reply(401, 'Wrong key.');
-
-  // The share sheet sometimes passes a caption with the link inside it.
-  let raw = String(body.url || body.link || '').trim();
-  const found = raw.match(/https?:\/\/[^\s<>"]+/);
-  if (found) raw = found[0];
-  if (!raw || raw.length > 800) return reply(400, 'No link found.');
-
-  let pv = parseVideo(raw);
-  if (!pv || isShortLink(raw)) {
-    const resolved = await resolveRedirects(raw);
-    const pv2 = resolved && parseVideo(resolved);
-    if (pv2 && (pv2.p !== 'fb' || !isShortLink(resolved))) { pv = pv2; raw = resolved; }
-  }
-  if (!pv) return reply(422, 'That link is not a YouTube, Instagram, Facebook, or TikTok video.');
-
-  const url = canonical(raw, pv);
-  const pvc = parseVideo(url) || pv;
-  const id = await itemId(pvc);
-  const wrote = cleanLine(body.note);
-  const line = cutLine(wrote, LINE_MAX);
-  const key = INBOX_PREFIX + id;
-  const prev = await env.MMP_KV.getWithMetadata(key);
-  const old = prev && prev.value !== null ? (prev.metadata || {}) : null;
-  const what = NAME[pvc.p] + ' video';
-
-  let meta = null;
-  if (!old) {
-    meta = { id, url, note: line, p: pvc.p, added: new Date().toISOString().slice(0, 10) };
-  } else if (line && line !== old.note) {
-    meta = Object.assign({}, old, { note: line });  // a new line; link and date stay
-  }
-  if (!meta) return reply(200, 'Already on movingmusicTV: ' + what + '.', { id, line: old.note || '' });
-
-  if (meta.note) meta.noted = stamp();
-  fitMeta(meta);
-  await env.MMP_KV.put(key, '1', { expirationTtl: INBOX_TTL, metadata: meta });
-  try { await caches.default.delete(new Request(FINDS_CACHE_KEY)); } catch (e) {}
-  const cut = meta.note && meta.note !== wrote ? ' Your line was cut to ' + meta.note.length + ' characters.' : '';
-  return old
-    ? reply(200, 'Line updated on this ' + what + '.' + cut, { id, line: meta.note })
-    : reply(201, 'On movingmusicTV: ' + what + (meta.note ? ', with your line.' : '.') + cut, { id, line: meta.note });
+  const r = await inboxAdd(env, body.url || body.link, { note: body.note });
+  return reply(r.status, r.message, r.id ? { id: r.id, line: r.line || '' } : undefined);
 }
 
 // The inbox copy of a video, before Claude files it: no place, tags, or credit yet.
@@ -217,8 +231,8 @@ function inboxFind(m) {
   return {
     id: m.id, platform: PLATFORM[m.p] || m.p, url: m.url, by: '',
     label: (NAME[m.p] || 'Video') + ' video', place: '', la: null, lo: null,
-    tradition: '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '',
-    from: 'Send button', note: m.note || '', noted: m.noted || '', inbox: true,
+    tradition: m.tradition || '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '',
+    from: m.from || 'Send button', note: m.note || '', noted: m.noted || '', inbox: true,
   };
 }
 

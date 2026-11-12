@@ -74,7 +74,7 @@ cd worker && wrangler deploy
 
 After an Atlas data change, run `scripts/build_tv.py` too, so the TV picks up the new videos.
 
-Finds need no deploy. The Send button on Bennett's phone posts to `/tv-inbox` (`worker/tv.js`) and the video is on the TV within a minute, with his line under it if he typed one. Filing it (`scripts/tv_intake.py add`, then `scripts/tv_intake.py lines` to copy his lines word for word) and committing `tv/finds.json` to `main` updates the TV and the Atlas within about five minutes.
+Finds need no deploy. The Send button on Bennett's phone posts to `/tv-inbox` (`worker/tv.js`) and the video is on the TV within a minute, with his line under it if he typed one. Filing it (`scripts/tv_intake.py add`, then `scripts/tv_intake.py lines` to copy his lines word for word) and committing `tv/finds.json` to `main` updates the TV and the Atlas within about five minutes. Visitors suggest videos and fixes from the Atlas popups (`worker/suggest.js`); Bennett reviews them at `/review.html` on the worker, and nothing goes public until he adds it.
 
 ## Roadmap
 

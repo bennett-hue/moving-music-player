@@ -30,6 +30,7 @@
 // a co-performer" use case; harden later if abuse appears.
 
 import { tvFindsGet, tvInboxPost } from './tv.js';
+import { suggestConfigGet, suggestPost, suggestCountGet, suggestionsGet, suggestionAct, reviewPage } from './suggest.js';
 
 const ALLOWED_ORIGIN = 'https://movingmusic.works';
 
@@ -95,6 +96,7 @@ async function rateLimit(env, kind, ip) {
   const limiter = kind === 'pick-get' ? env.PICK_GET_LIMIT
     : kind === 'pick-post' ? env.PICK_POST_LIMIT
     : kind === 'tv-inbox' ? env.TV_INBOX_LIMIT
+    : kind === 'suggest' ? env.SUGGEST_LIMIT
     : null;
   if (!limiter) return { ok: true };
   try {
@@ -587,6 +589,30 @@ export default {
       const rl = await rateLimit(env, 'tv-inbox', clientIp(request));
       if (!rl.ok) return new Response('rate limited', { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } });
       return tvInboxPost(request, env);
+    }
+
+    // Viewer suggestions for the Atlas (worker/suggest.js). Public: the config,
+    // the form post, and a bare count. Keyed: the review list and its actions.
+    if (url.pathname === '/suggest-config' && request.method === 'GET') {
+      return suggestConfigGet(env);
+    }
+    if (url.pathname === '/suggest' && request.method === 'POST') {
+      const ip = clientIp(request);
+      const rl = await rateLimit(env, 'suggest', ip);
+      if (!rl.ok) return new Response(JSON.stringify({ ok: false, message: 'Too many sends. Try again in a minute.' }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfter) } });
+      return suggestPost(request, env, ip);
+    }
+    if (url.pathname === '/suggest-count' && request.method === 'GET') {
+      return suggestCountGet(env);
+    }
+    if (url.pathname === '/review.html' && request.method === 'GET') {
+      return reviewPage();
+    }
+    const sm = url.pathname.match(/^\/suggestions(?:\/([^/]+)\/(add|drop))?$/);
+    if (sm && (sm[1] ? request.method === 'POST' : request.method === 'GET')) {
+      const rl = await rateLimit(env, 'tv-inbox', 'review:' + clientIp(request));
+      if (!rl.ok) return new Response('rate limited', { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } });
+      return sm[1] ? suggestionAct(request, env, sm[1], sm[2]) : suggestionsGet(request, env);
     }
 
     // Route picker: writes "route-<slug>" label on a Ghost member.

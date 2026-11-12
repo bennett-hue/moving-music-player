@@ -30,6 +30,7 @@ At launch it holds 220 videos from 114 places: 210 YouTube, 8 Instagram, 1 Faceb
 - `scripts/build_tv.py`: builds `tv.html` and `ghost/tv.card.html`.
 - `scripts/tv_intake.py`: lists inbox videos and files them into `tv/finds.json`.
 - `worker/tv.js`: the worker routes `/tv-finds.json` (live finds) and `/tv-inbox` (the Send button).
+- `worker/suggest.js`: viewer suggestions from the Atlas, and Bennett's review page.
 - `tv.html`: the built page. Do not edit it by hand.
 - `ghost/tv.card.html`: the body of the HTML card on the Ghost page `/tv/`.
 
@@ -70,22 +71,46 @@ Before the Send button, Bennett forwarded videos by direct message to The Workso
 
 The first pass, on Nov 12, 2026, read the Instagram "Worksongs" saved collection instead: 13 posts, 8 playable reels. Four were photos and one is gone.
 
+## Viewer suggestions on the Atlas
+
+Visitors can help fill the Atlas. Nothing they send goes public until you add it.
+
+- A grey dot, a tradition still seeking a video, has "Know a video of this? Send it" in its popup.
+- Every popup, and every find with its own dot, has "Something wrong here?"
+- Each ask opens a short form: the link or the fix, an optional name, an optional email for a reply, and Cloudflare Turnstile, a free bot check. A hidden field catches simple bots, and each address can send five a minute.
+- The worker stores each suggestion privately in KV as `sugg:<id>`, for up to a year. It keeps no IP address and no bot token.
+
+To review, open `https://mmp-sync.bennett-727.workers.dev/review.html` on your phone. The first time, enter the inbox key from your Send button shortcut; the page remembers it.
+
+- A video has Add to the TV and Drop. Add puts it in the Send button inbox, tied to its tradition and credited with the sender's first name: "suggested by Ana" in the Atlas popup. The Monday filing gives it a place and a label. To add your line, send it with the Send button.
+- A link that is not YouTube, Instagram, Facebook, or TikTok can't be added in one tap. Add it by hand with Claude, or drop it.
+- A fix has Copy and Done. Copy it to Claude, then mark it done.
+- Add, Drop, and Done delete the suggestion, email included.
+
+The Monday filing tells you how many suggestions wait, with the link. It sees only the count: `python3 scripts/tv_intake.py suggestions`.
+
+The asks stay hidden until Takt sets the two Turnstile secrets.
+
+Not yet: written write-ups of traditions, asks on the TV, and video asks on colored dots. Add them once you see what arrives.
+
 ## Publish
 
 Takt runs these in `~/moving-music-player`.
 
 1. Merge `claude/movingmusic-tv-2026-11-12` into `main` and push. It is based on `claude/build-queue-2026-11-11`. The live finds read `tv/finds.json` from `main`, so this step turns them on.
 2. Set the inbox key: `cd worker && wrangler secret put TV_INBOX_KEY`, then paste the key.
-3. Deploy: `wrangler deploy`. The new `TV_INBOX_LIMIT` binding needs wrangler 4.36 or later. `TV_SHA` and `ATLAS_MAP_SHA` are already pinned to the TV commit. The live Atlas was byte-identical to this branch's Atlas before the TV changes, so the Atlas pin adds only the TV links, the live finds with Bennett's lines, and one fix: opening a popup no longer throws "Maximum call stack size exceeded". The popups' keepInView setting fought the map's edge limits, so it is gone.
-4. In Ghost Admin, add a page titled movingmusicTV with the slug `tv`. Give it one HTML card holding the contents of `ghost/tv.card.html`. Publish.
-5. To list it in the site menu, add movingmusicTV, `/tv/`, in Ghost Admin, Settings, Navigation.
-6. Check the live site:
+3. Turn on viewer suggestions. In the Cloudflare dashboard, open Turnstile and add a widget: name Atlas suggestions, mode Managed, hostnames `mmp-sync.bennett-727.workers.dev` and `movingmusic.works`. Then run `wrangler secret put TURNSTILE_SITEKEY` and paste the site key, and `wrangler secret put TURNSTILE_SECRET` and paste the secret key. Until both are set, the asks stay hidden.
+4. Deploy: `wrangler deploy`. The new `TV_INBOX_LIMIT` and `SUGGEST_LIMIT` bindings need wrangler 4.36 or later. `TV_SHA` and `ATLAS_MAP_SHA` are already pinned to the TV commit. The live Atlas was byte-identical to this branch's Atlas before the TV changes, so the Atlas pin adds only the TV links, the live finds with Bennett's lines, the viewer asks, and one fix: opening a popup no longer throws "Maximum call stack size exceeded". The popups' keepInView setting fought the map's edge limits, so it is gone.
+5. In Ghost Admin, add a page titled movingmusicTV with the slug `tv`. Give it one HTML card holding the contents of `ghost/tv.card.html`. Publish.
+6. To list it in the site menu, add movingmusicTV, `/tv/`, in Ghost Admin, Settings, Navigation.
+7. Check the live site:
    - `curl -s https://mmp-sync.bennett-727.workers.dev/tv-finds.json | head -c 300` returns JSON with the 8 finds.
    - Send one video with the shortcut. Within a minute it is first on `/tv/`.
    - `/tv/#tradition=menhaden-chanteys` opens on the Menhaden chanteys, and a YouTube card plays.
    - On `/atlas/`, a popup shows "Watch on movingmusicTV", and the Fosen boat launch has a ringed dot in Norway.
    - "Play in bar" on a YouTube card starts the video in the player bar.
    - On a phone, cards snap one at a time and the map strip follows.
+   - On `/atlas/`, the Quern songs popup shows "Know a video of this? Send it". Send a test suggestion, open `/review.html` on the worker, enter the inbox key, and drop it.
 
 Before the pin, preview any pushed commit at `https://raw.githack.com/bennett-hue/moving-music-player/<commit>/tv.html`.
 
@@ -126,7 +151,10 @@ Checked against the 111-concept list, for the items that apply:
 - Caching and CDN: `/tv-finds.json` caches for 60 seconds at the edge and in the browser; a send clears that data center's copy. `tv.html` and `atlas-map.html` cache for an hour at the edge.
 - Rollbacks: page code changes only when a pin changes. Finds roll back with `git revert` on `main`.
 - Retries and failure: if `/tv-finds.json` fails, the TV shows the finds built into the page and the Atlas shows its own data. Nothing breaks.
-- Secrets: the key is a worker secret. Nothing secret is in the repo.
+- Secrets: the inbox key and the Turnstile secret are worker secrets. Nothing secret is in the repo. The Turnstile site key is public by design and is a secret only so it needs no code change.
+- Abuse: viewer suggestions pass Turnstile (checked against the hostname and the `suggest` action), a hidden honeypot field, a 5-a-minute limit per address, and length caps. Bodies over 8,000 characters are refused.
+- Authorization: the review list and its actions need the inbox key in an `Authorization: Bearer` header, compared in constant time. No cookies, so no cross-site request forgery.
+- Privacy: suggestions keep no IP address. Email is optional, shown only on the review page, and deleted with the suggestion. A video added from a suggestion carries only the sender's first name.
 - Data retention: inbox entries expire after a year. Claude files them long before.
 - Privacy: YouTube plays from youtube-nocookie.com. Instagram, Facebook, and TikTok load only on play.
 - Monitoring and alerts: none yet. A scheduled filing run that reports what it filed covers the inbox.

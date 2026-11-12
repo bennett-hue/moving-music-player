@@ -20,6 +20,9 @@ Usage:
         filed video whose sent line is newer than its filed line. Run it after add.
     python3 scripts/tv_intake.py hide --id ID --why "reason"
         Take a video off the TV and the Atlas, Atlas videos included.
+    python3 scripts/tv_intake.py suggestions
+        How many viewer suggestions from the Atlas wait for Bennett's review, and
+        the link to his review page. Only the count is public; Claude never sees them.
 
 After add, lines, or hide: python3 scripts/build_tv.py --check, then commit and push to main.
 """
@@ -147,6 +150,16 @@ def cmd_lines(args):
     print('%d lines copied' % len(copied), file=sys.stderr)
 
 
+def cmd_suggestions(args):
+    url = tv.TV_LIVE_URL.rsplit('/', 1)[0] + '/suggest-count'
+    try:
+        with urllib.request.urlopen(url, timeout=20) as r:
+            data = json.load(r)
+    except Exception as e:  # noqa: BLE001
+        sys.exit('Could not read the suggestion count at %s: %s' % (url, e))
+    print(json.dumps({'pending': int(data.get('pending') or 0), 'review': data.get('review', '')}))
+
+
 def cmd_hide(args):
     doc = load()
     hide = doc.setdefault('hide', [])
@@ -163,6 +176,7 @@ def main():
     sub = ap.add_subparsers(dest='cmd', required=True)
     sub.add_parser('pull')
     sub.add_parser('lines')
+    sub.add_parser('suggestions')
     a = sub.add_parser('add')
     a.add_argument('--url', required=True)
     for name in ('label', 'by', 'place', 'tradition', 'uses', 'shows', 'note', 'added', 'from', 'check'):
@@ -174,7 +188,8 @@ def main():
     h.add_argument('--id', required=True)
     h.add_argument('--why', required=True)
     args = ap.parse_args()
-    {'pull': cmd_pull, 'lines': cmd_lines, 'add': cmd_add, 'hide': cmd_hide}[args.cmd](args)
+    {'pull': cmd_pull, 'lines': cmd_lines, 'add': cmd_add, 'hide': cmd_hide,
+     'suggestions': cmd_suggestions}[args.cmd](args)
 
 
 if __name__ == '__main__':
