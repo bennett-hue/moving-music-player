@@ -730,6 +730,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .leaflet-popup-content strong { font-size: 15px; }
   .leaflet-popup-content a { color: #2A8C82; text-decoration: none; border-bottom: 1px solid #2A8C82; }
   .leaflet-popup-content a:hover { opacity: 0.75; }
+  .leaflet-popup-content .tv-row { margin-top: 6px; }
+  .leaflet-popup-content a.tv-link { color: #8A2F22; border-bottom-color: #8A2F22; font-weight: 600; }
 </style>
 <div class="atlas-controls">
   <h1 style="display:none">The Worksong Atlas</h1>
@@ -954,6 +956,10 @@ map.fitBounds(bounds);
 var DELIVERY_COLOR = { 'at-work': '#2A8C82', 'shared': '#a67c52', 'concert': '#7b6d9a', '': '#bbb' };
 var DELIVERY_LABEL = { 'at-work': 'People at work', 'shared': 'People sharing songs', 'concert': 'People in Concert' };
 
+// movingmusicTV plays YouTube, Facebook, and video-file links; a popup with one of these links to the TV.
+var TV_PLAYABLE = /youtu\.?be|facebook\.com|fb\.watch|\.(mp4|webm|m4v)(\?|$)/i;
+function tvSlug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+
 function yt(u){
   var m = u.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/);
   if (!m) return null;
@@ -994,7 +1000,9 @@ D.forEach(function (d) {
     if (e) embedHtml = '<iframe class="wm-embed" src="'+e+'" style="width:100%;aspect-ratio:16/9;border:0;margin-top:6px;border-radius:4px" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>';
   }
   var summaryHtml = d.s ? '<div style="font-size:12.5px;color:#333;margin-top:5px">'+d.s+'</div>' : '';
-  var html = '<div class="wm-popup"><strong>'+d.n+'</strong><br><span style="color:#666;font-size:12px">'+d.p+'</span>'+summaryHtml+embedHtml+vidHtml+'</div>';
+  var tvHtml = d.v.some(function (x) { return TV_PLAYABLE.test(x.u); })
+    ? '<div class="tv-row"><a class="tv-link" target="_top" href="https://movingmusic.works/tv/#tradition=' + tvSlug(d.n) + '">Watch on movingmusicTV</a></div>' : '';
+  var html = '<div class="wm-popup"><strong>'+d.n+'</strong><br><span style="color:#666;font-size:12px">'+d.p+'</span>'+summaryHtml+tvHtml+embedHtml+vidHtml+'</div>';
   var m = L.circleMarker(project(d.la, d.lo), {
     radius: 7, color: '#ffffff', weight: 1.5,
     fillColor: color, fillOpacity: 0.9

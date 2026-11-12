@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>movingmusicTV</title>
+<meta name="description" content="Worksong videos from around the world, tied to the Worksong Atlas.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://i.ytimg.com">
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@500;700;800&family=EB+Garamond:ital,wght@0,500;0,600;1,500&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<!--
+  movingmusicTV. Built by scripts/build_tv.py from atlas-map.html and tv/finds.json.
+  Edit tv/template.html and the data files, then rebuild. Do not edit tv.html by hand.
+-->
+<style>
+:root {
+  --paper: #F3EDE1; --paper2: #ebe2d1; --ink: #231F1B; --muted: #6e6359; --line: #d6c9b3;
+  --brick: #8A2F22; --screen: #1b1814; --at-work: #2A8C82; --shared: #a67c52; --concert: #7b6d9a;
+  --serif: 'EB Garamond', Georgia, serif; --sans: 'Work Sans', 'Helvetica Neue', Arial, sans-serif;
+  --label: 'Alegreya Sans', 'Work Sans', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+body { overflow: hidden; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--brick); outline-offset: 2px; }
+
+.tv { display: grid; grid-template-rows: auto auto 1fr; height: 100vh; height: 100dvh; }
+
+/* ---------- header ---------- */
+.top { padding: 10px 16px 8px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: auto 1fr; grid-template-areas: "brand ctrl" "chan chan"; gap: 8px 14px; align-items: center; }
+.brand { grid-area: brand; font-family: var(--serif); font-size: 25px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; line-height: 1; }
+.brand .tag { display: inline-block; font-family: var(--label); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; background: var(--brick); color: var(--paper); padding: 3px 6px 2px; margin-left: 4px; transform: rotate(-3deg) translateY(-3px); box-shadow: 0 1px 1px rgba(0,0,0,.18); }
+.ctrl { grid-area: ctrl; display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.chan { grid-area: chan; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; mask-image: linear-gradient(to right, #000 92%, transparent); }
+.chan::-webkit-scrollbar { display: none; }
+.pill { font-family: var(--label); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid var(--line); background: transparent; padding: 5px 11px 4px; border-radius: 999px; white-space: nowrap; cursor: pointer; line-height: 1.1; }
+.pill:hover { background: var(--paper2); }
+.pill .num, .pill .cnt { color: var(--muted); font-weight: 500; }
+.pill .num { margin-right: 6px; }
+.pill .cnt { margin-left: 6px; }
+.pill[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.pill[aria-pressed="true"] .num, .pill[aria-pressed="true"] .cnt { color: #cdbfa9; }
+.pill.small { font-size: 12px; padding: 4px 9px 3px; }
+.pill[disabled] { opacity: .4; cursor: default; }
+
+/* ---------- map strip (narrow screens) ---------- */
+.strip { position: relative; height: 58px; border-bottom: 1px solid var(--line); background: var(--paper2); overflow: hidden; display: none; cursor: pointer; }
+.strip canvas { width: 100%; height: 100%; display: block; }
+.strip .where { position: absolute; left: 10px; bottom: 7px; font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; background: var(--paper); padding: 3px 7px 2px; box-shadow: 0 1px 2px rgba(0,0,0,.15); max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.strip .pin { left: 50%; top: 50%; }
+
+/* ---------- body ---------- */
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; }
+.feed { overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory; scrollbar-width: thin; position: relative; }
+.feed:focus { outline: none; }
+.card { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; padding: 14px 20px 12px; max-width: 860px; margin: 0 auto; }
+.screen { position: relative; flex: 1 1 auto; min-height: 120px; background: var(--screen); border-radius: 8px; overflow: hidden; container-type: size; display: flex; align-items: center; justify-content: center; }
+.frame { position: relative; background: #000; overflow: hidden; }
+.ar-16x9 .frame { width: min(100cqw, 100cqh * 16 / 9); height: min(100cqh, 100cqw * 9 / 16); }
+.ar-4x3 .frame { width: min(100cqw, 100cqh * 4 / 3); height: min(100cqh, 100cqw * 3 / 4); }
+.ar-9x16 .frame { width: min(100cqw, 100cqh * 9 / 16); height: min(100cqh, 100cqw * 16 / 9); }
+.live.p-ig .frame { width: min(100cqw, max(326px, (100cqh - 205px) * 9 / 16)); height: 100cqh; background: #fff; }
+.live.p-fb .frame { background: #000; }
+.poster, .postmap { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.postmap { background: var(--screen); }
+.posttext { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 16px 16px; color: var(--paper); background: linear-gradient(to top, rgba(20,17,14,.9), rgba(20,17,14,0)); }
+.posttext .via { font-family: var(--label); font-weight: 700; font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: #d9ccb6; }
+.more { display: none; grid-area: more; }
+.host, .host iframe, .host video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: transparent; }
+.host video { background: #000; }
+.play { position: absolute; z-index: 2; left: 50%; top: 50%; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%; border: 0; background: rgba(243,237,225,.94); display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.35); transition: transform .15s; }
+.play:hover { transform: scale(1.06); }
+.play svg { width: 30px; height: 30px; fill: var(--brick); margin-left: 5px; }
+.live .play, .live .poster, .live .postmap, .live .posttext { display: none; }
+.tape { position: absolute; z-index: 3; top: 12px; left: 12px; max-width: min(78%, 520px); background: var(--paper); color: var(--ink); padding: 5px 11px 4px; transform: rotate(-1.2deg); box-shadow: 0 1px 3px rgba(0,0,0,.3); pointer-events: none; transition: opacity .6s 2.5s; }
+.tape b { display: block; font-family: var(--serif); font-weight: 600; font-size: 18px; line-height: 1.12; }
+.tape span { display: block; font-family: var(--label); font-weight: 700; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 1px; }
+.live .tape { opacity: 0; }
+.plat { position: absolute; z-index: 2; right: 10px; bottom: 9px; font-family: var(--label); font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #e9dfcc; background: rgba(27,24,20,.7); padding: 3px 7px 2px; border-radius: 3px; pointer-events: none; }
+.live .plat { display: none; }
+
+.info { flex: 0 0 auto; padding: 10px 2px 0; }
+.meta { font-family: var(--label); font-weight: 700; font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.sh::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--c, #bbb); margin-right: 6px; vertical-align: 0; }
+.ti { font-family: var(--serif); font-weight: 600; font-size: 21px; line-height: 1.2; margin: 4px 0 3px; }
+.sum { margin: 0; font-size: 14.5px; line-height: 1.45; color: #3b342d; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.note { margin: 4px 0 0; font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--brick); }
+.acts { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 9px; }
+.act { font-family: var(--label); font-weight: 700; font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; border: 1px solid var(--ink); background: transparent; padding: 5px 10px 4px; border-radius: 4px; cursor: pointer; line-height: 1.1; }
+.act:hover { background: var(--ink); color: var(--paper); }
+.act.primary { background: var(--ink); color: var(--paper); }
+.act.primary:hover { background: var(--brick); border-color: var(--brick); }
+
+/* ---------- side panel ---------- */
+.side { border-left: 1px solid var(--line); padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.mapwrap { position: relative; width: 100%; aspect-ratio: 3580 / 2160; background: var(--paper2); border-radius: 6px; overflow: hidden; cursor: crosshair; }
+.mapwrap canvas { width: 100%; height: 100%; display: block; }
+.pin { position: absolute; width: 0; height: 0; pointer-events: none; transition: left .7s cubic-bezier(.45,0,.2,1), top .7s cubic-bezier(.45,0,.2,1); }
+.pin::before, .pin::after { content: ""; position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 50%; background: var(--brick); box-shadow: 0 0 0 2px var(--paper); }
+.pin::after { background: transparent; box-shadow: 0 0 0 2px var(--brick); animation: ping 1.8s ease-out infinite; }
+@keyframes ping { from { transform: scale(1); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+.pin.off { display: none; }
+.now .pos { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.now h3 { font-family: var(--serif); font-weight: 600; font-size: 24px; line-height: 1.15; margin: 4px 0 2px; }
+.now .np { font-family: var(--label); font-weight: 700; font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.now p { margin: 8px 0 0; font-size: 14.5px; line-height: 1.5; color: #3b342d; }
+.now .act { display: inline-block; margin-top: 10px; }
+.next { border-top: 1px solid var(--line); padding-top: 12px; }
+.next .lbl { font-family: var(--label); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: block; }
+.next button { margin-top: 3px; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; font-family: var(--serif); font-size: 18px; line-height: 1.2; }
+.next button:hover { color: var(--brick); }
+.next button::after { content: " \2193"; color: var(--brick); }
+.keys, .fine { font-size: 12.5px; line-height: 1.5; color: var(--muted); margin: 0; }
+.fine { margin-top: auto; border-top: 1px solid var(--line); padding-top: 12px; }
+kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: var(--paper2); }
+
+.empty { height: 100%; display: grid; place-items: center; text-align: center; padding: 30px; color: var(--muted); font-family: var(--serif); font-size: 20px; }
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); background: var(--ink); color: var(--paper); font-family: var(--label); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 13px; padding: 9px 14px 8px; border-radius: 6px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 50; }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- narrow screens ---------- */
+@media (max-width: 979px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .side { display: none; }
+  .strip { display: block; }
+  .card { padding: 10px 10px 10px; }
+  .ti { font-size: 18.5px; }
+  .sum { font-size: 13.5px; }
+  .act { font-size: 11.5px; padding: 5px 8px 4px; }
+  .top { padding: 8px 10px 7px; grid-template-columns: 1fr auto; grid-template-areas: "brand more" "ctrl ctrl" "chan chan"; }
+  .brand { font-size: 22px; }
+  .more { display: inline-block; }
+  .ctrl { display: none; justify-content: flex-start; }
+  .top.open .ctrl { display: flex; }
+}
+@media (max-width: 979px) and (max-height: 620px) {
+  .strip { height: 44px; }
+  .sum { -webkit-line-clamp: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pin, .tape, .toast { transition: none; }
+  .pin::after { animation: none; display: none; }
+}
+</style>
+</head>
+<body>
+<div class="tv" id="tv">
+  <header class="top">
+    <div class="brand">movingmusic<span class="tag">TV</span></div>
+    <button class="pill small more" id="o-more" aria-expanded="false" aria-controls="ctrl">Options</button>
+    <div class="ctrl" id="ctrl" role="group" aria-label="Viewing options">
+      <button class="pill small" id="o-journey" aria-pressed="true" title="Start in Maine and travel to the nearest place each time">Journey</button>
+      <button class="pill small" id="o-newest" aria-pressed="false" title="Newest finds first">Newest</button>
+      <button class="pill small" id="o-work" aria-pressed="false" title="Only videos where the song is sung while the work happens">At work only</button>
+      <button class="pill small" id="o-auto" aria-pressed="true" title="When a video ends, play the next one">Autoplay</button>
+    </div>
+    <nav class="chan" id="chan" aria-label="Channels"></nav>
+  </header>
+  <div class="strip" id="strip" title="Open the Atlas at this place"><canvas id="stripmap" aria-hidden="true"></canvas><span class="pin" id="strippin"></span><span class="where" id="stripwhere"></span></div>
+  <div class="main">
+    <section class="feed" id="feed" role="feed" aria-label="Videos" tabindex="-1"></section>
+    <aside class="side" aria-label="Where this video comes from">
+      <div class="mapwrap" id="mapwrap" title="Click a dot to go there"><canvas id="map" aria-hidden="true"></canvas><span class="pin" id="pin"></span></div>
+      <div class="now" id="now"></div>
+      <div class="next" id="next"></div>
+      <p class="keys"><kbd>&darr;</kbd> <kbd>&uarr;</kbd> next and back, <kbd>space</kbd> play or stop, <kbd>1</kbd> to <kbd>9</kbd> channels, <kbd>0</kbd> all.</p>
+      <p class="fine" id="fine"></p>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script id="tv-data" type="application/json">__TV_DATA__</script>
+<script>
+(function () {
+  'use strict';
+  var TV = JSON.parse(document.getElementById('tv-data').textContent);
+  var ITEMS = TV.items, STOPS = TV.stops;
+  var IMGW = TV.img[0], IMGH = TV.img[1];
+  var RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var FRAMED = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+  var PLAT = { yt: 'YouTube', ig: 'Instagram', fb: 'Facebook', tt: 'TikTok', file: 'Video' };
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---------- land dots ----------
+  var LAND = (function () {
+    var raw = atob(TV.land.bits), out = [];
+    for (var k = 0; k < TV.land.cols * TV.land.rows; k++) {
+      if (raw.charCodeAt(k >> 3) & (1 << (k & 7))) out.push(k);
+    }
+    return out;
+  })();
+
+  // ---------- state ----------
+  var state = { channel: 'all', order: 'journey', atWork: false, autoplay: true, engaged: false, list: [], cur: -1, trail: [] };
+  var live = null, pendingPlay = -1, settleTimer = 0;
+
+  function uses(it) { return it.u2 || STOPS[it.s].u || []; }
+  function inChannel(it, ch) {
+    if (ch === 'all') return true;
+    if (ch === 'finds') return !!it.f;
+    return uses(it).indexOf(ch) >= 0;
+  }
+  function passes(it, ch) { return inChannel(it, ch) && (!state.atWork || it.sh === 'at-work'); }
+  function computeList() {
+    state.list = TV[state.order].filter(function (i) { return passes(ITEMS[i], state.channel); });
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function placeOf(it) { return it.pl || STOPS[it.s].p || ''; }
+  function xyOf(it) { var s = STOPS[it.s]; return it.x != null ? [it.x, it.y] : (s.x != null ? [s.x, s.y] : null); }
+  function atlasUrl(st) { return TV.site + '/atlas/#tradition=' + st.id; }
+  function shareUrl(it) { return TV.site + '/tv/#v=' + it.id; }
+  function creditLine(it) {
+    var who = it.by || '';
+    if (it.p === 'ig' || it.p === 'tt') who = who ? '@' + who.replace(/^@/, '') : '';
+    if (it.p === 'file') return who ? 'Video from ' + who : 'Video';
+    return who ? who + ' on ' + PLAT[it.p] : PLAT[it.p];
+  }
+
+  // ---------- channels ----------
+  function renderChannels() {
+    var chans = [['all', 'All', '']].concat([['finds', "Bennett's finds", '']]);
+    TV.uses.forEach(function (u, n) { chans.push([u[0], u[1], String(n + 1), u[2]]); });
+    var html = chans.map(function (c) {
+      var count = TV.journey.filter(function (i) { return passes(ITEMS[i], c[0]); }).length;
+      return '<button class="pill" data-ch="' + c[0] + '" aria-pressed="' + (state.channel === c[0]) + '"' +
+        (count ? '' : ' disabled') + (c[3] ? ' title="' + esc(c[3]) + '"' : '') + '>' +
+        (c[2] ? '<span class="num">' + c[2] + '</span>' : '') + esc(c[1]) + '<span class="cnt">' + count + '</span></button>';
+    }).join('');
+    $('chan').innerHTML = html;
+  }
+  $('chan').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-ch]');
+    if (b && !b.disabled) setChannel(b.getAttribute('data-ch'));
+  });
+  function setChannel(ch, startAt) {
+    state.channel = ch;
+    renderChannels();
+    var active = document.querySelector('.pill[data-ch="' + ch + '"]');
+    if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    rebuild(startAt);
+  }
+
+  // ---------- feed ----------
+  var io = null, posterIO = null;
+  function cardHtml(i, n, total) {
+    var it = ITEMS[i], st = STOPS[it.s];
+    var ar = it.ar === '9:16' ? 'ar-9x16' : it.ar === '4:3' ? 'ar-4x3' : 'ar-16x9';
+    var shows = TV.shows[it.sh];
+    var poster;
+    if (it.p === 'yt') {
+      poster = '<img class="poster" loading="lazy" decoding="async" alt="" src="https://i.ytimg.com/vi/' + esc(it.k) + '/hqdefault.jpg">';
+    } else {
+      poster = '<canvas class="postmap" aria-hidden="true"></canvas><div class="posttext"><div class="via">' +
+        esc(creditLine(it)) + '</div></div>';
+    }
+    var acts = '';
+    if (st.atlas) acts += '<a class="act primary" target="_top" href="' + esc(atlasUrl(st)) + '">On the Atlas</a>';
+    if (FRAMED && it.p === 'yt') acts += '<button class="act" data-a="bar" title="Keep listening while you browse the site">Play in bar</button>';
+    acts += '<a class="act" target="_blank" rel="noopener noreferrer" href="' + esc(it.u) + '">' + (it.p === 'file' ? 'Open video' : PLAT[it.p]) + ' &#8599;</a>';
+    acts += '<button class="act" data-a="copy">Copy link</button>';
+    var tapeTitle = st.atlas ? st.n : "Bennett's finds";
+    var tapeSub = placeOf(it);
+    return '<article class="card p-' + it.p + ' ' + ar + '" data-n="' + n + '" id="v-' + esc(it.id) + '" aria-posinset="' + (n + 1) +
+      '" aria-setsize="' + total + '" aria-labelledby="t-' + n + '">' +
+      '<div class="screen"><div class="frame">' + poster +
+      '<button class="play" data-a="play" aria-label="Play: ' + esc(it.t) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg></button></div>' +
+      '<div class="tape"><b>' + esc(tapeTitle) + '</b>' + (tapeSub ? '<span>' + esc(tapeSub) + '</span>' : '') + '</div>' +
+      '<span class="plat">' + PLAT[it.p] + '</span></div>' +
+      '<div class="info"><div class="meta">' +
+      (shows ? '<span class="sh" style="--c:' + shows[1] + '">' + esc(shows[0]) + '</span>' : '') +
+      '<span>' + esc(creditLine(it)) + '</span></div>' +
+      '<h2 class="ti" id="t-' + n + '">' + esc(it.t) + '</h2>' +
+      (it.n ? '<p class="note">' + esc(it.n) + '</p>' : '') +
+      (st.s ? '<p class="sum">' + esc(st.s) + '</p>' : '') +
+      '<div class="acts">' + acts + '</div></div></article>';
+  }
+
+  function rebuild(startAt) {
+    unmount();
+    computeList();
+    var feed = $('feed');
+    if (io) io.disconnect();
+    if (posterIO) posterIO.disconnect();
+    if (!state.list.length) {
+      feed.innerHTML = '<div class="empty">No videos here yet.</div>';
+      state.cur = -1; updatePanels();
+      return;
+    }
+    var total = state.list.length;
+    feed.innerHTML = state.list.map(function (i, n) { return cardHtml(i, n, total); }).join('');
+    state.cur = -1;
+    io = new IntersectionObserver(onVisible, { root: feed, threshold: [0.6] });
+    posterIO = new IntersectionObserver(onNear, { root: feed, rootMargin: '150% 0px' });
+    Array.prototype.forEach.call(feed.children, function (c) { io.observe(c); if (c.querySelector('.postmap')) posterIO.observe(c); });
+    var target = 0;
+    if (startAt != null) { var k = state.list.indexOf(startAt); if (k >= 0) target = k; }
+    jump(target, false);
+  }
+
+  function cardAt(n) { return $('feed').children[n] || null; }
+  function jump(n, smooth) {
+    var c = cardAt(n);
+    if (!c) return;
+    $('feed').scrollTo({ top: c.offsetTop, behavior: smooth && !RM ? 'smooth' : 'auto' });
+    setCur(n);
+  }
+  function go(n, play) {
+    if (n < 0 || n >= state.list.length) return;
+    if (play) pendingPlay = n;
+    jump(n, true);
+  }
+
+  function onVisible(entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting) setCur(+en.target.getAttribute('data-n'));
+    });
+  }
+  function onNear(entries) {
+    entries.forEach(function (en) {
+      if (!en.isIntersecting) return;
+      var cv = en.target.querySelector('.postmap');
+      if (cv && !cv.dataset.drawn) { drawPostcard(cv, ITEMS[state.list[+en.target.getAttribute('data-n')]]); cv.dataset.drawn = '1'; }
+      posterIO.unobserve(en.target);
+    });
+  }
+
+  function setCur(n) {
+    if (n === state.cur) { maybePlay(n); return; }
+    state.cur = n;
+    var it = ITEMS[state.list[n]];
+    if (live && live.n !== n) unmount();
+    var s = it.s;
+    if (state.trail[state.trail.length - 1] !== s) { state.trail.push(s); if (state.trail.length > 14) state.trail.shift(); }
+    updatePanels();
+    if (!FRAMED) { try { history.replaceState(null, '', '#v=' + it.id); } catch (e) {} }
+    maybePlay(n);
+  }
+  function maybePlay(n) {
+    clearTimeout(settleTimer);
+    var want = pendingPlay === n || (state.engaged && state.autoplay);
+    if (!want || (live && live.n === n)) return;
+    settleTimer = setTimeout(function () { if (state.cur === n) { pendingPlay = -1; mount(n); } }, pendingPlay === n ? 60 : 450);
+  }
+
+  // ---------- players ----------
+  var ytReady = null;
+  function loadYT() {
+    if (ytReady) return ytReady;
+    ytReady = new Promise(function (resolve) {
+      if (window.YT && window.YT.Player) return resolve();
+      var prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = function () { if (prev) try { prev(); } catch (e) {} resolve(); };
+      var s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(s);
+    });
+    return ytReady;
+  }
+  function frameEl(src, extra) {
+    var f = document.createElement('iframe');
+    f.src = src;
+    f.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write; web-share');
+    f.setAttribute('allowfullscreen', '');
+    f.setAttribute('title', 'Video player');
+    if (extra) Object.keys(extra).forEach(function (k) { f.setAttribute(k, extra[k]); });
+    return f;
+  }
+  function mount(n) {
+    var card = cardAt(n);
+    if (!card) return;
+    unmount();
+    var it = ITEMS[state.list[n]];
+    var frame = card.querySelector('.frame');
+    var host = document.createElement('div');
+    host.className = 'host';
+    frame.appendChild(host);
+    card.classList.add('live');
+    live = { n: n, it: it, card: card, host: host, yt: null, el: null };
+    if (it.p === 'yt') {
+      var slot = document.createElement('div');
+      host.appendChild(slot);
+      loadYT().then(function () {
+        if (!live || live.host !== host) return;
+        live.yt = new YT.Player(slot, {
+          host: 'https://www.youtube-nocookie.com', videoId: it.k, width: '100%', height: '100%',
+          playerVars: { autoplay: 1, playsinline: 1, rel: 0, start: it.st || 0, origin: location.origin },
+          events: { onStateChange: function (e) { if (e.data === 0) ended(host); } }
+        });
+      });
+    } else if (it.p === 'tt') {
+      live.el = host.appendChild(frameEl('https://www.tiktok.com/player/v1/' + it.k + '?autoplay=1&rel=0&music_info=1&description=0&closed_caption=1'));
+    } else if (it.p === 'ig') {
+      live.el = host.appendChild(frameEl('https://www.instagram.com/' + it.k + '/embed/', { scrolling: 'no' }));
+    } else if (it.p === 'fb') {
+      var w = Math.round(frame.clientWidth), h = Math.round(frame.clientHeight);
+      live.el = host.appendChild(frameEl('https://www.facebook.com/plugins/video.php?href=' + encodeURIComponent(it.u) +
+        '&show_text=false&autoplay=true&mute=0&width=' + w + '&height=' + h, { scrolling: 'no' }));
+    } else {
+      var v = document.createElement('video');
+      v.src = it.k; v.controls = true; v.autoplay = true; v.playsInline = true; v.preload = 'auto';
+      v.addEventListener('ended', function () { ended(host); });
+      live.el = host.appendChild(v);
+      var p = v.play(); if (p && p.catch) p.catch(function () {});
+    }
+  }
+  function unmount() {
+    clearTimeout(settleTimer);
+    if (!live) return;
+    try { if (live.yt && live.yt.destroy) live.yt.destroy(); } catch (e) {}
+    if (live.el && live.el.tagName === 'VIDEO') { try { live.el.pause(); } catch (e) {} }
+    live.host.remove();
+    live.card.classList.remove('live');
+    live = null;
+  }
+  function ended(host) {
+    if (!live || live.host !== host) return;
+    if (state.autoplay && state.cur + 1 < state.list.length) go(state.cur + 1, true);
+  }
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch (e) { return; } }
+    if (!d || !d['x-tiktok-player'] || !live || !live.el || ev.source !== live.el.contentWindow) return;
+    if (d.type === 'onStateChange' && d.value === 0) ended(live.host);
+  });
+
+  // ---------- card actions ----------
+  $('feed').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-a]');
+    var card = e.target.closest('.card');
+    if (!card) return;
+    var n = +card.getAttribute('data-n'), it = ITEMS[state.list[n]];
+    if (!b) {
+      if (e.target.closest('.frame') && !card.classList.contains('live')) { state.engaged = true; setCur(n); mount(n); }
+      return;
+    }
+    var a = b.getAttribute('data-a');
+    if (a === 'play') { state.engaged = true; setCur(n); mount(n); }
+    else if (a === 'copy') copyText(shareUrl(it));
+    else if (a === 'bar') {
+      try {
+        window.parent.postMessage({ source: 'mmp-atlas', action: 'play', videoId: it.k, label: it.t, startSec: it.st || 0, sourceUrl: it.u }, '*');
+        unmount();
+        toast('Playing in the bar');
+      } catch (err) { toast('The bar is not available here'); }
+    }
+  });
+  function copyText(t) {
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = t; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      ta.remove();
+      toast(ok ? 'Link copied' : t);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { toast('Link copied'); }, fallback);
+    else fallback();
+  }
+  var toastTimer = 0;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg; t.classList.add('on');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('on'); }, 2200);
+  }
+
+  // ---------- options ----------
+  function setPressed(id, on) { $(id).setAttribute('aria-pressed', String(on)); }
+  $('o-journey').addEventListener('click', function () { if (state.order === 'journey') return; state.order = 'journey'; setPressed('o-journey', true); setPressed('o-newest', false); rebuild(); });
+  $('o-newest').addEventListener('click', function () { if (state.order === 'newest') return; state.order = 'newest'; setPressed('o-newest', true); setPressed('o-journey', false); rebuild(); });
+  $('o-work').addEventListener('click', function () {
+    var keep = state.cur >= 0 ? state.list[state.cur] : null;
+    state.atWork = !state.atWork; setPressed('o-work', state.atWork);
+    renderChannels(); rebuild(keep);
+  });
+  $('o-auto').addEventListener('click', function () { state.autoplay = !state.autoplay; setPressed('o-auto', state.autoplay); });
+  $('o-more').addEventListener('click', function () {
+    var top = document.querySelector('.top'), open = !top.classList.contains('open');
+    top.classList.toggle('open', open);
+    this.setAttribute('aria-expanded', String(open));
+    setTimeout(function () { stripView = null; updatePanels(); var c = cardAt(state.cur); if (c) $('feed').scrollTo({ top: c.offsetTop }); }, 0);
+  });
+
+  // ---------- maps ----------
+  function sizeCanvas(cv) {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return null;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    var g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    return { g: g, w: w, h: h };
+  }
+  function paint(cv, view, look) {
+    var c = sizeCanvas(cv);
+    if (!c) return null;
+    var g = c.g, s = view.scale, ox = c.w / 2 - view.cx * s, oy = c.h / 2 - view.cy * s;
+    if (look.bg) { g.fillStyle = look.bg; g.fillRect(0, 0, c.w, c.h); }
+    g.beginPath();
+    TV.outline.forEach(function (p, i) { var x = ox + p[0] * s, y = oy + p[1] * s; if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+    g.closePath();
+    g.fillStyle = look.sea; g.fill();
+    var cols = TV.land.cols, cw = IMGW / cols, rh = IMGH / TV.land.rows;
+    var r = Math.max(0.55, cw * s * look.dot);
+    g.fillStyle = look.land;
+    g.beginPath();
+    for (var j = 0; j < LAND.length; j++) {
+      var k = LAND[j], x = ox + ((k % cols) + 0.5) * cw * s, y = oy + (((k / cols) | 0) + 0.5) * rh * s;
+      if (x < -r || y < -r || x > c.w + r || y > c.h + r) continue;
+      g.moveTo(x + r, y); g.arc(x, y, r, 0, 6.2832);
+    }
+    g.fill();
+    return { g: g, w: c.w, h: c.h, ox: ox, oy: oy, s: s };
+  }
+  var LOOK_PANEL = { sea: '#e4d9c4', land: 'rgba(35,31,27,.42)', dot: 0.34 };
+  var LOOK_POST = { bg: '#1b1814', sea: '#1b1814', land: 'rgba(243,237,225,.30)', dot: 0.33 };
+
+  function stopsInList() {
+    var seen = {}, out = [];
+    state.list.forEach(function (i) { var it = ITEMS[i], xy = xyOf(it); if (!xy) return; var key = xy[0] + ',' + xy[1]; if (!seen[key]) { seen[key] = 1; out.push({ xy: xy, n: state.list.indexOf(i) }); } });
+    return out;
+  }
+  function drawOverlay(m) {
+    if (!m) return;
+    var g = m.g;
+    stopsInList().forEach(function (p) {
+      g.beginPath(); g.arc(m.ox + p.xy[0] * m.s, m.oy + p.xy[1] * m.s, 2.3, 0, 6.2832);
+      g.fillStyle = 'rgba(138,47,34,.55)'; g.fill();
+    });
+    var pts = state.trail.map(function (si) { var st = STOPS[si]; return st.x != null ? [m.ox + st.x * m.s, m.oy + st.y * m.s] : null; }).filter(Boolean);
+    for (var q = 1; q < pts.length; q++) {
+      g.beginPath(); g.moveTo(pts[q - 1][0], pts[q - 1][1]); g.lineTo(pts[q][0], pts[q][1]);
+      g.strokeStyle = 'rgba(138,47,34,' + (0.15 + 0.6 * q / pts.length).toFixed(2) + ')';
+      g.lineWidth = 1.5; g.setLineDash([3, 3]); g.stroke(); g.setLineDash([]);
+    }
+  }
+  function panelView(cv) { var w = cv.clientWidth; return { cx: IMGW / 2, cy: IMGH / 2, scale: w / IMGW }; }
+  var panelMap = null;
+  function drawPanel() {
+    var cv = $('map');
+    if (!cv.clientWidth) return;
+    panelMap = paint(cv, panelView(cv), LOOK_PANEL);
+    drawOverlay(panelMap);
+    placePin($('pin'), panelMap);
+  }
+  function placePin(pin, m) {
+    var it = state.cur >= 0 ? ITEMS[state.list[state.cur]] : null, xy = it && xyOf(it);
+    if (!m || !xy) { pin.classList.add('off'); return; }
+    pin.classList.remove('off');
+    pin.style.left = (m.ox + xy[0] * m.s) + 'px';
+    pin.style.top = (m.oy + xy[1] * m.s) + 'px';
+  }
+  $('mapwrap').addEventListener('click', function (e) {
+    if (!panelMap) return;
+    var rect = e.currentTarget.getBoundingClientRect(), mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    var best = null, bd = 18 * 18;
+    stopsInList().forEach(function (p) {
+      var dx = panelMap.ox + p.xy[0] * panelMap.s - mx, dy = panelMap.oy + p.xy[1] * panelMap.s - my, d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = p; }
+    });
+    if (best) go(best.n, state.engaged);
+  });
+
+  // strip: a moving window on the same map, centred on the current place
+  var stripView = null, stripAnim = 0;
+  function stripTarget(cv) {
+    var it = state.cur >= 0 ? ITEMS[state.list[state.cur]] : null, xy = it && xyOf(it);
+    var s = (cv.clientWidth / IMGW) * 2.6;
+    return xy ? { cx: xy[0], cy: xy[1], scale: s } : { cx: IMGW / 2, cy: IMGH / 2, scale: cv.clientWidth / IMGW };
+  }
+  function drawStrip() {
+    var cv = $('stripmap');
+    if (!cv.clientWidth) return;
+    var to = stripTarget(cv), from = stripView || to;
+    cancelAnimationFrame(stripAnim);
+    var t0 = performance.now(), dur = RM ? 0 : 700;
+    (function frame(now) {
+      var k = dur ? Math.min(1, (now - t0) / dur) : 1, e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      stripView = { cx: from.cx + (to.cx - from.cx) * e, cy: from.cy + (to.cy - from.cy) * e, scale: from.scale + (to.scale - from.scale) * e };
+      var m = paint(cv, stripView, LOOK_PANEL);
+      drawOverlay(m);
+      $('strippin').classList.toggle('off', !(state.cur >= 0 && xyOf(ITEMS[state.list[state.cur]])));
+      if (k < 1) stripAnim = requestAnimationFrame(frame);
+    })(t0);
+  }
+  $('strip').addEventListener('click', function () {
+    var it = state.cur >= 0 ? ITEMS[state.list[state.cur]] : null;
+    if (it && STOPS[it.s].atlas) window.open(atlasUrl(STOPS[it.s]), '_top');
+  });
+
+  function drawPostcard(cv, it) {
+    var xy = xyOf(it), w = cv.clientWidth;
+    if (!w) return;
+    // the place sits above the centre so the play button does not cover it
+    var scale = (w / IMGW) * 3.2, lift = Math.min(cv.clientHeight * 0.24, 90) / scale;
+    var view = xy ? { cx: xy[0], cy: xy[1] + lift, scale: scale } : { cx: IMGW / 2, cy: IMGH / 2, scale: w / IMGW };
+    var m = paint(cv, view, LOOK_POST);
+    if (!m || !xy) return;
+    var x = m.ox + xy[0] * m.s, y = m.oy + xy[1] * m.s;
+    m.g.beginPath(); m.g.arc(x, y, 7, 0, 6.2832); m.g.fillStyle = '#8A2F22'; m.g.fill();
+    m.g.lineWidth = 2.5; m.g.strokeStyle = '#F3EDE1'; m.g.stroke();
+  }
+
+  // ---------- side panel ----------
+  function updatePanels() {
+    var now = $('now'), next = $('next');
+    if (state.cur < 0) { now.innerHTML = ''; next.innerHTML = ''; drawPanel(); drawStrip(); return; }
+    var it = ITEMS[state.list[state.cur]], st = STOPS[it.s];
+    var title = st.atlas ? st.n : (placeOf(it) || it.t);
+    now.innerHTML = '<div class="pos">' + (state.cur + 1) + ' of ' + state.list.length + '</div>' +
+      '<h3>' + esc(title) + '</h3>' + (placeOf(it) && st.atlas ? '<div class="np">' + esc(placeOf(it)) + '</div>' : '') +
+      (st.s ? '<p>' + esc(st.s) + '</p>' : '') +
+      (st.atlas ? '<a class="act" target="_top" href="' + esc(atlasUrl(st)) + '">Open on the Atlas</a>' : '<p>Not on the Atlas yet.</p>');
+    var nx = state.cur + 1 < state.list.length ? ITEMS[state.list[state.cur + 1]] : null;
+    var nxText = !nx ? '' : nx.s === it.s ? nx.t : STOPS[nx.s].atlas ? STOPS[nx.s].n + ', ' + (placeOf(nx) || '') : (placeOf(nx) || nx.t);
+    next.innerHTML = nx ? '<span class="lbl">Next</span><button type="button" id="nextbtn">' + esc(nxText.replace(/, $/, '')) + '</button>' : '<span class="lbl">End of this channel</span>';
+    var nb = $('nextbtn');
+    if (nb) nb.addEventListener('click', function () { go(state.cur + 1, state.engaged); });
+    $('stripwhere').textContent = placeOf(it) || title;
+    drawPanel();
+    drawStrip();
+  }
+
+  // ---------- keyboard ----------
+  document.addEventListener('keydown', function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    var k = e.key;
+    if (k === 'ArrowDown' || k === 'j' || k === 'PageDown') { e.preventDefault(); go(state.cur + 1, state.engaged && state.autoplay); }
+    else if (k === 'ArrowUp' || k === 'k' || k === 'PageUp') { e.preventDefault(); go(state.cur - 1, state.engaged && state.autoplay); }
+    else if (k === ' ' && tag !== 'button' && tag !== 'a') {
+      e.preventDefault();
+      if (live) unmount(); else if (state.cur >= 0) { state.engaged = true; mount(state.cur); }
+    }
+    else if (k === 'Escape') unmount();
+    else if (/^[0-9]$/.test(k)) {
+      var ch = k === '0' ? 'all' : (TV.uses[+k - 1] || [])[0];
+      if (ch) setChannel(ch);
+    }
+  });
+
+  // ---------- start ----------
+  function readState() {
+    var s = '', out = {};
+    try { var qp = new URLSearchParams(location.search); if (qp.get('state')) s = qp.get('state'); } catch (e) {}
+    if (!s && location.hash) s = location.hash.slice(1);
+    s.split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) out[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); });
+    return out;
+  }
+  var resizeTimer = 0;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () { stripView = null; updatePanels(); var c = cardAt(state.cur); if (c) $('feed').scrollTo({ top: c.offsetTop }); }, 150);
+  });
+
+  var places = {};
+  STOPS.forEach(function (s) { if (s.x != null) places[s.x + ',' + s.y] = 1; });
+  $('fine').innerHTML = ITEMS.length + ' videos from ' + Object.keys(places).length + ' places, updated ' + esc(TV.built) + '. ' +
+    'Each video plays from its original post, with credit to whoever posted it. ' +
+    'To have a video taken down, <a target="_top" href="' + TV.site + '/about/">contact Bennett</a>.';
+
+  var want = readState(), startAt = null, ch = 'all';
+  if (want.channel && (want.channel === 'finds' || TV.uses.some(function (u) { return u[0] === want.channel; }))) ch = want.channel;
+  if (want.v) {
+    for (var i = 0; i < ITEMS.length; i++) if (ITEMS[i].id === want.v) { startAt = i; break; }
+  } else if (want.tradition) {
+    for (var j = 0; j < TV.journey.length; j++) if (STOPS[ITEMS[TV.journey[j]].s].id === want.tradition) { startAt = TV.journey[j]; break; }
+  }
+  if (startAt != null && !passes(ITEMS[startAt], ch)) ch = 'all';
+  state.channel = ch;
+  renderChannels();
+  rebuild(startAt);
+  $('feed').focus({ preventScroll: true });
+})();
+</script>
+</body>
+</html>

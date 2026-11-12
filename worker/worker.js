@@ -61,6 +61,8 @@ const GHOST_ADMIN_HOST = 'https://moving-music.ghost.io';
 // Repo the atlas map is served from. Bumped by editing this constant.
 const ATLAS_MAP_REPO = 'bennett-hue/moving-music-player';
 const ATLAS_MAP_SHA = '3323bbe';
+// Commit movingmusicTV (tv.html) is served from. Bump after each TV rebuild.
+const TV_SHA = 'PIN_ME';
 
 function corsHeaders() {
   return {
@@ -523,12 +525,22 @@ async function pickPostHandler(request, env) {
 }
 
 async function serveAtlasMap(request) {
-  const upstream = `https://raw.githubusercontent.com/${ATLAS_MAP_REPO}/${ATLAS_MAP_SHA}/atlas-map.html`;
+  return servePinnedPage('atlas-map.html', ATLAS_MAP_SHA);
+}
+
+async function serveTv(request) {
+  return servePinnedPage('tv.html', TV_SHA);
+}
+
+// Serve one HTML file from the repo at a pinned commit, so the page only
+// changes when the pin changes.
+async function servePinnedPage(path, sha) {
+  const upstream = `https://raw.githubusercontent.com/${ATLAS_MAP_REPO}/${sha}/${path}`;
   const upstreamRes = await fetch(upstream, {
     cf: { cacheTtl: 3600, cacheEverything: true },
   });
   if (!upstreamRes.ok) {
-    return new Response('atlas map upstream error', { status: 502 });
+    return new Response(path + ' upstream error', { status: 502 });
   }
   const body = await upstreamRes.arrayBuffer();
   return new Response(body, {
@@ -555,6 +567,11 @@ export default {
     // hotel Wi-Fi that blocks raw.githack.com still works.
     if (url.pathname === '/atlas-map.html' && request.method === 'GET') {
       return serveAtlasMap(request);
+    }
+
+    // Public route: movingmusicTV, embedded on the Ghost page /tv/.
+    if (url.pathname === '/tv.html' && request.method === 'GET') {
+      return serveTv(request);
     }
 
     // Route picker: writes "route-<slug>" label on a Ghost member.
