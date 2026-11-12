@@ -3,7 +3,7 @@
      Worker expects. Flip the flag to false to turn the picker off
      without redeploying the theme. -->
 <script>window.MM_PICKER_ENABLED = true;</script>
-<script src="https://cdn.jsdelivr.net/gh/bennett-hue/moving-music-player@a2a07d0/picker.js" defer></script>
+<script src="https://cdn.jsdelivr.net/gh/bennett-hue/moving-music-player@59fae20/picker.js" defer></script>
 
 <!-- Keep: hide empty Lyrics / The Story / Notes sections on song pages.
      Added 2026-11-08, carried through step 8. -->
@@ -24,5 +24,209 @@
       removed++;
     }
   });
+})();
+</script>
+
+<!-- "Chart your course" ribbon over the six songbooks, added Nov 9, 2026: a cream paper
+     ribbon with notched ends and a slight upward arc, sized and styled like the papercuttings
+     pennant, inserted above the homepage cards. To remove the ribbon, delete this block. -->
+<style>
+.mm-arc{position:relative;margin:0 0 8px;padding:0;font-size:1.05rem;line-height:1}
+.mm-arc svg{display:block;width:11.176em;height:auto;margin:0 auto;overflow:visible;filter:drop-shadow(0 1px 1.5px rgba(35,31,27,.16)) drop-shadow(0 2px 6px rgba(35,31,27,.10))}
+.mm-arc .mm-arc-ribbon{fill:#fbf8f2}
+.mm-arc text{font-family:"EB Garamond",Georgia,serif;font-style:italic;font-weight:400;font-size:17px;fill:#8a2f22}
+.mm-arc .mm-arc-vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+@media (min-width:601px){.mm-arc{margin-bottom:12px}}
+@media (max-width:600px){.mm-arc{font-size:clamp(.74rem,3.3vw,.95rem)}}
+</style>
+<script>
+(function () {
+  function addArc() {
+    if (document.querySelector('.mm-arc')) return;
+    var cards = document.querySelector('body.home-template .find .cards');
+    if (!cards) return;
+    var h = document.createElement('h2');
+    h.className = 'mm-arc';
+    h.innerHTML = '<span class="mm-arc-vh">Chart your course</span>' +
+      '<svg viewBox="0 0 190 42" aria-hidden="true" focusable="false"><path class="mm-arc-ribbon" d="M3 8.5C8.1 7.9 23.4 6.2 33.7 5.1C43.9 4 54.1 2.4 64.3 1.9C74.6 1.3 84.8 1.9 95 1.9C105.2 1.8 115.4 1.3 125.7 1.8C135.9 2.4 146.1 3.9 156.3 5.1C166.6 6.2 181.9 7.9 187 8.5L177 24.5L187 40.5C181.9 39.8 166.6 37.1 156.3 36.1C146.1 35.1 135.9 35.2 125.7 34.7C115.4 34.2 105.2 33.2 95 33.2C84.8 33.2 74.6 34.2 64.3 34.7C54.1 35.2 43.9 35.2 33.7 36.2C23.4 37.1 8.1 39.8 3 40.5L13 24.5Z"/><path id="mm-arc-curve" d="M3 29.9Q95 15.9 187 29.9" fill="none"/><text><textPath href="#mm-arc-curve" xlink:href="#mm-arc-curve" startOffset="50%" text-anchor="middle">Chart your course</textPath></text></svg>';
+    cards.parentNode.insertBefore(h, cards);
+  }
+  addArc();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addArc);
+})();
+</script>
+
+<!-- Homepage spacing, added Nov 9, 2026: tighter gutters above and below the six songbooks.
+     On phones, logged-out visitors keep the band under the cards that the sign-up sticker
+     needs. To undo, delete this block. -->
+<style>
+body.home-template .find{padding-top:14px}
+body.home-template .find .gutter{margin-top:10px}
+@media (max-width:900px){body.home-template .find{padding-top:8px}}
+@media (max-width:600px){
+body.home-template .find{padding-top:4px}
+body.home-template .find .wrap:not(:has(.mm-sticker--grid)){padding-bottom:0}
+body.home-template .find:not(:has(.mm-sticker--grid)){padding-bottom:6px}
+}
+</style>
+
+<!-- Album label on song pages, added Nov 9, 2026: a song on an album gets a second label next to its
+     songbook label, linking to the album's page. To add a new album, add its tag slug, short name and
+     year to ALBUMS below; an album tag that isn't listed still gets a label, named from its slug.
+     To remove the labels, delete this block. -->
+<style>
+body.mm-inner .mm-kicker.mm-kicker--album{background:transparent;color:var(--mm-red);box-shadow:inset 0 0 0 1px currentColor}
+</style>
+<script>
+(function(){
+  var ALBUMS={
+    'album-uncommon-kinship':['Uncommon Kinship','2007'],
+    'album-in-the-field':['In the Field','2015'],
+    'album-mountain-mover':['Mountain Mover','2026'],
+    'album-edith-and-bennett':['Edith & Bennett','2011']
+  };
+  function run(){
+    var b=document.body;
+    if(!b||!b.classList.contains('mm-song'))return;
+    var crumb=document.querySelector('.mm-pagehead .mm-crumb');
+    if(!crumb||crumb.querySelector('.mm-kicker--album'))return;
+    var after=crumb.querySelector('.mm-kicker');
+    b.className.split(/\s+/).forEach(function(c){
+      if(c.indexOf('tag-album-')!==0)return;
+      var slug=c.slice(4),info=ALBUMS[slug];
+      var name=info?info[0]:slug.slice(6).split('-').map(function(w){
+        return w.charAt(0).toUpperCase()+w.slice(1);
+      }).join(' ');
+      var a=document.createElement('a');
+      a.className='mm-kicker mm-kicker--album';
+      a.href='/tag/'+slug+'/';
+      a.textContent=name+' album'+(info?', '+info[1]:'');
+      crumb.insertBefore(a,after?after.nextSibling:crumb.firstChild);
+      after=a;
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run);
+  else run();
+})();
+</script>
+
+<!-- Wide-screen homepage proportions, added Nov 9, 2026: above 900px wide, the songbook papercuts stop
+     growing at 250px and sit centered in their colored tiles, the featured song lines up under two
+     songbook columns and the sidebar under the third, and the sidebar text grows a little with it.
+     Narrow windows and phones are unchanged. To undo, delete this block. -->
+<style>
+@media (min-width:901px){
+body.home-template .cards .card{padding-left:max(clamp(8px,1.7vw,22px),calc((100% - 250px) / 2));padding-right:max(clamp(8px,1.7vw,22px),calc((100% - 250px) / 2))}
+body.home-template .cards .card h3{font-size:clamp(.8rem,1.65vw,1.05rem)}
+body.home-template .cards .card .count{font-size:clamp(.7rem,1.2vw,.9rem)}
+body.home-template .feature .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(6px,1vw,12px)}
+body.home-template .feature .grid>.song{grid-column:span 2}
+body.home-template .pcard img{aspect-ratio:16/10}
+body.home-template .pcard blockquote{font-size:clamp(.86rem,calc(.86rem + (100vw - 900px) * .0085),1rem)}
+body.home-template .pcard cite{font-size:clamp(.74rem,calc(.74rem + (100vw - 900px) * .005),.82rem)}
+body.home-template .pcard .go{font-size:clamp(.84rem,calc(.84rem + (100vw - 900px) * .0065),.95rem)}
+body.home-template .acard{--cv:clamp(120px,calc(120px + (100vw - 900px) * .06),136px)}
+body.home-template .acard .small{font-size:clamp(1rem,calc(1rem + (100vw - 900px) * .0075),1.12rem)}
+body.home-template .acard .muted{font-size:clamp(.82rem,calc(.82rem + (100vw - 900px) * .0075),.95rem)}
+body.home-template .acard .go{font-size:clamp(.9rem,calc(.9rem + (100vw - 900px) * .006),1rem)}
+}
+</style>
+
+<!-- Chorus page type scale, added Nov 11, 2026 (Bennett: too many text sizes on the chorus page).
+     Four sizes for the page's own words: title up to 41.6px (a smidge under the 46.4px other pages
+     use, per Bennett), heading 25.6px to 33.6px (the season and the Next up event), text 18.4px (the
+     intro, events, places, and the italic labels), small 14.4px (dates and times, the Next up tape,
+     sign-up fine print). The visitors' sign-up card drops the old theme's 63px sans heading for the
+     same scale; its email field and button stay 16px so phones do not zoom in on tap. Fold into
+     inner.css with the next theme build. To undo, delete this block. -->
+<style>
+body.mm-inner.mm-chorus .mm-title{font-size:clamp(33.6px,3.3vw,41.6px)}
+body.mm-inner.mm-chorus .mm-label,
+body.mm-inner.mm-chorus .mm-chorus-main .gh-content.mm-prose > p:first-child,
+body.mm-inner.mm-chorus .mm-season > p,
+body.mm-inner.mm-chorus .mm-season > ul.mm-ev > li.mm-ev-month{font-size:18.4px}
+body.mm-inner.mm-chorus .mm-nextup-ttl{font-size:clamp(25.6px,2.4vw,33.6px)}
+body.mm-inner.mm-chorus .mm-nextup .mm-ev-when,
+body.mm-inner.mm-chorus .mm-nextup .mm-tape{font-size:14.4px}
+body.mm-inner.mm-chorus .mm-season .kg-signup-card h2.kg-signup-card-heading{font-family:var(--mm-serif);font-weight:var(--mm-hw);font-size:clamp(25.6px,2.4vw,33.6px);line-height:1.15;letter-spacing:0}
+body.mm-inner.mm-chorus .mm-season .kg-signup-card p.kg-signup-card-subheading{font-family:var(--mm-serif);font-weight:400;font-size:18.4px;line-height:1.45}
+body.mm-inner.mm-chorus .mm-season .kg-signup-card .kg-signup-card-input,
+body.mm-inner.mm-chorus .mm-season .kg-signup-card .kg-signup-card-button{font-family:var(--mm-sans);font-size:16px}
+body.mm-inner.mm-chorus .mm-season .kg-signup-card .kg-signup-card-disclaimer,
+body.mm-inner.mm-chorus .mm-season .kg-signup-card .kg-signup-card-success,
+body.mm-inner.mm-chorus .mm-season .kg-signup-card .kg-signup-card-error{font-family:var(--mm-sans);font-size:14.4px}
+</style>
+
+<!-- Chorus sign-up badge, added Nov 11, 2026 (Bennett: the "Can't make an event?" line belongs at the top,
+     in a badge). The line is its own paragraph under the intro on the chorus page. This sets it as an olive
+     badge in the homepage sign-up sticker's color and type, in the empty right column beside the intro, or
+     under the intro on screens 700px wide and narrower. Signed-in members don't see it, as with the homepage
+     sticker. Fold into inner.css with the next theme build. To undo, delete this block. -->
+<style>
+body.mm-inner.mm-chorus .mm-chorus-main{position:relative}
+body.mm-inner.mm-chorus .mm-chorus-main .gh-content.mm-prose > p:not(:first-child):has(a[href$="#/portal/signup"]){position:absolute;top:4px;left:calc(100% + 40px);width:300px;max-width:none;margin:0;padding:14px 18px 16px;background:#6A744C;color:var(--mm-card);font-family:var(--mm-sans);font-size:14.4px;font-weight:500;line-height:1.45;clip-path:var(--mm-tape-edge);transform:rotate(-2deg)}
+body.mm-inner.mm-chorus .mm-chorus-main .gh-content.mm-prose > p:not(:first-child):has(a[href$="#/portal/signup"]) a{color:var(--mm-card);font-weight:700;text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}
+@media (max-width:900px){body.mm-inner.mm-chorus .mm-chorus-main .gh-content.mm-prose > p:not(:first-child):has(a[href$="#/portal/signup"]){left:calc(100% + 28px);width:260px}}
+@media (max-width:700px){body.mm-inner.mm-chorus .mm-chorus-main .gh-content.mm-prose > p:not(:first-child):has(a[href$="#/portal/signup"]){position:static;width:auto;margin-top:22px;transform:rotate(-1deg)}}
+body.mm-inner.mm-chorus .mm-chorus-grid:has(> .mm-chorus-side:not([hidden])) .gh-content.mm-prose > p:not(:first-child):has(a[href$="#/portal/signup"]){position:static;width:auto;margin-top:22px}
+body.mm-inner.mm-chorus:has([data-portal="account"]) .mm-chorus-main .gh-content.mm-prose > p:not(:first-child):has(a[href$="#/portal/signup"]),
+body.mm-inner.mm-chorus.mm-signed-in .mm-chorus-main .gh-content.mm-prose > p:not(:first-child):has(a[href$="#/portal/signup"]){display:none}
+</style>
+
+<!-- Signed-in header, added Nov 12, 2026 (build queue item 2). Paid and comped members:
+     "Account" is a plain #54748D link with no pill. Free members: "Free Account" is plain
+     #54748D words, and the red "Support the songbook" pill stays. To undo, delete this block.
+     Move it into chrome.css the next time the theme ships. -->
+<style id="mm-signed-in-header">
+.mm-head:not(.mm-head--free) .mm-sub[data-portal="account"]{background:none!important;padding-left:0!important;padding-right:0!important;border-radius:0!important;color:#54748D!important}
+.mm-head:not(.mm-head--free) .mm-sub[data-portal="account"]:hover,
+.mm-head:not(.mm-head--free) .mm-sub[data-portal="account"]:focus-visible{background:none!important;color:var(--mm-red)!important}
+@media (min-width:1121px){.mm-head:not(.mm-head--free) .mm-sub[data-portal="account"]{padding-top:4px!important;padding-bottom:4px!important}}
+.mm-head--free .mm-login{background:none!important;border-color:transparent!important;padding-left:0!important;padding-right:0!important;border-radius:0!important;color:#54748D!important}
+.mm-head--free .mm-login:hover,
+.mm-head--free .mm-login:focus-visible{color:var(--mm-red)!important;border-color:transparent!important}
+</style>
+
+<!-- Sign-up notice, added Nov 12, 2026 (build queue item 4). Ghost's "You've successfully
+     subscribed to" notice drew the site name in dark ink on its dark box, so the line looked
+     cut off, and the notice sat over the menu and the header button. This draws the name in
+     cream and moves the notice just below the header. To undo, delete this block. Move it into
+     portal.css and chrome.css the next time the theme ships. -->
+<style id="mm-notice-place">
+iframe[title="portal-notification"]{top:var(--mm-notice-top,0px)!important}
+</style>
+<script>
+(function () {
+  var CSS = 'html body .gh-portal-notification p strong{color:#fbf8f2!important}';
+  function place() {
+    var h = document.querySelector('.mm-head');
+    var top = h ? Math.max(0, Math.round(h.getBoundingClientRect().bottom) + 8) : 0;
+    document.documentElement.style.setProperty('--mm-notice-top', top + 'px');
+  }
+  function dress(f) {
+    var d;
+    try { d = f.contentDocument; } catch (e) { return; }
+    if (!d || !d.head || d.getElementById('mm-notice-fix')) return;
+    var s = d.createElement('style');
+    s.id = 'mm-notice-fix';
+    s.textContent = CSS;
+    d.head.appendChild(s);
+  }
+  function scan() {
+    var f = document.querySelector('iframe[title="portal-notification"]');
+    if (!f) return;
+    place();
+    dress(f);
+    if (!f.__mmNotice) {
+      f.__mmNotice = true;
+      f.addEventListener('load', function () { dress(f); });
+    }
+  }
+  function start() {
+    scan();
+    new MutationObserver(scan).observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
 })();
 </script>
