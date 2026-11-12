@@ -1,0 +1,1050 @@
+<!-- css moved to homepage.css (block 1, 14980 chars) -->
+<script>
+  var K='4bb24d5f52e1f7397cb4fe24a5';
+  var U='https://moving-music.ghost.io';
+  var P='/ghost/api/content/tags/';
+  var Q='?key='+K;
+  Q+='&limit=all&include=count.posts';
+  var S='/ghost/api/content/';
+  S+='settings/?key=';
+  var R='/ghost/api/content/';
+  R+='posts/?key=';
+  var W='&limit=all&include=tags';
+  var A='<a class="mm-tag" ';
+  var B='href="/tag/';
+  var skip=['songs','songs-2',
+  'library','free','nasc',
+  'media','vienna','for-caleb-and-reeb'];
+  var tagMap=null;
+  var pinName={
+  'originals':'Original Songwriting',
+  'courage':'Songs of Courage'
+  };
+  function isMember(){
+  var a=document.querySelector(
+  '[data-portal="account"]');
+  return !!a;
+  }
+  function hero(){
+  var c=document.querySelector(
+  '.cover-content');
+  if(!c)return;
+  var sel='.cover-description';
+  if(c.querySelector(sel))return;
+  fetch(U+S+K).then(function(r){
+  return r.json();
+  }).then(function(d){
+  if(!d.settings)return;
+  var desc=d.settings.description;
+  if(!desc)return;
+  var p=document.createElement('p');
+  p.className='cover-description';
+  p.style.color='#fff';
+  p.style.fontSize='1.6em';
+  p.style.marginBottom='20px';
+  p.textContent=desc;
+  c.insertBefore(p,c.firstChild);
+  });
+  }
+  function go(){
+  var el=document.querySelector(
+  '.mm-tags');
+  if(!el)return;
+  fetch(U+P+Q).then(function(r){
+  return r.json();
+  }).then(function(d){
+  if(!d.tags)return;
+  var t=d.tags.filter(function(x){
+  var c=x.count;
+  return c&&c.posts>0;
+  }).filter(function(x){
+  var n=x.name;
+  if(n.charAt(0)==='#')return false;
+  if(x.slug.indexOf(
+  'album-')===0)return false;
+  var i=skip.indexOf(x.slug);
+  return i===-1;
+  });
+  var pin=[
+  'worksongs',
+  'originals',
+  'courage',
+  'tunes'
+  ];
+  var top=[];
+  var rest=[];
+  t.forEach(function(x){
+  var i=pin.indexOf(x.slug);
+  if(i>-1){top[i]=x;}
+  else{rest.push(x);}
+  });
+  rest.sort(function(a,b){
+  return a.name.localeCompare(
+  b.name);
+  });
+  var html='';
+  html+='<div class="mm-pinned">';
+  top.forEach(function(x){
+  if(!x)return;
+  var h=B+x.slug+'/">';
+  var dn=pinName[x.slug]||x.name;
+  html+=A+h+dn+'</a>';
+  });
+  html+='</div>';
+  html+='<div class="mm-cta">';
+  html+='<a href="/songbooks/">';
+  html+='Contents: Chart Your Course';
+  html+='</a></div>';
+  html+='<div class="mm-cta mm-cta-index">';
+  html+='<a href="/tag/library/">';
+  html+='Index: All Songs';
+  html+='</a></div>';
+  html+='<div style="width:100%;';
+  html+='height:0;"></div>';
+  rest.forEach(function(x){
+  var h=B+x.slug+'/">';
+  html+=A+h+x.name+'</a>';
+  });
+  el.innerHTML=html;
+  });
+  }
+  function applyFeedTags(){
+  if(!tagMap)return;
+  var sel='article.feed';
+  var arts=document.querySelectorAll(
+  sel);
+  arts.forEach(function(a){
+  var lk=a.querySelector(
+  'a.u-permalink');
+  if(!lk)return;
+  var hr=lk.getAttribute('href');
+  var s=hr.replace(/\//g,'');
+  var tags=tagMap[s];
+  if(!tags||!tags.length)return;
+  var w=a.querySelector(
+  '.feed-wrapper');
+  if(!w)return;
+  var q='.feed-tags';
+  if(w.querySelector(q))return;
+  var div=document.createElement(
+  'div');
+  div.className='feed-tags';
+  div.innerHTML=tags.map(
+  function(t){
+  var h=B+t.slug+'/">';
+  return A+h+t.name+'</a>';
+  }).join('');
+  var ti=w.querySelector(
+  '.feed-title');
+  if(ti){
+  var row=document.createElement(
+  'div');
+  row.className='feed-title-row';
+  ti.parentNode.insertBefore(
+  row,ti);
+  row.appendChild(ti);
+  row.appendChild(div);
+  }
+  });
+  }
+  function feedTags(){
+  fetch(U+R+K+W).then(function(r){
+  return r.json();
+  }).then(function(d){
+  if(!d.posts)return;
+  var m={};
+  d.posts.forEach(function(p){
+  var s=p.slug;
+  var tags=[];
+  if(p.tags){
+  p.tags.forEach(function(t){
+  var n=t.name;
+  if(n.charAt(0)==='#')return;
+  var i=skip.indexOf(t.slug);
+  if(i===-1){
+  tags.push({
+  slug:t.slug,
+  name:t.name
+  });
+  }
+  });
+  }
+  m[s]=tags;
+  });
+  tagMap=m;
+  applyFeedTags();
+  watchForMore();
+  });
+  }
+  function watchForMore(){
+  var sel='.gh-loadmore';
+  var btn=document.querySelector(
+  sel);
+  if(btn){
+  btn.addEventListener('click',
+  function(){
+  setTimeout(applyFeedTags,500);
+  setTimeout(applyFeedTags,1500);
+  setTimeout(applyFeedTags,3000);
+  });
+  }
+  var pf=document.querySelectorAll(
+  '.post-feed');
+  if(pf.length){
+  var obs=new MutationObserver(
+  function(){
+  applyFeedTags();
+  });
+  pf.forEach(function(el){
+  obs.observe(el,{
+  childList:true,
+  subtree:true
+  });
+  });
+  }
+  }
+  function singleTags(){
+  var sel='h1.single-title';
+  var ti=document.querySelector(
+  sel);
+  if(!ti)return;
+  var pa=ti.parentNode;
+  var cls='.single-post-tags';
+  if(pa.querySelector(cls))return;
+  var path=window.location.pathname;
+  var parts=path.split('/');
+  parts=parts.filter(Boolean);
+  var slug=parts.pop();
+  var url=U+R+K;
+  url+='&filter=slug:'+slug;
+  url+='&include=tags';
+  fetch(url).then(function(r){
+  return r.json();
+  }).then(function(d){
+  if(!d.posts)return;
+  if(!d.posts[0])return;
+  var pt=d.posts[0].tags;
+  if(!pt)return;
+  var tags=pt.filter(function(t){
+  var n=t.name;
+  if(n.charAt(0)==='#')return false;
+  var i=skip.indexOf(t.slug);
+  return i===-1;
+  });
+  if(!tags.length)return;
+  var div=document.createElement(
+  'div');
+  div.className='single-post-tags';
+  div.innerHTML=tags.map(
+  function(t){
+  var h=B+t.slug+'/">';
+  return A+h+t.name+'</a>';
+  }).join('');
+  ti.after(div);
+  });
+  }
+  function songbookCounts(){
+  var path=window.location.pathname;
+  if(path.indexOf('/songbooks')===-1){
+  return;
+  }
+  fetch(U+P+Q).then(function(r){
+  return r.json();
+  }).then(function(d){
+  if(!d.tags)return;
+  var counts={};
+  d.tags.forEach(function(t){
+  var c=t.count;
+  if(c&&c.posts>0){
+  counts[t.slug]=c.posts;
+  }
+  });
+  var ct=document.querySelector(
+  '.gh-content');
+  if(!ct)return;
+  var links=ct.querySelectorAll(
+  'a[href*="/tag/"]');
+  links.forEach(function(a){
+  if(a.closest(
+  '.gh-head-actions'))return;
+  if(a.classList.contains(
+  'mm-songs'))return;
+  var hr=a.getAttribute('href');
+  var m=hr.match(
+  /\/tag\/([^\/]+)/);
+  if(!m)return;
+  var slug=m[1];
+  var n=counts[slug];
+  if(!n)return;
+  var sp=document.createElement(
+  'span');
+  sp.className='mm-count';
+  var w;
+  if(slug==='media'){
+  w=n===1?'item':'items';
+  }else{
+  w=n===1?'song':'songs';
+  }
+  sp.textContent=n+' '+w;
+  a.appendChild(sp);
+  });
+  });
+  }
+  function mediaSort(){
+  var p=window.location.pathname;
+  if(p.indexOf(
+  '/tag/media')===-1)return false;
+  var sel='article.feed';
+  var arts=document.querySelectorAll(
+  sel);
+  if(arts.length<2)return true;
+  var parent=arts[0].parentNode;
+  var arr=Array.from(arts);
+  arr.sort(function(a,b){
+  var at=a.querySelector(
+  'time.feed-date');
+  var bt=b.querySelector(
+  'time.feed-date');
+  var ad=at?
+  at.getAttribute('datetime'):'';
+  var bd=bt?
+  bt.getAttribute('datetime'):'';
+  return bd.localeCompare(ad);
+  });
+  arr.forEach(function(el){
+  parent.appendChild(el);
+  });
+  return true;
+  }
+  function boldMediaSrc(){
+  var p=window.location.pathname;
+  if(p.indexOf(
+  '/tag/media')===-1)return;
+  var ts=document.querySelectorAll(
+  '.feed-title');
+  ts.forEach(function(el){
+  var t=el.textContent;
+  var i=t.indexOf(':');
+  if(i<=0)return;
+  var src=t.substring(0,i);
+  var rest=t.substring(i+1);
+  el.innerHTML='<strong>'+src+
+  ':</strong>'+rest;
+  });
+  }
+  function sortFeed(){
+  if(mediaSort())return;
+  var sel='article.feed';
+  var arts=document.querySelectorAll(
+  sel);
+  if(arts.length<2)return;
+  var parent=arts[0].parentNode;
+  var arr=Array.from(arts);
+  var INTRO=[
+  'mountain mover',
+  'one more day',
+  'barnyard polska',
+  'embers in the dark',
+  'huckleberry hunting',
+  'i love you simply',
+  'may-o','the senses'];
+  var isIntro=window.location
+  .pathname.indexOf(
+  '/tag/free')!==-1;
+  arr.sort(function(a,b){
+  var at=a.querySelector(
+  '.feed-title');
+  var bt=b.querySelector(
+  '.feed-title');
+  if(!at||!bt)return 0;
+  var an=at.textContent.trim();
+  var bn=bt.textContent.trim();
+  if(isIntro){
+  var ai=INTRO.indexOf(
+  an.toLowerCase());
+  var bi=INTRO.indexOf(
+  bn.toLowerCase());
+  if(ai===-1)ai=999;
+  if(bi===-1)bi=999;
+  if(ai!==bi)return ai-bi;
+  }
+  return an.localeCompare(bn);
+  });
+  arr.forEach(function(el){
+  parent.appendChild(el);
+  });
+  }
+  function fixTagImg(){
+  var img=document.querySelector(
+  '.taxonomy-media .u-object-fit');
+  if(!img)return;
+  var s=img.getAttribute('src');
+  if(!s)return;
+  img.src=s.replace(
+  /\/size\/w\d+\//,'/');
+  }
+  function libraryCount(){
+  var path=window.location.pathname;
+  var m=path.match(
+  /^\/tag\/([^\/]+)/);
+  if(!m)return;
+  var slug=m[1];
+  if(slug==='media')return;
+  if(slug==='library')return;
+  var hs=document.querySelectorAll(
+  'h1.single-title');
+  var h=null;
+  for(var i=0;i<hs.length;i++){
+  var el=hs[i];
+  if(el.closest('.gh-head'))
+  continue;
+  if(el.closest('.gh-head-logo'))
+  continue;
+  if(el.closest('.gh-head-brand'))
+  continue;
+  h=el;break;
+  }
+  if(!h)return;
+  if(h.querySelector('.mm-count'))
+  return;
+  fetch(U+P+Q).then(function(r){
+  return r.json();
+  }).then(function(d){
+  if(!d.tags)return;
+  var t=d.tags.find(function(x){
+  return x.slug===slug;
+  });
+  if(!t||!t.count)return;
+  var n=t.count.posts;
+  var sp=document.createElement(
+  'span');
+  sp.className='mm-count';
+  sp.style.fontSize='0.4em';
+  sp.style.verticalAlign='middle';
+  sp.style.marginLeft='12px';
+  var w=n===1?'song':'songs';
+  sp.textContent=n+' '+w;
+  h.appendChild(sp);
+  });
+  }
+  function hideTierHints(){
+  if(!isMember())return;
+  var h=document.querySelectorAll(
+  '.tier-hint');
+  h.forEach(function(el){
+  el.style.display='none';
+  });
+  }
+  function decorateSubForm(){
+  var f=document.querySelector(
+  'form.cover-form');
+  if(!f)return;
+  if(f.closest('.mm-sub-card'))
+  return;
+  var card=document.createElement(
+  'div');
+  card.className='mm-sub-card';
+  var hd=document.createElement(
+  'div');
+  hd.className='mm-sub-heading';
+  var h='';
+  h+='<h3>Welcome Aboard</h3>';
+  h+='<p>Sign up free to see more';
+  h+=' songs and get updates.</p>';
+  hd.innerHTML=h;
+  f.parentNode.insertBefore(card,f);
+  card.appendChild(hd);
+  card.appendChild(f);
+  var tip=document.createElement(
+  'p');
+  tip.className='mm-sub-tip';
+  var tl='<a href=';
+  tl+='"#/portal/support">';
+  tl+='Or send a one-time tip ';
+  tl+='&rarr;</a>';
+  tip.innerHTML=tl;
+  card.appendChild(tip);
+  var tc=document.querySelector('.mm-cta');/*
+  '.mm-tags');
+*/if(!tc||!tc.parentNode)return;
+  tc.parentNode.insertBefore(
+  card,tc);
+  }
+  function hidePortalPowered(){
+  function tryhide(){
+  var fs=document.querySelectorAll(
+  'iframe');
+  fs.forEach(function(f){
+  try{
+  var d=f.contentDocument;
+  if(!d||!d.body)return;
+  if(d.getElementById(
+  'mm-hide-powered'))return;
+  var s=d.createElement('style');
+  s.id='mm-hide-powered';
+  var css='';
+  css+='.gh-portal-powered,';
+  css+='[class*="powered"],';
+  css+='[data-testid*="powered"],';
+  css+='footer a[';
+  css+='href*="ghost.org"]';
+  css+='{display:none';
+  css+=' !important;}';
+  s.textContent=css;
+  d.head.appendChild(s);
+  }catch(e){}
+  });
+  }
+  setInterval(tryhide,500);
+  }
+  function swapPortalTitle(){
+  function tryswap(){
+  var fs=document.querySelectorAll(
+  'iframe');
+  fs.forEach(function(f){
+  try{
+  var d=f.contentDocument;
+  if(!d||!d.body)return;
+  var hs=d.querySelectorAll(
+  'h1,h2,h3,h4');
+  hs.forEach(function(h){
+  if(h.dataset.mmSwap)return;
+  var t=h.textContent.trim();
+  if(t!=='Choose a plan')return;
+  var nt='';
+  nt+='Welcome Aboard!';
+  nt+='<div style=';
+  nt+='"font-size:0.5em;';
+  nt+='font-weight:500;';
+  nt+='margin-top:10px;';
+  nt+='color:#666;">';
+  nt+='Thank you for being here';
+  nt+='  ~  Any level unlocks';
+  nt+=' the full songbook.';
+  nt+='</div>';
+  nt+='<div style=';
+  nt+='"font-size:0.42em;';
+  nt+='font-weight:500;';
+  nt+='margin-top:14px;';
+  nt+='color:#666;">';
+  nt+='Barters accepted! Email ';
+  nt+='<a href="mailto:';
+  nt+='bennett@worksongs.org" ';
+  nt+='style="color:#125c5a;';
+  nt+='font-weight:600;">';
+  nt+='bennett@worksongs.org</a>';
+  nt+=' to talk.';
+  nt+='</div>';
+  h.innerHTML=nt;
+  h.dataset.mmSwap='1';
+  });
+  }catch(e){}
+  });
+  }
+  setInterval(tryswap,500);
+  }
+  function swapPortalText(){
+  function run(){
+  var fs=document.querySelectorAll(
+  'iframe');
+  fs.forEach(function(f){
+  try{
+  var d=f.contentDocument;
+  if(!d||!d.body)return;
+  var S=[
+  [/\bregular price\b/g,
+  'regular amount'],
+  [/\bAlready a member\b/g,
+  'Already signed up'],
+  [/\bBecome a member\b/g,
+  'Join the Crew'],
+  [/\bYour membership\b/g,
+  'Your support'],
+  [/\bMembership\b/g,'Crew'],
+  [/\bMembers\b/g,'Crew'],
+  [/\bmembership\b/g,'support'],
+  [/\bmembers\b/g,'crew'],
+  [/\bMember\b/g,'Crew'],
+  [/\bmember\b/g,'crew']
+  ];
+  var W=d.createTreeWalker(
+  d.body,
+  NodeFilter.SHOW_TEXT,
+  null);
+  var tn;
+  while(tn=W.nextNode()){
+  var o=tn.nodeValue;
+  var n=o;
+  S.forEach(function(s){
+  n=n.replace(s[0],s[1]);
+  });
+  if(n!==o){
+  tn.nodeValue=n;
+  }
+  }
+  }catch(e){}
+  });
+  }
+  setInterval(run,500);
+  }
+  function fixFooterText(){
+  var f=document.querySelector(
+  '.gh-foot');
+  if(!f)return;
+  var w=document.createTreeWalker(
+  f,NodeFilter.SHOW_TEXT,null);
+  var tn;
+  while(tn=w.nextNode()){
+  var o=tn.nodeValue;
+  var n=o.replace(
+  /BENNETT'S MOVING MUSIC SONGBOOK/g,
+  "MOVING MUSIC");
+  if(n!==o)tn.nodeValue=n;
+  }
+  }
+  function igIcon(){
+  var a=document.querySelector(
+  'a[href*="instagram.com"]');
+  if(!a||a.dataset.igSet)return;
+  a.dataset.igSet='1';
+  a.setAttribute(
+  'aria-label','Instagram');
+  var url='https://cdn.';
+  url+='simpleicons.org/';
+  url+='instagram/888';
+  a.innerHTML=
+  '<img src="'+url+
+  '" alt="Instagram" '+
+  'style="width:18px;'+
+  'height:18px;'+
+  'vertical-align:middle">';
+  }
+  function init(){
+  fixTagImg();
+  hero();
+  go();
+  feedTags();
+  sortFeed();
+  singleTags();
+  songbookCounts();
+  hideTierHints();
+  libraryCount();
+  boldMediaSrc();
+  decorateSubForm();
+  hidePortalPowered();
+  swapPortalTitle();
+  swapPortalText();
+  igIcon();
+  fixFooterText();
+  }
+  if(document.readyState==='loading'){
+  document.addEventListener(
+  'DOMContentLoaded',init);
+  }else{init();}
+</script>
+
+<!-- css moved to homepage.css (block 2, 156 chars) -->
+<script>
+(function(){
+  function check(){
+    var a=document.querySelector(
+      '[data-portal="account"]');
+    if(a){
+      document.body.classList.add(
+        'mm-signed-in');
+    }
+  }
+  check();
+  setTimeout(check,500);
+  setTimeout(check,1500);
+  setTimeout(check,3000);
+})();
+</script>
+
+
+
+
+
+<!-- css moved to homepage.css (block 3, 67 chars) -->
+
+
+<!-- css moved to homepage.css (block 4, 1690 chars) -->
+<script>
+(function(){
+  function mmStamp(){
+    var s='.mm-stamp';
+    if(document.querySelector(s))
+      return;
+    var ht='.home-template';
+    if(!document.querySelector(
+      ht))return;
+    var c=document.querySelector(
+      '.cover');
+    if(!c)return;
+    var a=document.createElement(
+      'a');
+    a.className='mm-stamp';
+    a.href='/about/';
+    a.setAttribute(
+      'aria-label',
+      'About Bennett');
+    var u='https://storage.';
+    u+='ghost.io/c/3f/db/';
+    u+='3fdb53a7-b2b0-42dc-';
+    u+='89ea-effbdb85b449/';
+    u+='content/images/2026/03/';
+    u+='Bennett-Konesni-Bio-Pic';
+    u+='-Planting-Garlic-';
+    u+='copy-1.png';
+    var h='';
+    h+='<img src="'+u+'" ';
+    h+='alt="Bennett Konesni">';
+    h+='<p class="mm-stamp-q">';
+    h+='Find your inner foghorn ';
+    h+='using songs I’ve ';
+    h+='collected, written, ';
+    h+='and sung over the last ';
+    h+='30 years.</p>';
+    h+='<p class="mm-stamp-q">';
+    h+='If you can talk ';
+    h+='you can sing, ';
+    h+='and singing is good ';
+    h+='for you - and the ';
+    h+='world, too.</p>';
+    h+='<p class="mm-stamp-by">';
+    h+='Bennett Konesni<br>';
+    h+='Belfast, Maine</p>';
+    a.innerHTML=h;
+    c.style.position='relative';
+    c.appendChild(a);
+  }
+  if(document.readyState===
+    'loading'){
+    document.addEventListener(
+      'DOMContentLoaded',mmStamp);
+  }else{mmStamp();}
+  setTimeout(mmStamp,500);
+  setTimeout(mmStamp,1500);
+})();
+</script>
+
+
+<!-- css moved to homepage.css (block 5, 157 chars) -->
+
+
+<!-- css moved to homepage.css (block 6, 148 chars) -->
+
+
+<!-- css moved to homepage.css (block 7, 2533 chars) -->
+<script>
+(function(){
+  function mmPatch(){
+    var s='.mm-patch';
+    if(document.querySelector(s))
+      return;
+    var ht='.home-template';
+    if(!document.querySelector(
+      ht))return;
+    var c=document.querySelector(
+      '.cover');
+    if(!c)return;
+    var a=document.createElement(
+      'a');
+    a.className='mm-patch';
+    a.href='/tag/';
+    a.href+='album-mountain-mover/';
+    a.setAttribute(
+      'aria-label',
+      'Mountain Mover, new album');
+    var h='';
+    h+='<span ';
+    h+='class="mm-patch-kicker">';
+    h+='New Album</span>';
+    h+='<span ';
+    h+='class="mm-patch-title">';
+    h+='Mountain Mover</span>';
+    h+='<span ';
+    h+='class="mm-patch-sub">';
+    h+='bluegrass &amp; ';
+    h+='country songwriting';
+    h+='</span>';
+    h+='<span ';
+    h+='class="mm-patch-cta">';
+    h+='Listen →</span>';
+    a.innerHTML=h;
+    c.style.position='relative';
+    c.appendChild(a);
+  }
+  if(document.readyState===
+    'loading'){
+    document.addEventListener(
+      'DOMContentLoaded',mmPatch);
+  }else{mmPatch();}
+  setTimeout(mmPatch,500);
+  setTimeout(mmPatch,1500);
+})();
+</script>
+
+
+
+
+
+<!-- css moved to homepage.css (block 8, 1731 chars) -->
+
+
+<!-- css moved to homepage.css (block 9, 610 chars) -->
+
+
+<script>
+(function(){
+  var v=document.querySelector(
+    'meta[name="viewport"]');
+  if(v){
+    var c='width=device-width, ';
+    c+='initial-scale=1, ';
+    c+='viewport-fit=cover';
+    v.setAttribute('content',c);
+  }
+})();
+</script>
+<!-- css moved to homepage.css (block 10, 459 chars) -->
+
+
+<!-- css moved to homepage.css (block 11, 705 chars) -->
+
+
+<!-- css moved to homepage.css (block 12, 447 chars) -->
+<script>
+(function(){
+  function lockHead(){
+    var b=document.body;
+    if(!b||!b.classList.contains(
+      'home-template'))return;
+    var h=document.querySelector(
+      '.gh-head');
+    if(!h)return;
+    h.style.setProperty(
+      'background',
+      'transparent','important');
+    h.style.setProperty(
+      'background-color',
+      'transparent','important');
+    h.style.setProperty(
+      'min-height','0','important');
+  }
+  lockHead();
+  setTimeout(lockHead,100);
+  setTimeout(lockHead,500);
+  setTimeout(lockHead,1500);
+  setTimeout(lockHead,3000);
+  if(window.MutationObserver){
+    var obs=new MutationObserver(
+      lockHead);
+    var t=document.querySelector(
+      '.gh-head');
+    if(t){
+      obs.observe(t,{
+        attributes:true,
+        attributeFilter:['style']
+      });
+    }
+  }
+})();
+</script>
+
+
+<!-- css moved to homepage.css (block 13, 175 chars) -->
+
+
+<!-- css moved to homepage.css (block 14, 510 chars) -->
+<script>
+(function(){
+  var K='4bb24d5f52e1f7397cb4fe24a5';
+  var U='https://moving-music.ghost.io';
+  var R='/ghost/api/content/posts/';
+  function albumTierLabels(){
+    var p=window.location.pathname;
+    var m=p.match(
+      /^\/tag\/(album-[^\/]+)/);
+    if(!m)return;
+    var tag=m[1];
+    var u=U+R+'?key='+K;
+    u+='&limit=all';
+    u+='&filter=tag:'+tag;
+    u+='&fields=slug,visibility';
+    fetch(u).then(function(r){
+      return r.json();
+    }).then(function(d){
+      if(!d.posts)return;
+      var vmap={};
+      d.posts.forEach(function(p){
+        vmap[p.slug]=p.visibility;
+      });
+      applyAlbumLabels(vmap);
+      var feed=document.querySelector(
+        '.post-feed');
+      if(feed&&window.MutationObserver){
+        var obs=new MutationObserver(
+          function(){
+            applyAlbumLabels(vmap);
+          });
+        obs.observe(feed,{
+          childList:true,
+          subtree:true
+        });
+      }
+    });
+  }
+  function applyAlbumLabels(vmap){
+    var arts=document.querySelectorAll(
+      'article.feed');
+    arts.forEach(function(a){
+      if(a.querySelector(
+        '.album-tier-badge'))return;
+      var lk=a.querySelector(
+        'a.u-permalink');
+      if(!lk)return;
+      var s=lk.getAttribute('href')
+        .replace(/\//g,'');
+      var vis=vmap[s];
+      if(!vis)return;
+      var sp=document.createElement(
+        'span');
+      sp.className='album-tier-badge';
+      if(vis==='public'){
+        sp.classList.add('tier-open');
+        sp.textContent=
+          'No account needed';
+      }else{
+        sp.classList.add('tier-paid');
+        sp.textContent=
+          'Full access with membership';
+      }
+      if(s===
+        'sanding-the-floor'){
+        sp.className=
+          'album-tier-badge tier-temp';
+        sp.textContent=
+          'Free to all this week!';
+      }
+      var ti=a.querySelector(
+        '.feed-title');
+      if(ti){
+        ti.appendChild(sp);
+
+      }
+    });
+  }
+  function start(){
+    albumTierLabels();
+    setTimeout(albumTierLabels,500);
+    setTimeout(albumTierLabels,1500);
+  }
+  if(document.readyState===
+    'loading'){
+    document.addEventListener(
+      'DOMContentLoaded',start);
+  }else{start();}
+})();
+</script>
+
+
+<!-- css moved to homepage.css (block 15, 786 chars) -->
+<script>
+/* Tag toggle button is now injected by player.js (v0.4.14+) inside the
+   Add-all-to-playlist row, so the sticky overlap is gone. The
+   body.mm-tags-hidden CSS rules below still control tag visibility. */
+</script>
+
+
+<!-- css moved to homepage.css (block 16, 2331 chars) -->
+
+
+<!-- css moved to homepage.css (block 17, 402 chars) -->
+
+
+<!-- css moved to homepage.css (block 18, 198 chars) -->
+
+
+<!-- css moved to homepage.css (block 19, 561 chars) -->
+
+
+<!-- css moved to homepage.css (block 20, 281 chars) -->
+
+
+<!-- css moved to homepage.css (block 21, 1615 chars) -->
+
+
+
+<script>
+(function(){
+  function relabel(){
+    var sel='.gh-head-actions a';
+    var nodes=document
+      .querySelectorAll(sel);
+    nodes.forEach(function(a){
+      var t=(a.textContent||'')
+        .trim().toLowerCase();
+      if(t==='account'){
+        a.classList.add('mm-loggedin');
+        a.textContent='Logged In';
+      }
+    });
+  }
+  function start(){
+    relabel();
+    setTimeout(relabel,400);
+    setTimeout(relabel,1200);
+  }
+  if(document.readyState===
+    'loading'){
+    document.addEventListener(
+      'DOMContentLoaded',start);
+  }else{start();}
+})();
+</script>
+
+
+<!-- css moved to homepage.css (block 22, 1200 chars) -->
+
+
+<!-- css moved to homepage.css (block 23, 795 chars) -->
+
+
+<!-- css moved to homepage.css (block 24, 1636 chars) -->
+
+
+<!-- css moved to homepage.css (block 25, 547 chars) -->
+
+
+<!-- css moved to homepage.css (block 26, 1107 chars) -->
+
+
+<!-- css moved to homepage.css (block 27, 624 chars) -->
+
+
+<!-- css moved to homepage.css (block 28, 679 chars) -->
+
+
+
+
+
+<!-- css moved to homepage.css (block 29, 2377 chars) -->
+
+
+<script src="https://cdn.jsdelivr.net/gh/bennett-hue/moving-music-player@a2a07d0/player.js
+" defer></script>
+
+
+
+<!-- css moved to homepage.css (block 30, 1 chars) -->
+
+
+
+
+<!-- css moved to homepage.css (block 31, 109 chars) -->
+
+
+
+
+

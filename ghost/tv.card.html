@@ -1,0 +1,12 @@
+<style>
+  body.page-tv .site-content{padding-top:8px!important}
+  body.page-tv .single-header{display:none!important}
+  body.page-tv .single-content{padding-top:0!important;margin-top:0!important}
+  .tv-embed-wrap { max-width: 1240px; margin: 0 auto; }
+  #tv-iframe { display: block; width: 100%; height: calc(100vh - 150px); height: calc(100svh - 150px); min-height: 520px; border: 0; border-radius: 6px; background: #1b1814; }
+  @media (max-width: 700px) { #tv-iframe { height: calc(100svh - 170px); min-height: 480px; border-radius: 0; } }
+</style>
+<div class="tv-embed-wrap">
+  <iframe id="tv-iframe" data-src="https://mmp-sync.bennett-727.workers.dev/tv.html" title="movingmusicTV" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write; web-share" allowfullscreen></iframe>
+</div>
+<script data-mark="tv-iframe-forward">(function(){var i=document.getElementById("tv-iframe");if(!i)return;var s=i.getAttribute("data-src");if(location.hash){var sep=s.indexOf("?")>-1?"&":"?";s+=sep+"state="+encodeURIComponent(location.hash.substring(1));}i.setAttribute("src",s);})();</script>

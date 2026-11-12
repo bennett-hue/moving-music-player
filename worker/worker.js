@@ -1,5 +1,7 @@
 // Moving Music Player sync — Cloudflare Worker + KV
 //
+// movingmusicTV routes (/tv.html, /tv-finds.json, /tv-inbox) are in tv.js.
+//
 // Routes:
 //   GET  /playlist/:uuid       → stored playlist JSON (or "null")
 //   PUT  /playlist/:uuid       → stores playlist JSON for this member
@@ -27,6 +29,9 @@
 // or overwrite the entry. Acceptable for the "share my gig setlist with
 // a co-performer" use case; harden later if abuse appears.
 
+import { tvFindsGet, tvInboxPost } from './tv.js';
+import { suggestConfigGet, suggestPost, suggestCountGet, suggestionsGet, suggestionAct, reviewPage } from './suggest.js';
+
 const ALLOWED_ORIGIN = 'https://movingmusic.works';
 
 // Allowed route slugs. Must match Ghost tag slugs on movingmusic.works.
@@ -36,13 +41,33 @@ const ALLOWED_ROUTES = [
   'maine', 'shaker', 'love', 'gathering'
 ];
 
+// Allowed songbook slugs for the Nov 2026 picker. Must match Ghost
+// tag slugs. Keep in sync with picker.js PICKABLE.
+const PICKABLE = [
+  'walking', 'rowing', 'gathering', 'field-forest',
+  'originals', 'dance-instrumentals'
+];
+
+// Ghost normalizes the colon in a label name `pick:walking` to a
+// hyphen on save, so the slug lands as `pick-walking`. Detect either.
+function pickFromLabel(label) {
+  if (!label) return null;
+  const slug = label.slug || '';
+  const name = label.name || '';
+  if (slug.indexOf('pick-') === 0) return slug.substring(5);
+  if (name.indexOf('pick:') === 0) return name.substring(5);
+  return null;
+}
+
 const UUID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 
 const GHOST_ADMIN_HOST = 'https://moving-music.ghost.io';
 
 // Repo the atlas map is served from. Bumped by editing this constant.
 const ATLAS_MAP_REPO = 'bennett-hue/moving-music-player';
-const ATLAS_MAP_SHA = '3323bbe';
+const ATLAS_MAP_SHA = '6fd622e';
+// Commit movingmusicTV (tv.html) is served from. Bump after each TV rebuild.
+const TV_SHA = '6fd622e';
 
 function corsHeaders() {
   return {
@@ -56,6 +81,36 @@ function corsHeaders() {
 
 function jsonHeaders() {
   return { ...corsHeaders(), 'Content-Type': 'application/json' };
+}
+
+// Per-IP throttle through Cloudflare's Rate Limiting binding:
+// PICK_GET_LIMIT (60 a minute) and PICK_POST_LIMIT (10 a minute), set in
+// wrangler.toml. It replaces a KV counter that could not count bursts:
+// KV takes one write per key per second, the extra writes threw, and
+// the throttle failed open, so 62 GETs in a minute all went through
+// (Nov 11, 2026 test). It also spent a KV write on every /pick request.
+// Fails open if the binding is missing or errors, so a limiter problem
+// never blocks a legitimate pick.
+async function rateLimit(env, kind, ip) {
+  if (!ip) return { ok: true };
+  const limiter = kind === 'pick-get' ? env.PICK_GET_LIMIT
+    : kind === 'pick-post' ? env.PICK_POST_LIMIT
+    : kind === 'tv-inbox' ? env.TV_INBOX_LIMIT
+    : kind === 'suggest' ? env.SUGGEST_LIMIT
+    : null;
+  if (!limiter) return { ok: true };
+  try {
+    const { success } = await limiter.limit({ key: ip });
+    return success ? { ok: true } : { ok: false, retryAfter: 60 };
+  } catch (e) {
+    return { ok: true };
+  }
+}
+
+function clientIp(request) {
+  return request.headers.get('cf-connecting-ip')
+      || request.headers.get('x-real-ip')
+      || '';
 }
 
 function routeKey(pathname) {
@@ -310,13 +365,189 @@ async function pickRouteHandler(request, env) {
   );
 }
 
+// ---------------------------------------------------------------
+// /pick: songbook picker for the Nov 2026 rebuild. One pick per
+// free member. Separate from the earlier /pick-route handler
+// (which used route-* labels and a 9-way list); kept so the old
+// code path, which was never wired to the live site, does not
+// break if anything still touches it.
+// ---------------------------------------------------------------
+
+async function pickGetHandler(request, env) {
+  if (!env.GHOST_ADMIN_KEY) {
+    return new Response('server misconfigured: no admin key',
+      { status: 500, headers: corsHeaders() });
+  }
+  const rl = await rateLimit(env, 'pick-get', clientIp(request));
+  if (!rl.ok) {
+    return new Response('rate limited',
+      { status: 429, headers: { ...corsHeaders(),
+        'Retry-After': String(rl.retryAfter || 60) } });
+  }
+  const url = new URL(request.url);
+  const uuid = url.searchParams.get('uuid');
+  if (!uuid || !UUID_RE.test(uuid)) {
+    return new Response('bad uuid', { status: 400, headers: corsHeaders() });
+  }
+  const token = await ghostJwt(env.GHOST_ADMIN_KEY);
+  const findUrl = GHOST_ADMIN_HOST +
+    '/ghost/api/admin/members/?' +
+    'filter=' + encodeURIComponent('uuid:' + uuid) +
+    '&include=labels&limit=1';
+  const r = await fetch(findUrl,
+    { headers: { Authorization: 'Ghost ' + token } });
+  if (!r.ok) {
+    return new Response('ghost lookup failed: ' + r.status,
+      { status: 502, headers: corsHeaders() });
+  }
+  const data = await r.json();
+  const member = data.members && data.members[0];
+  if (!member) {
+    return new Response(
+      JSON.stringify({ pick: null, found: false }),
+      { status: 404, headers: jsonHeaders() });
+  }
+  let pick = null;
+  for (const lab of (member.labels || [])) {
+    const p = pickFromLabel(lab);
+    if (p) { pick = p; break; }
+  }
+  return new Response(
+    JSON.stringify({ pick: pick }),
+    { status: 200, headers: jsonHeaders() });
+}
+
+async function pickPostHandler(request, env) {
+  if (!env.GHOST_ADMIN_KEY) {
+    return new Response('server misconfigured: no admin key',
+      { status: 500, headers: corsHeaders() });
+  }
+  const rl = await rateLimit(env, 'pick-post', clientIp(request));
+  if (!rl.ok) {
+    return new Response('rate limited',
+      { status: 429, headers: { ...corsHeaders(),
+        'Retry-After': String(rl.retryAfter || 60) } });
+  }
+  let body;
+  try { body = await request.json(); }
+  catch (e) {
+    return new Response('invalid json',
+      { status: 400, headers: corsHeaders() });
+  }
+  const uuid = body && body.uuid;
+  const pick = body && body.pick;
+  if (!uuid || typeof uuid !== 'string' || !UUID_RE.test(uuid)) {
+    return new Response('bad uuid',
+      { status: 400, headers: corsHeaders() });
+  }
+  if (!pick || typeof pick !== 'string' ||
+      PICKABLE.indexOf(pick) === -1) {
+    return new Response('bad pick',
+      { status: 400, headers: corsHeaders() });
+  }
+
+  const token = await ghostJwt(env.GHOST_ADMIN_KEY);
+  const findUrl = GHOST_ADMIN_HOST +
+    '/ghost/api/admin/members/?' +
+    'filter=' + encodeURIComponent('uuid:' + uuid) +
+    '&include=labels&limit=1';
+  const findRes = await fetch(findUrl,
+    { headers: { Authorization: 'Ghost ' + token } });
+  if (!findRes.ok) {
+    return new Response('ghost lookup failed: ' + findRes.status,
+      { status: 502, headers: corsHeaders() });
+  }
+  const findData = await findRes.json();
+  const member = findData.members && findData.members[0];
+  if (!member) {
+    return new Response('member not found',
+      { status: 404, headers: corsHeaders() });
+  }
+
+  // One pick per member.
+  for (const lab of (member.labels || [])) {
+    const existingPick = pickFromLabel(lab);
+    if (existingPick) {
+      return new Response(
+        JSON.stringify({ pick: existingPick, alreadyPicked: true }),
+        { status: 409, headers: jsonHeaders() });
+    }
+  }
+
+  // Preserve existing non-pick labels (name required or Ghost drops).
+  const existing = (member.labels || [])
+    .filter(function (l) { return l && l.name && !pickFromLabel(l); })
+    .map(function (l) {
+      return { id: l.id, name: l.name, slug: l.slug };
+    });
+  const nextLabels = existing.concat([{
+    name: 'pick:' + pick,
+    slug: 'pick-' + pick
+  }]);
+
+  const updateUrl = GHOST_ADMIN_HOST +
+    '/ghost/api/admin/members/' + member.id + '/';
+  const updateRes = await fetch(updateUrl, {
+    method: 'PUT',
+    headers: {
+      Authorization: 'Ghost ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      members: [{
+        id: member.id,
+        labels: nextLabels,
+        updated_at: member.updated_at
+      }]
+    })
+  });
+  if (!updateRes.ok) {
+    const txt = await updateRes.text();
+    return new Response('ghost update failed: ' + updateRes.status +
+      ' ' + txt, { status: 502, headers: corsHeaders() });
+  }
+
+  // Confirm the label landed. Ghost silently drops labels without a
+  // name field, and matches names case-insensitively.
+  let saved = null;
+  try {
+    const upd = await updateRes.json();
+    saved = upd.members && upd.members[0];
+  } catch (e) { saved = null; }
+  let savedPick = null;
+  for (const lab of ((saved && saved.labels) || [])) {
+    const p = pickFromLabel(lab);
+    if (p) { savedPick = p; break; }
+  }
+  if (savedPick !== pick) {
+    return new Response(
+      'ghost accepted the write but the pick label is missing: ' +
+        JSON.stringify((saved && saved.labels) || []),
+      { status: 502, headers: corsHeaders() });
+  }
+
+  return new Response(
+    JSON.stringify({ pick: pick }),
+    { status: 200, headers: jsonHeaders() });
+}
+
 async function serveAtlasMap(request) {
-  const upstream = `https://raw.githubusercontent.com/${ATLAS_MAP_REPO}/${ATLAS_MAP_SHA}/atlas-map.html`;
+  return servePinnedPage('atlas-map.html', ATLAS_MAP_SHA);
+}
+
+async function serveTv(request) {
+  return servePinnedPage('tv.html', TV_SHA);
+}
+
+// Serve one HTML file from the repo at a pinned commit, so the page only
+// changes when the pin changes.
+async function servePinnedPage(path, sha) {
+  const upstream = `https://raw.githubusercontent.com/${ATLAS_MAP_REPO}/${sha}/${path}`;
   const upstreamRes = await fetch(upstream, {
     cf: { cacheTtl: 3600, cacheEverything: true },
   });
   if (!upstreamRes.ok) {
-    return new Response('atlas map upstream error', { status: 502 });
+    return new Response(path + ' upstream error', { status: 502 });
   }
   const body = await upstreamRes.arrayBuffer();
   return new Response(body, {
@@ -332,7 +563,7 @@ async function serveAtlasMap(request) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
@@ -345,9 +576,56 @@ export default {
       return serveAtlasMap(request);
     }
 
+    // Public route: movingmusicTV, embedded on the Ghost page /tv/.
+    if (url.pathname === '/tv.html' && request.method === 'GET') {
+      return serveTv(request);
+    }
+
+    // movingmusicTV live data (public) and the Send button inbox (keyed).
+    if (url.pathname === '/tv-finds.json' && request.method === 'GET') {
+      return tvFindsGet(request, env, ctx);
+    }
+    if (url.pathname === '/tv-inbox' && request.method === 'POST') {
+      const rl = await rateLimit(env, 'tv-inbox', clientIp(request));
+      if (!rl.ok) return new Response('rate limited', { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } });
+      return tvInboxPost(request, env);
+    }
+
+    // Viewer suggestions for the Atlas (worker/suggest.js). Public: the config,
+    // the form post, and a bare count. Keyed: the review list and its actions.
+    if (url.pathname === '/suggest-config' && request.method === 'GET') {
+      return suggestConfigGet(env);
+    }
+    if (url.pathname === '/suggest' && request.method === 'POST') {
+      const ip = clientIp(request);
+      const rl = await rateLimit(env, 'suggest', ip);
+      if (!rl.ok) return new Response(JSON.stringify({ ok: false, message: 'Too many sends. Try again in a minute.' }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': String(rl.retryAfter) } });
+      return suggestPost(request, env, ip);
+    }
+    if (url.pathname === '/suggest-count' && request.method === 'GET') {
+      return suggestCountGet(env);
+    }
+    if (url.pathname === '/review.html' && request.method === 'GET') {
+      return reviewPage();
+    }
+    const sm = url.pathname.match(/^\/suggestions(?:\/([^/]+)\/(add|drop))?$/);
+    if (sm && (sm[1] ? request.method === 'POST' : request.method === 'GET')) {
+      const rl = await rateLimit(env, 'tv-inbox', 'review:' + clientIp(request));
+      if (!rl.ok) return new Response('rate limited', { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } });
+      return sm[1] ? suggestionAct(request, env, sm[1], sm[2]) : suggestionsGet(request, env);
+    }
+
     // Route picker: writes "route-<slug>" label on a Ghost member.
     if (url.pathname === '/pick-route' && request.method === 'POST') {
       return pickRouteHandler(request, env);
+    }
+
+    // Songbook picker (Nov 2026): pick:<slug> label.
+    if (url.pathname === '/pick' && request.method === 'GET') {
+      return pickGetHandler(request, env);
+    }
+    if (url.pathname === '/pick' && request.method === 'POST') {
+      return pickPostHandler(request, env);
     }
 
     // Member labels: GET /member/<uuid> returns {uuid, labels, status}.

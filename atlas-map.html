@@ -730,6 +730,33 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .leaflet-popup-content strong { font-size: 15px; }
   .leaflet-popup-content a { color: #2A8C82; text-decoration: none; border-bottom: 1px solid #2A8C82; }
   .leaflet-popup-content a:hover { opacity: 0.75; }
+  .leaflet-popup-content .tv-row { margin-top: 6px; }
+  .leaflet-popup-content a.tv-link { color: #8A2F22; border-bottom-color: #8A2F22; font-weight: 600; }
+  .leaflet-popup-content .find-head { margin-top: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #8A2F22; font-weight: 700; }
+  .leaflet-popup-content .find-row { margin-top: 3px; }
+  .leaflet-popup-content .find-src { color: #888; font-size: 11px; }
+  .leaflet-popup-content .find-line { margin-top: 2px; font-style: italic; color: #8A2F22; font-size: 12.5px; line-height: 1.35; }
+  /* Viewer suggestions: hidden until the worker says they are open */
+  .leaflet-popup-content .sg-row { display: none; margin-top: 9px; padding-top: 7px; border-top: 1px solid #eee; font-size: 12px; }
+  body.sg-on .leaflet-popup-content .sg-row { display: block; }
+  .leaflet-popup-content .sg-link { color: #8A2F22; margin-right: 12px; text-decoration: underline; cursor: pointer; }
+  .leaflet-popup-content .sg-video { font-weight: 700; }
+  .sg-back { position: fixed; inset: 0; z-index: 10000; background: rgba(27,24,20,.55); display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .sg-back[hidden] { display: none; }
+  .sg-box { position: relative; width: min(440px, 100%); max-height: calc(100% - 8px); overflow-y: auto; background: #fff; color: #231F1B; border-radius: 8px; padding: 18px 18px 14px; box-shadow: 0 6px 30px rgba(0,0,0,.35); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .sg-box h2 { font: 600 19px/1.25 Georgia, serif; margin: 2px 28px 10px 0; }
+  .sg-k { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #8A2F22; font-weight: 700; }
+  .sg-box label { display: block; font-weight: 600; font-size: 13px; margin: 8px 0 3px; }
+  .sg-box input, .sg-box textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+  .sg-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  .sg-ts { margin-top: 10px; min-height: 65px; }
+  .sg-fine { font-size: 12px; color: #666; margin: 8px 0; }
+  .sg-acts { display: flex; gap: 8px; }
+  .sg-acts button { font: 700 12.5px/1 system-ui, sans-serif; letter-spacing: .05em; text-transform: uppercase; padding: 9px 14px; border-radius: 4px; border: 1px solid #231F1B; background: transparent; color: #231F1B; cursor: pointer; }
+  .sg-acts .sg-primary { background: #231F1B; color: #fff; }
+  .sg-acts button:disabled { opacity: .5; cursor: default; }
+  .sg-x { position: absolute; top: 8px; right: 10px; border: 0; background: none; font-size: 24px; line-height: 1; cursor: pointer; color: #666; }
+  .sg-msg { color: #8A2F22; font-size: 13px; margin: 8px 0 0; min-height: 1em; }
 </style>
 <div class="atlas-controls">
   <h1 style="display:none">The Worksong Atlas</h1>
@@ -954,6 +981,10 @@ map.fitBounds(bounds);
 var DELIVERY_COLOR = { 'at-work': '#2A8C82', 'shared': '#a67c52', 'concert': '#7b6d9a', '': '#bbb' };
 var DELIVERY_LABEL = { 'at-work': 'People at work', 'shared': 'People sharing songs', 'concert': 'People in Concert' };
 
+// movingmusicTV plays YouTube, Facebook, and video-file links; a popup with one of these links to the TV.
+var TV_PLAYABLE = /youtu\.?be|facebook\.com|fb\.watch|\.(mp4|webm|m4v)(\?|$)/i;
+function tvSlug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+
 function yt(u){
   var m = u.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/);
   if (!m) return null;
@@ -994,14 +1025,19 @@ D.forEach(function (d) {
     if (e) embedHtml = '<iframe class="wm-embed" src="'+e+'" style="width:100%;aspect-ratio:16/9;border:0;margin-top:6px;border-radius:4px" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>';
   }
   var summaryHtml = d.s ? '<div style="font-size:12.5px;color:#333;margin-top:5px">'+d.s+'</div>' : '';
-  var html = '<div class="wm-popup"><strong>'+d.n+'</strong><br><span style="color:#666;font-size:12px">'+d.p+'</span>'+summaryHtml+embedHtml+vidHtml+'</div>';
+  var tvHtml = d.v.some(function (x) { return TV_PLAYABLE.test(x.u); })
+    ? '<div class="tv-row"><a class="tv-link" target="_top" href="https://movingmusic.works/tv/#tradition=' + tvSlug(d.n) + '">Watch on movingmusicTV</a></div>' : '';
+  // Viewer asks: a video for a grey dot (a tradition still seeking one), a fix for any dot.
+  var sgAttr = ' data-t="' + tvSlug(d.n) + '" data-title="' + d.n.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
+  var askHtml = '<div class="sg-row">' + (!primary || !d.v.length ? '<a href="#" class="sg-link sg-video" data-sg="video"' + sgAttr + '>Know a video of this? Send it</a>' : '') +
+    '<a href="#" class="sg-link" data-sg="fix"' + sgAttr + '>Something wrong here?</a></div>';
+  var html = '<div class="wm-popup"><strong>'+d.n+'</strong><br><span style="color:#666;font-size:12px">'+d.p+'</span>'+summaryHtml+tvHtml+embedHtml+vidHtml+askHtml+'</div>';
   var m = L.circleMarker(project(d.la, d.lo), {
     radius: 7, color: '#ffffff', weight: 1.5,
     fillColor: color, fillOpacity: 0.9
   }).bindPopup(html, {
     maxWidth: 320, minWidth: 280, maxHeight: 400,
-    autoPan: true, autoPanPaddingTopLeft: [30, 90], autoPanPaddingBottomRight: [30, 30],
-    keepInView: true
+    autoPan: true, autoPanPaddingTopLeft: [30, 90], autoPanPaddingBottomRight: [30, 30]
   }).bindTooltip(d.n + ', ' + d.p, {
     direction: 'top', offset: [0, -6], className: 'wm-tooltip', sticky: false
   });
@@ -1072,6 +1108,7 @@ document.querySelectorAll('.fpill').forEach(function (btn) {
 });
 
 function anyMatch(entryList, activeSet) {
+  if (entryList === null) return true;  // a find with no tags yet passes the use filter
   if (activeSet.size === 0) return false;
   if (!entryList || entryList.length === 0) return activeSet.has('');
   return entryList.some(function (t) { return activeSet.has(t); });
@@ -1124,6 +1161,175 @@ document.addEventListener('click', function (ev) {
   popup.querySelectorAll('a.vid-swap').forEach(function (el) { el.removeAttribute('data-current'); });
   a.setAttribute('data-current', '1');
 });
+
+// Bennett's finds from movingmusicTV, fetched live from the worker. A find tied to
+// a tradition is listed in that tradition's popup. A find with a place of its own
+// gets a dot with a brick ring. A find without a place shows on the TV only.
+(function () {
+  if (!window.fetch) return;
+  var LIVE = 'https://mmp-sync.bennett-727.workers.dev/tv-finds.json';
+  var NAMES = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', youtube: 'YouTube', file: 'Video' };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function tvUrl(f) { return 'https://movingmusic.works/tv/#v=' + encodeURIComponent(f.id); }
+  function isNum(v) { return typeof v === 'number' && isFinite(v); }
+  // Popup rows go above the viewer asks, which stay last.
+  function addToPopup(html, chunk) {
+    var i = html.indexOf('<div class="sg-row">');
+    return i >= 0 ? html.slice(0, i) + chunk + html.slice(i) : html.replace(/<\/div>$/, chunk + '</div>');
+  }
+  fetch(LIVE).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+    if (!data || !Array.isArray(data.finds)) return;
+    var hidden = {};
+    (data.hide || []).forEach(function (h) { hidden[(h && h.id) || h] = 1; });
+    var bySlug = {};
+    markers.forEach(function (m) { if (!m._entry.find) bySlug[tvSlug(m._entry.n)] = m; });
+    data.finds.forEach(function (f) {
+      if (!f || typeof f.id !== 'string' || hidden[f.id] || !/^https:\/\//.test(f.url || '')) return;
+      var m = f.tradition && bySlug[f.tradition];
+      if (m) {
+        var html = m.getPopup().getContent();
+        var credit = /^Suggested by /.test(f.from || '') ? ', ' + esc(String(f.from).replace(/^Suggested/, 'suggested')) : '';
+        if (html.indexOf('find-head') < 0) html = addToPopup(html, '<div class="find-head">Bennett\'s finds</div>');
+        html = addToPopup(html, '<div class="find-row"><a class="tv-link" target="_top" href="' + tvUrl(f) + '">' +
+          esc(f.label || 'Video') + '</a> <span class="find-src">' + esc(NAMES[f.platform] || '') + credit + '</span>' +
+          (f.note ? '<div class="find-line">' + esc(f.note) + '</div>' : '') + '</div>');
+        m.setPopupContent(html);
+        return;
+      }
+      if (!isNum(f.la) || !isNum(f.lo)) return;
+      var entry = { n: String(f.label || 'Video'), p: String(f.place || ''), d: f.shows ? [String(f.shows)] : [],
+        u: Array.isArray(f.uses) && f.uses.length ? f.uses : null, v: [], find: true };
+      var color = DELIVERY_COLOR[entry.d[0] || ''] || DELIVERY_COLOR[''];
+      var popup = '<div class="wm-popup"><strong>' + esc(entry.n) + '</strong><br><span style="color:#666;font-size:12px">' + esc(entry.p) + '</span>' +
+        (f.note ? '<div class="find-line" style="margin-top:5px">' + esc(f.note) + '</div>' : '') +
+        '<div class="tv-row"><a class="tv-link" target="_top" href="' + tvUrl(f) + '">Watch on movingmusicTV</a></div>' +
+        '<div style="margin-top:3px"><a href="' + esc(f.url) + '" target="_blank" rel="noopener noreferrer">' + esc(NAMES[f.platform] || 'Original') + ' post</a></div>' +
+        '<div class="find-head">Bennett\'s find, not a tradition on the Atlas yet</div>' +
+        '<div class="sg-row"><a href="#" class="sg-link" data-sg="fix" data-f="' + esc(f.id) + '" data-title="' + esc(entry.n) + '">Something wrong here?</a></div></div>';
+      var nm = L.circleMarker(project(f.la, f.lo), { radius: 7, color: '#8A2F22', weight: 2.5, fillColor: color, fillOpacity: 0.9 })
+        .bindPopup(popup, { maxWidth: 320, minWidth: 260, autoPan: true, autoPanPaddingTopLeft: [30, 90], autoPanPaddingBottomRight: [30, 30] })
+        .bindTooltip(entry.n + (entry.p ? ', ' + entry.p : ''), { direction: 'top', offset: [0, -6], className: 'wm-tooltip', sticky: false });
+      nm._entry = entry;
+      markers.push(nm);
+      if (anyMatch(entry.d, activeFilters.d) && anyMatch(entry.u, activeFilters.u)) nm.addTo(map);
+    });
+  }).catch(function () {});
+})();
+
+// Viewer suggestions (worker/suggest.js): a video for a grey dot, a fix for any dot.
+// The asks stay hidden until the worker says suggestions are open. Each send carries
+// a Cloudflare Turnstile token; the worker stores it privately for Bennett's review.
+(function () {
+  if (!window.fetch) return;
+  var API = 'https://mmp-sync.bennett-727.workers.dev';
+  var cfg = null, back = null, widget = null, token = '', cur = null, opener = null;
+  fetch(API + '/suggest-config').then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+    if (j && j.open && j.sitekey) { cfg = j; document.body.classList.add('sg-on'); }
+  }).catch(function () {});
+
+  function q(sel) { return back.querySelector(sel); }
+  function say(t) { if (back) q('.sg-msg').textContent = t || ''; }
+  function build() {
+    back = document.createElement('div');
+    back.className = 'sg-back';
+    back.hidden = true;
+    back.innerHTML = '<form class="sg-box" role="dialog" aria-modal="true" aria-labelledby="sg-h" novalidate>' +
+      '<button type="button" class="sg-x" aria-label="Close">×</button>' +
+      '<div class="sg-body"><div class="sg-k">Worksong Atlas</div><h2 id="sg-h"></h2>' +
+      '<div class="sg-linkrow"><label for="sg-link">Link to the video</label>' +
+      '<input id="sg-link" type="url" inputmode="url" placeholder="https://" autocomplete="off" maxlength="800"></div>' +
+      '<label for="sg-text" id="sg-text-l"></label><textarea id="sg-text" rows="3" maxlength="1000"></textarea>' +
+      '<label for="sg-name">Your name (optional)</label><input id="sg-name" type="text" maxlength="80" autocomplete="name">' +
+      '<label for="sg-email">Your email (optional, for a reply)</label><input id="sg-email" type="email" maxlength="120" autocomplete="email">' +
+      '<div class="sg-hp" aria-hidden="true"><label for="sg-hp">Website</label><input id="sg-hp" type="text" tabindex="-1" autocomplete="off"></div>' +
+      '<div class="sg-ts"></div>' +
+      '<p class="sg-fine">Bennett reads every suggestion before anything changes. A video he adds credits your first name. Your email is only for a reply, and it is deleted once he files or drops your suggestion.</p>' +
+      '<div class="sg-acts"><button type="submit" class="sg-primary sg-send">Send</button><button type="button" class="sg-cancel">Cancel</button></div>' +
+      '<p class="sg-msg" role="status" aria-live="polite"></p></div>' +
+      '<div class="sg-done" hidden><div class="sg-k">Worksong Atlas</div><h2>Thanks.</h2><p>Bennett reads every suggestion.</p>' +
+      '<div class="sg-acts"><button type="button" class="sg-primary sg-ok">Close</button></div></div></form>';
+    document.body.appendChild(back);
+    back.addEventListener('click', function (e) { if (e.target === back) close(); });
+    q('.sg-x').addEventListener('click', close);
+    q('.sg-cancel').addEventListener('click', close);
+    q('.sg-ok').addEventListener('click', close);
+    q('form').addEventListener('submit', send);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && back && !back.hidden) close(); });
+  }
+  function withTurnstile(cb) {
+    if (window.turnstile) return cb();
+    var waiting = window.mmpTurnstileReady;
+    window.mmpTurnstileReady = function () { if (waiting) waiting(); cb(); };
+    if (waiting) return;
+    var s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=mmpTurnstileReady';
+    s.async = true;
+    s.onerror = function () { say('The bot check could not load. Try again later.'); };
+    document.head.appendChild(s);
+  }
+  function check() {
+    token = '';
+    withTurnstile(function () {
+      if (widget === null) {
+        widget = window.turnstile.render(q('.sg-ts'), {
+          sitekey: cfg.sitekey, action: 'suggest', theme: 'light', size: 'flexible',
+          callback: function (t) { token = t; },
+          'expired-callback': function () { token = ''; },
+          'error-callback': function () { token = ''; say('The bot check did not load. Close this and try again.'); }
+        });
+      } else {
+        window.turnstile.reset(widget);
+      }
+    });
+  }
+  function open(a) {
+    if (!cfg) return;
+    if (!back) build();
+    cur = { kind: a.getAttribute('data-sg'), tradition: a.getAttribute('data-t') || '', find: a.getAttribute('data-f') || '', title: a.getAttribute('data-title') || '' };
+    opener = a;
+    var video = cur.kind === 'video';
+    q('#sg-h').textContent = video ? 'Know a video of ' + cur.title + '?' : 'Something wrong with ' + cur.title + '?';
+    q('.sg-linkrow').hidden = !video;
+    q('#sg-text-l').textContent = video ? 'Anything Bennett should know? (optional)' : 'What should change?';
+    q('#sg-link').value = ''; q('#sg-text').value = ''; q('#sg-hp').value = '';
+    q('.sg-body').hidden = false; q('.sg-done').hidden = true; q('.sg-send').disabled = false;
+    say('');
+    back.hidden = false;
+    check();
+    setTimeout(function () { (video ? q('#sg-link') : q('#sg-text')).focus(); }, 30);
+  }
+  function close() {
+    if (!back || back.hidden) return;
+    back.hidden = true;
+    if (opener && opener.focus) opener.focus();
+  }
+  function send(e) {
+    e.preventDefault();
+    var video = cur.kind === 'video', link = q('#sg-link').value.trim(), text = q('#sg-text').value.trim();
+    if (video && !/^https?:\/\/\S+\.\S+/.test(link)) return say('Paste the link to the video. It starts with https://');
+    if (!video && !text) return say('Say what should change.');
+    if (!token) return say('One moment: the bot check is still running.');
+    var body = { kind: cur.kind, tradition: cur.tradition, find: cur.find, title: cur.title, link: link, text: text,
+      name: q('#sg-name').value.trim(), email: q('#sg-email').value.trim(), website: q('#sg-hp').value, token: token };
+    q('.sg-send').disabled = true;
+    say('Sending.');
+    fetch(API + '/suggest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { s: r.status, j: j }; }); })
+      .then(function (res) {
+        if (res.s === 201) { q('.sg-body').hidden = true; q('.sg-done').hidden = false; q('.sg-ok').focus(); return; }
+        q('.sg-send').disabled = false;
+        if (res.s === 403 && window.turnstile && widget !== null) { token = ''; window.turnstile.reset(widget); }
+        say((res.j && res.j.message) || 'That did not go through. Try again.');
+      })
+      .catch(function () { q('.sg-send').disabled = false; say('That did not go through. Check your connection and try again.'); });
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target && e.target.closest ? e.target.closest('a[data-sg]') : null;
+    if (!a) return;
+    e.preventDefault();
+    open(a);
+  });
+})();
 
 // Deep-link: open a specific pin's popup on load.
 // The Ghost /atlas/ page passes the parent's hash via ?state=<encoded-hash>.
