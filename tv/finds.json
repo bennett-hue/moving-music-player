@@ -1,5 +1,5 @@
 {
-  "_about": "Bennett's finds for movingmusicTV: videos from Instagram, Facebook, TikTok, and YouTube that are not on the Atlas yet. One object per video. Fields: id (unique, platform prefix), platform (instagram, facebook, tiktok, youtube), url (the original post), by (account that posted it), label (one line, what the video shows), place, la/lo (null when the place is unknown), tradition (an Atlas slug, or empty when the Atlas has no pin for it), uses (Atlas use slugs), shows (at-work, shared, concert, or empty), orient (v for vertical, h for horizontal), added (date saved), from (where Bennett saved it), note (Bennett's own line, shown on the card), check (fields Claude guessed from the caption; Bennett confirms, then clears the list).",
+  "_about": "Bennett's finds for movingmusicTV: videos from Instagram, Facebook, TikTok, and YouTube that are not on the Atlas yet. One object per video. Fields: id (unique, platform prefix), platform (instagram, facebook, tiktok, youtube), url (the original post), by (account that posted it), label (one line, what the video shows), place, la/lo (null when the place is unknown), tradition (an Atlas slug, or empty when the Atlas has no pin for it), uses (Atlas use slugs), shows (at-work, shared, concert, or empty), orient (v for vertical, h for horizontal), added (date saved), from (where Bennett saved it), note (Bennett's own line, shown on the card), check (fields Claude guessed from the caption; Bennett confirms, then clears the list). The hide list takes any video off the TV, Atlas videos included: use it for takedown requests and for videos whose owners block embedding.",
   "finds": [
     {
       "id": "ig-CDoWRO9nFdw",
@@ -137,6 +137,9 @@
       "note": "",
       "check": ["uses", "shows"]
     }
+  ],
+  "hide": [
+    {"id": "fb-1393022591134185", "why": "Facebook refuses to embed it (content owned by someone else); the Atlas still links it", "checked": "2026-11-12"}
   ],
   "skipped": [
     {"url": "https://www.instagram.com/p/B-K2k7Sg-jk/", "by": "edithspromise", "why": "photo, not a video (waulking)"},

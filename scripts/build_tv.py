@@ -228,10 +228,16 @@ def validate_finds(finds, slugs):
     return problems
 
 
-def build_data(entries, finds, ytmeta, src):
+def clean_label(t):
+    """Atlas labels say where a video opens; on the TV every video plays in place."""
+    return re.sub(r'\s*\((?:Facebook|Instagram|TikTok) video, opens elsewhere\)', '', t).strip()
+
+
+def build_data(entries, finds, ytmeta, src, hide=()):
     P = projection_constants(src)
     project = make_project(P)
     slug_of = {atlas.slugify(e['n']): e for e in entries}
+    hide = set(hide)
 
     stops, items, problems = [], [], []
     stop_index, seen = {}, {}
@@ -245,7 +251,7 @@ def build_data(entries, finds, ytmeta, src):
     for e in entries:
         slug = atlas.slugify(e['n'])
         playable = [(v, parse_video(v['u'])) for v in e['v']]
-        playable = [(v, pv) for v, pv in playable if pv]
+        playable = [(v, pv) for v, pv in playable if pv and item_id(pv) not in hide]
         if not playable:
             continue
         si = add_stop(slug, {'id': slug, 'n': e['n'], 'p': e['p'], 'la': e['la'], 'lo': e['lo'],
@@ -271,7 +277,7 @@ def build_data(entries, finds, ytmeta, src):
                 by = re.sub(r'^www\.', '', urllib.parse.urlparse(v['u']).hostname or '')
             if pv['o'] == 'v':
                 ar = '9:16'
-            it = {'id': iid, 'p': pv['p'], 'k': pv['k'], 'u': v['u'], 't': v['t'], 'by': by,
+            it = {'id': iid, 'p': pv['p'], 'k': pv['k'], 'u': v['u'], 't': clean_label(v['t']), 'by': by,
                   'st': pv['st'], 'ar': ar, 'sh': v.get('d', ''), 's': si, 'f': 0}
             seen[iid] = it
             items.append(it)
@@ -279,7 +285,7 @@ def build_data(entries, finds, ytmeta, src):
     # Bennett's finds.
     for f in finds:
         pv = parse_video(f['url'])
-        if not pv:
+        if not pv or item_id(pv) in hide:
             continue
         iid = item_id(pv)
         if iid in seen:
@@ -434,7 +440,10 @@ def main():
         for p in problems:
             print('  -', p)
         sys.exit(1)
-    data, stats, notes = build_data(entries, finds_doc['finds'], meta.get('videos', {}), src)
+    hidden = [h['id'] for h in finds_doc.get('hide', [])]
+    data, stats, notes = build_data(entries, finds_doc['finds'], meta.get('videos', {}), src, hidden)
+    if hidden:
+        print('  hidden on the TV: ' + ', '.join(hidden))
     for n in notes:
         print('  note:', n)
     print('TV: %(items)d videos at %(stops)d stops (%(finds)d finds, %(unplaced)d without a place), '

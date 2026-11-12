@@ -59,6 +59,21 @@ cd worker && wrangler deploy
 
 Step 3 is only needed when the data or the list-page code changed. Step 2 is only needed when atlas-map.html changed. The map page in Ghost never needs touching once it points at the worker URL.
 
+## movingmusicTV
+
+A scrolling feed of worksong videos at `/tv/`, built from the Atlas data plus `tv/finds.json`. Full notes: `docs/movingmusic-tv.md`.
+
+```bash
+python3 scripts/build_tv.py            # validates, rebuilds tv.html and ghost/tv.card.html
+git add tv tv.html ghost scripts && git commit -m "TV: ..." && git push
+# pin the worker to the new commit, then deploy
+sed -i '' "s/TV_SHA = '.*'/TV_SHA = '$(git rev-parse --short HEAD)'/" worker/worker.js
+git commit -am "Worker: bump TV_SHA" && git push
+cd worker && wrangler deploy
+```
+
+After an Atlas data change, run `scripts/build_tv.py` too, so the TV picks up the new videos.
+
 ## Roadmap
 
 - v0.1 (this) — basic queue, play/pause/skip, expanded queue, auto-advance, signup on lock
