@@ -735,6 +735,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .leaflet-popup-content .find-head { margin-top: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #8A2F22; font-weight: 700; }
   .leaflet-popup-content .find-row { margin-top: 3px; }
   .leaflet-popup-content .find-src { color: #888; font-size: 11px; }
+  .leaflet-popup-content .find-line { margin-top: 2px; font-style: italic; color: #8A2F22; font-size: 12.5px; line-height: 1.35; }
 </style>
 <div class="atlas-controls">
   <h1 style="display:none">The Worksong Atlas</h1>
@@ -1011,8 +1012,7 @@ D.forEach(function (d) {
     fillColor: color, fillOpacity: 0.9
   }).bindPopup(html, {
     maxWidth: 320, minWidth: 280, maxHeight: 400,
-    autoPan: true, autoPanPaddingTopLeft: [30, 90], autoPanPaddingBottomRight: [30, 30],
-    keepInView: true
+    autoPan: true, autoPanPaddingTopLeft: [30, 90], autoPanPaddingBottomRight: [30, 30]
   }).bindTooltip(d.n + ', ' + d.p, {
     direction: 'top', offset: [0, -6], className: 'wm-tooltip', sticky: false
   });
@@ -1160,7 +1160,8 @@ document.addEventListener('click', function (ev) {
         var html = m.getPopup().getContent();
         if (html.indexOf('find-head') < 0) html = html.replace(/<\/div>$/, '<div class="find-head">Bennett\'s finds</div></div>');
         html = html.replace(/<\/div>$/, '<div class="find-row"><a class="tv-link" target="_top" href="' + tvUrl(f) + '">' +
-          esc(f.label || 'Video') + '</a> <span class="find-src">' + esc(NAMES[f.platform] || '') + '</span></div></div>');
+          esc(f.label || 'Video') + '</a> <span class="find-src">' + esc(NAMES[f.platform] || '') + '</span>' +
+          (f.note ? '<div class="find-line">' + esc(f.note) + '</div>' : '') + '</div></div>');
         m.setPopupContent(html);
         return;
       }
@@ -1169,12 +1170,12 @@ document.addEventListener('click', function (ev) {
         u: Array.isArray(f.uses) && f.uses.length ? f.uses : null, v: [], find: true };
       var color = DELIVERY_COLOR[entry.d[0] || ''] || DELIVERY_COLOR[''];
       var popup = '<div class="wm-popup"><strong>' + esc(entry.n) + '</strong><br><span style="color:#666;font-size:12px">' + esc(entry.p) + '</span>' +
-        (f.note ? '<div style="font-size:12.5px;color:#333;margin-top:5px">' + esc(f.note) + '</div>' : '') +
+        (f.note ? '<div class="find-line" style="margin-top:5px">' + esc(f.note) + '</div>' : '') +
         '<div class="tv-row"><a class="tv-link" target="_top" href="' + tvUrl(f) + '">Watch on movingmusicTV</a></div>' +
         '<div style="margin-top:3px"><a href="' + esc(f.url) + '" target="_blank" rel="noopener noreferrer">' + esc(NAMES[f.platform] || 'Original') + ' post</a></div>' +
         '<div class="find-head">Bennett\'s find, not a tradition on the Atlas yet</div></div>';
       var nm = L.circleMarker(project(f.la, f.lo), { radius: 7, color: '#8A2F22', weight: 2.5, fillColor: color, fillOpacity: 0.9 })
-        .bindPopup(popup, { maxWidth: 320, minWidth: 260, autoPan: true, autoPanPaddingTopLeft: [30, 90], autoPanPaddingBottomRight: [30, 30], keepInView: true })
+        .bindPopup(popup, { maxWidth: 320, minWidth: 260, autoPan: true, autoPanPaddingTopLeft: [30, 90], autoPanPaddingBottomRight: [30, 30] })
         .bindTooltip(entry.n + (entry.p ? ', ' + entry.p : ''), { direction: 'top', offset: [0, -6], className: 'wm-tooltip', sticky: false });
       nm._entry = entry;
       markers.push(nm);

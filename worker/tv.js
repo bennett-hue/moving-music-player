@@ -2,15 +2,19 @@
 //
 //   POST /tv-inbox       The "Send to movingmusicTV" button on Bennett's phone.
 //                        Body, as JSON or a form: { key, url, note }. key must
-//                        match the TV_INBOX_KEY secret. The video is stored in
-//                        KV under tvin:<id> and shows on the TV within a minute.
+//                        match the TV_INBOX_KEY secret. note is Bennett's line:
+//                        one sentence of commentary, shown under the video as
+//                        he wrote it. The video is stored in KV under tvin:<id>
+//                        and shows on the TV within a minute. Sending the same
+//                        video again with a new line replaces the line.
 //                        Add ?format=text for a one-line reply the phone can show.
 //   GET  /tv-finds.json  Everything the TV and the Atlas show beyond the Atlas
 //                        data: tv/finds.json from the repo plus the inbox.
 //
 // Ids match item_id() in scripts/build_tv.py, so once Claude files a video in
 // tv/finds.json with its place, tradition, and tags, that copy replaces the
-// bare inbox copy everywhere.
+// bare inbox copy everywhere. A line sent after filing is newer than the filed
+// line (noted is later), so it shows until the weekly filing copies it over.
 
 const REPO = 'bennett-hue/moving-music-player';
 export const TV_DATA_REF = 'main';
@@ -20,6 +24,43 @@ const FINDS_CACHE_KEY = 'https://mmp-sync.internal/tv-finds.json';
 const FINDS_TTL = 60;
 const NAME = { yt: 'YouTube', ig: 'Instagram', fb: 'Facebook', tt: 'TikTok', file: 'Video' };
 const PLATFORM = { yt: 'youtube', ig: 'instagram', fb: 'facebook', tt: 'tiktok', file: 'file' };
+export const LINE_MAX = 280;
+const META_MAX = 1000;  // KV metadata holds at most 1024 bytes
+
+// Bennett's line, as he wrote it, with three exceptions: whitespace collapses, an
+// em dash or double hyphen becomes a comma (the site never prints them), and a
+// line over LINE_MAX is cut at a word, with an ellipsis.
+export function cleanLine(s) {
+  return String(s || '').replace(/\s+/g, ' ').replace(/\s*(?:\u2014|-{2,})\s*/g, ', ')
+    .replace(/^[,\s]+|[,\s]+$/g, '');
+}
+
+export function cutLine(s, max) {
+  if (s.length <= max) return s;
+  let cut = s.slice(0, max - 1);
+  const sp = cut.lastIndexOf(' ');
+  if (sp > max * 0.6) cut = cut.slice(0, sp);
+  return cut.replace(/[\s,.;:]+$/, '') + '\u2026';
+}
+
+// ISO time to the second, the same form tv_intake.py writes, so the two compare as strings.
+export function stamp(d) {
+  return (d || new Date()).toISOString().replace(/\.\d+Z$/, 'Z');
+}
+
+function metaBytes(m) {
+  return new TextEncoder().encode(JSON.stringify(m)).length;
+}
+
+// Shorten the line until the metadata fits in KV. Only a very long Facebook link
+// leaves less than a full line of room.
+function fitMeta(m) {
+  while (m.note && metaBytes(m) > META_MAX) {
+    const max = m.note.length - 20;
+    m.note = max < 20 ? '' : cutLine(m.note.replace(/\u2026$/, ''), max);
+  }
+  return m;
+}
 
 // Same rules as parse_video() in scripts/build_tv.py.
 export function parseVideo(url) {
@@ -145,27 +186,39 @@ export async function tvInboxPost(request, env) {
   const url = canonical(raw, pv);
   const pvc = parseVideo(url) || pv;
   const id = await itemId(pvc);
-  const note = String(body.note || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const wrote = cleanLine(body.note);
+  const line = cutLine(wrote, LINE_MAX);
   const key = INBOX_PREFIX + id;
-  const already = await env.MMP_KV.get(key);
-  if (!already) {
-    await env.MMP_KV.put(key, '1', {
-      expirationTtl: INBOX_TTL,
-      metadata: { id, url, note, p: pvc.p, added: new Date().toISOString().slice(0, 10) },
-    });
-    try { await caches.default.delete(new Request(FINDS_CACHE_KEY)); } catch (e) {}
+  const prev = await env.MMP_KV.getWithMetadata(key);
+  const old = prev && prev.value !== null ? (prev.metadata || {}) : null;
+  const what = NAME[pvc.p] + ' video';
+
+  let meta = null;
+  if (!old) {
+    meta = { id, url, note: line, p: pvc.p, added: new Date().toISOString().slice(0, 10) };
+  } else if (line && line !== old.note) {
+    meta = Object.assign({}, old, { note: line });  // a new line; link and date stay
   }
-  const what = NAME[pvc.p] + ' video' + (note ? ': ' + note : '');
-  return reply(already ? 200 : 201, (already ? 'Already on movingmusicTV. ' : 'On movingmusicTV. ') + what, { id });
+  if (!meta) return reply(200, 'Already on movingmusicTV: ' + what + '.', { id, line: old.note || '' });
+
+  if (meta.note) meta.noted = stamp();
+  fitMeta(meta);
+  await env.MMP_KV.put(key, '1', { expirationTtl: INBOX_TTL, metadata: meta });
+  try { await caches.default.delete(new Request(FINDS_CACHE_KEY)); } catch (e) {}
+  const cut = meta.note && meta.note !== wrote ? ' Your line was cut to ' + meta.note.length + ' characters.' : '';
+  return old
+    ? reply(200, 'Line updated on this ' + what + '.' + cut, { id, line: meta.note })
+    : reply(201, 'On movingmusicTV: ' + what + (meta.note ? ', with your line.' : '.') + cut, { id, line: meta.note });
 }
 
+// The inbox copy of a video, before Claude files it: no place, tags, or credit yet.
 function inboxFind(m) {
   const pv = parseVideo(m.url) || {};
   return {
     id: m.id, platform: PLATFORM[m.p] || m.p, url: m.url, by: '',
-    label: m.note || (NAME[m.p] || 'Video') + ' video', place: '', la: null, lo: null,
+    label: (NAME[m.p] || 'Video') + ' video', place: '', la: null, lo: null,
     tradition: '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '',
-    from: 'Send button', note: '', inbox: true,
+    from: 'Send button', note: m.note || '', noted: m.noted || '', inbox: true,
   };
 }
 
@@ -187,7 +240,7 @@ export async function tvFindsGet(request, env, ctx) {
     }
   } catch (e) {}
 
-  const have = new Set(finds.map((f) => f && f.id));
+  const at = new Map(finds.map((f, i) => [f && f.id, i]));
   const hidden = new Set(hide.map((h) => (h && h.id) || h));
   const inbox = [];
   try {
@@ -196,7 +249,16 @@ export async function tvFindsGet(request, env, ctx) {
       const page = await env.MMP_KV.list({ prefix: INBOX_PREFIX, cursor, limit: 1000 });
       for (const k of page.keys) {
         const m = k.metadata;
-        if (!m || !m.id || have.has(m.id) || hidden.has(m.id)) continue;
+        if (!m || !m.id || hidden.has(m.id)) continue;
+        if (at.has(m.id)) {
+          // Filed already. A line Bennett sent after the filing wins until the
+          // weekly filing copies it into tv/finds.json.
+          const i = at.get(m.id), f = finds[i];
+          if (m.note && m.noted && m.noted > String(f.noted || '') && m.note !== f.note) {
+            finds[i] = Object.assign({}, f, { note: m.note, noted: m.noted });
+          }
+          continue;
+        }
         inbox.push(inboxFind(m));
       }
       cursor = page.list_complete ? null : page.cursor;

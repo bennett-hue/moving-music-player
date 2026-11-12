@@ -39,23 +39,30 @@ The Send button is an iPhone shortcut in the share menu of every app. It takes t
 
 1. Open the Shortcuts app and tap +. Name the shortcut Send to movingmusicTV.
 2. Tap the info button at the bottom and turn on Show in Share Sheet. In the first block, keep only URLs and Text as input.
-3. Add the action Ask for Input. Set the prompt to: What is it? (optional)
+3. Add the action Ask for Input. Set the prompt to: Your line (optional)
 4. Add the action Get Contents of URL with this URL: `https://mmp-sync.bennett-727.workers.dev/tv-inbox?format=text`. Open its options: Method POST, Request Body JSON. Add three text fields: `key` set to the inbox key, `url` set to the Shortcut Input variable, and `note` set to the Provided Input variable.
 5. Add the action Show Notification, set to Contents of URL.
 
-To send a video, tap Share in Instagram, Facebook, TikTok, or YouTube, then More or Share to, then Send to movingmusicTV. Type a few words if you can, ideally the place and the work: "Ghana seine hauling". The notification says "On movingmusicTV."
+To send a video, tap Share in Instagram, Facebook, TikTok, or YouTube, then More or Share to, then Send to movingmusicTV. Type or dictate one sentence of commentary: what to watch or listen for. Name the place when you know it. The weekly filing often can't read Instagram or Facebook captions, so your line may be its only clue to where a video is from. For example: "Cape Coast, Ghana. Watch the caller time each line to the pull." To send a video with no line, tap Done with the box empty. The notification says "On movingmusicTV: Instagram video, with your line."
+
+Your line shows under the video, marked Bennett, on the TV and in the video's Atlas popup. It goes live within a minute, with no review step.
+
+- To change a line, send the same video again with the new line. The notification says "Line updated."
+- To add a line to a video that is already on the TV, send it again with the line.
+- Lines over 280 characters are cut at a word, and the notification says so.
 
 The key lives in the shortcut and in the worker secret `TV_INBOX_KEY`, never in this repo. If it leaks, set a new one in both places.
 
 ## How a sent video moves
 
 1. The worker checks the key, finds the video id in the link, strips share-tracking parameters, and follows short links (vm.tiktok.com, fb.watch, facebook.com/share) to the real video.
-2. It stores the video in KV as `tvin:<id>`, with the link, your note, and the date. The same video sent twice is stored once.
-3. Within a minute it is on the TV, first in Newest, under Bennett's finds. Your note is its title. It has no place yet, so it has no map dot and no Atlas presence.
-4. Claude files it: place, coordinates, Atlas tradition, uses, what the video shows, credit. Run `python3 scripts/tv_intake.py pull` to list what's waiting, then `python3 scripts/tv_intake.py add --url ... --label ... --place ... --la ... --lo ...` for each. Guesses go in `--check`.
-5. Claude runs `python3 scripts/build_tv.py --check`, commits `tv/finds.json` to `main`, and pushes. Within about five minutes the filed copy replaces the inbox copy on the TV, and the Atlas picks it up.
+2. It stores the video in KV as `tvin:<id>`, with the link, your line, the time of the line, and the date. The same video sent twice is stored once. A new line replaces the old one.
+3. Within a minute it is on the TV, first in Newest, under Bennett's finds, with your line under it. Its title is the platform, such as "Instagram video", until Claude files it. It has no place yet, so it has no map dot and no Atlas presence.
+4. Every Monday morning a scheduled task files the week's videos: place, coordinates, Atlas tradition, uses, what the video shows, credit. It runs `python3 scripts/tv_intake.py pull` to list what's waiting, then `python3 scripts/tv_intake.py add --url ... --label ... --place ... --la ... --lo ...` for each. Guesses go in `--check`.
+5. It runs `python3 scripts/tv_intake.py lines`, which copies your lines into `tv/finds.json` word for word, including new lines on videos filed earlier. Claude never writes or rewrites your line. If you ask Claude to change one, `add --note` stamps the change, so an older send can't overwrite it.
+6. It runs `python3 scripts/build_tv.py --check`, commits `tv/finds.json` to `main`, and pushes. Within about five minutes the filed copy replaces the inbox copy on the TV, and the Atlas picks it up.
 
-Instagram and Facebook block captions from servers, so Claude files those from your note, or from the post itself when your Mac is on with the Claude app open.
+Instagram and Facebook block captions from servers, so Claude files those from your line, or from the post itself when your Mac is on with the Claude app open.
 
 ## The @work_songs backlog
 
@@ -69,7 +76,7 @@ Takt runs these in `~/moving-music-player`.
 
 1. Merge `claude/movingmusic-tv-2026-11-12` into `main` and push. It is based on `claude/build-queue-2026-11-11`. The live finds read `tv/finds.json` from `main`, so this step turns them on.
 2. Set the inbox key: `cd worker && wrangler secret put TV_INBOX_KEY`, then paste the key.
-3. Deploy: `wrangler deploy`. The new `TV_INBOX_LIMIT` binding needs wrangler 4.36 or later. `TV_SHA` and `ATLAS_MAP_SHA` are already pinned to the TV commit. The live Atlas was byte-identical to this branch's Atlas before the TV changes, so the Atlas pin adds only the TV links and the live finds.
+3. Deploy: `wrangler deploy`. The new `TV_INBOX_LIMIT` binding needs wrangler 4.36 or later. `TV_SHA` and `ATLAS_MAP_SHA` are already pinned to the TV commit. The live Atlas was byte-identical to this branch's Atlas before the TV changes, so the Atlas pin adds only the TV links, the live finds with Bennett's lines, and one fix: opening a popup no longer throws "Maximum call stack size exceeded". The popups' keepInView setting fought the map's edge limits, so it is gone.
 4. In Ghost Admin, add a page titled movingmusicTV with the slug `tv`. Give it one HTML card holding the contents of `ghost/tv.card.html`. Publish.
 5. To list it in the site menu, add movingmusicTV, `/tv/`, in Ghost Admin, Settings, Navigation.
 6. Check the live site:
@@ -103,6 +110,7 @@ Legal context, not legal advice (Claude is not a lawyer): embedding is common pr
 - Instagram and Facebook players show their own frame and do not report when a video ends, so autoplay stops on those cards. YouTube, TikTok, and video files move on by themselves.
 - Some viewers see a login prompt inside Instagram's player.
 - A sent video shows at the end of the journey until it is filed with a place, because it has none. Newest order shows it first.
+- Your line publishes as sent. There is no review step, only a re-send to replace it.
 - `python3 scripts/build_tv.py --refresh-youtube` re-checks every YouTube video (200 plays, 401 embedding off, 404 gone). Instagram and Facebook links need a browser check.
 - The TV has no analytics yet.
 
@@ -112,8 +120,9 @@ Checked against the 111-concept list, for the items that apply:
 
 - Authentication: the inbox takes a key, compared in constant time. No key set, no inbox (503).
 - Rate limiting: 30 sends a minute per address through Cloudflare's rate limiting binding.
-- Idempotency: one KV key per video id, so a repeat send changes nothing. No read-modify-write, so two sends at once cannot overwrite each other.
-- Validation: only YouTube, Instagram, Facebook, TikTok, and video-file links get in. Notes are cut to 200 characters. The TV and the Atlas escape every text field before it reaches the page.
+- Idempotency: one KV key per video id, so a repeat send adds nothing. A repeat send with a new line replaces the line and keeps the link and date. If two sends of the same video with different lines land at once, the later write wins.
+- Validation: only YouTube, Instagram, Facebook, TikTok, and video-file links get in. Lines are cut to 280 characters at a word, and shorter if a very long link leaves less room in the 1,024-byte KV metadata. Em dashes and double hyphens become commas. The TV and the Atlas escape every text field before it reaches the page.
+- Data integrity: a line carries the time it was set (`noted`). The newer of the sent line and the filed line shows, so a later send beats the filing and a later edit beats an older send. `lines` copies the text as stored, with no retyping.
 - Caching and CDN: `/tv-finds.json` caches for 60 seconds at the edge and in the browser; a send clears that data center's copy. `tv.html` and `atlas-map.html` cache for an hour at the edge.
 - Rollbacks: page code changes only when a pin changes. Finds roll back with `git revert` on `main`.
 - Retries and failure: if `/tv-finds.json` fails, the TV shows the finds built into the page and the Atlas shows its own data. Nothing breaks.
@@ -124,6 +133,5 @@ Checked against the 111-concept list, for the items that apply:
 
 ## Open decisions
 
-- How often Claude files sent videos: every morning, once a week, or when Bennett asks.
 - Whether movingmusicTV goes in the site menu.
 - Which songbook each channel points to, for a "songs for this work" link on every card.

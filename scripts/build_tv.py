@@ -44,6 +44,7 @@ SITE = 'https://movingmusic.works'
 TV_WORKER_URL = 'https://mmp-sync.bennett-727.workers.dev/tv.html'
 TV_LIVE_URL = 'https://mmp-sync.bennett-727.workers.dev/tv-finds.json'  # finds plus the Send button inbox
 HOME = (44.43, -69.01)  # Belfast, Maine: the journey starts here
+LINE_MAX = 280  # Bennett's line under a video; LINE_MAX in worker/tv.js matches
 
 # Short labels for the channel buttons, in the Atlas order.
 CHIP = {
@@ -245,6 +246,10 @@ def validate_finds(finds, slugs):
         for k in ('label', 'place', 'note', 'by'):
             if has_dash(str(f.get(k, ''))):
                 problems.append('%s: em dash or double hyphen in %s' % (fid, k))
+        if len(str(f.get('note', ''))) > LINE_MAX:
+            problems.append('%s: note is over %d characters' % (fid, LINE_MAX))
+        if f.get('noted') and not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$', str(f['noted'])):
+            problems.append('%s: noted must be YYYY-MM-DDTHH:MM:SSZ' % fid)
     return problems
 
 
