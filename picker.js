@@ -7,7 +7,7 @@
  *
  * Gating replaces the old songbookGate() hide-after-3 behavior. On a
  * post, a song outside the pick (and outside free/courage/nasc) shows
- * only its first section plus a CTA. On the page of a songbook the
+ * only its first two sentences or lines, as plain text, plus a CTA. On the page of a songbook the
  * member did not pick, one CTA goes at the top of the list; songs get no
  * lock mark (Bennett, Nov 9: the mark also landed on songs open through
  * the member's own songbook).
@@ -17,9 +17,10 @@
  * (homepage and Songbooks page), on that songbook's page, and on each
  * song in it. Songs in the songbook get the starburst and no line.
  *
- * Locked songs lose their audio, video and embedded players along with
- * everything after the first section (Bennett, Nov 11: Dip Pull Swing
- * and Sowing Grain videos still played outside the member's songbook).
+ * Locked songs keep only that short teaser, so their audio, video and
+ * embedded players go too (Bennett, Nov 11: Dip Pull Swing and Sowing
+ * Grain videos still played outside the member's songbook; Nov 12: Dip
+ * Pull Swing still showed all of its text, having no headings).
  *
  * Load gated on window.MM_PICKER_ENABLED. Keep the flag false for
  * visitors until the switch-over; pick is final and the dozens of
@@ -32,7 +33,7 @@
 
   if (!window.MM_PICKER_ENABLED) return;
 
-  var VERSION = '1.1.0';
+  var VERSION = '1.2.0';
   var SYNC_URL = 'https://mmp-sync.bennett-727.workers.dev';
   var CONTENT_KEY = '4bb24d5f52e1f7397cb4fe24a5';
   var CONTENT_HOST = 'https://moving-music.ghost.io';
@@ -526,20 +527,90 @@
     return box;
   }
 
-  // Audio, video and embedded players (YouTube, Vimeo, Bandcamp and the
-  // like). Their files are public URLs, so removing the player is the
-  // only client-side protection a locked song has.
-  var PLAYER_SEL = '.kg-audio-card, .kg-video-card, .kg-embed-card, ' +
-    'audio, video, iframe';
+  // A locked song shows its first two sentences or lines as plain text,
+  // then the CTA (Bennett, Nov 12). The old rule kept everything above the
+  // first heading, so a song with no headings, like Dip Pull Swing, showed
+  // all of its text, and intros ran as long as 1,300 characters. Players,
+  // cards, headings and a "Video by" credit line are skipped.
+  var TEASER_UNITS = 2;
+  var TEASER_MAX = 320;
+  var CREDIT_RE = /^\s*video\s*(by\b|:|credit)/i;
+  var SENTENCE_RE = /(?:[.!?…]["”’)]*)\s+(?=["“‘(]?[A-Z0-9])/;
 
-  function removePlayer(el) {
-    var next = el.nextElementSibling;
-    el.remove();
-    // A credit line right under the player ("Video by ...") goes with it.
-    if (next && next.tagName === 'P' &&
-        /^\s*video\s*(by\b|:|credit)/i.test(next.textContent || '')) {
-      next.remove();
+  // Split a paragraph into lines (its <br>s) and each line into sentences.
+  function paragraphUnits(p) {
+    var copy = p.cloneNode(true);
+    var brs = copy.querySelectorAll('br');
+    for (var i = 0; i < brs.length; i++) {
+      brs[i].parentNode.replaceChild(document.createTextNode('\n'), brs[i]);
     }
+    var out = [];
+    copy.textContent.split(/\n+/).forEach(function (line) {
+      line = line.replace(/\s+/g, ' ').trim();
+      if (!line) return;
+      var first = true;
+      splitSentences(line).forEach(function (s) {
+        out.push({ text: s, newLine: first });
+        first = false;
+      });
+    });
+    return out;
+  }
+
+  // Sentence ends: . ! ? or an ellipsis, then a space and a capital,
+  // digit or opening quote. Keeps the punctuation with its sentence.
+  function splitSentences(line) {
+    var out = [];
+    var rest = line;
+    var m;
+    while ((m = SENTENCE_RE.exec(rest))) {
+      var end = m.index + m[0].length;
+      out.push(rest.slice(0, end).trim());
+      rest = rest.slice(end);
+    }
+    if (rest.trim()) out.push(rest.trim());
+    return out;
+  }
+
+  function teaserUnits(content) {
+    var units = [];
+    var kids = content.children;
+    for (var i = 0; i < kids.length && units.length < TEASER_UNITS; i++) {
+      var el = kids[i];
+      if (el.tagName !== 'P') continue;       // headings, cards, players
+      var text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!text || CREDIT_RE.test(text)) continue;
+      var pu = paragraphUnits(el);
+      for (var j = 0; j < pu.length && units.length < TEASER_UNITS; j++) {
+        units.push({ text: pu[j].text, newLine: pu[j].newLine || j === 0 });
+      }
+    }
+    return units;
+  }
+
+  function makeTeaser(units) {
+    if (!units.length) return null;
+    var p = document.createElement('p');
+    p.className = 'mm-picker-teaser';
+    var used = 0;
+    for (var i = 0; i < units.length; i++) {
+      var t = units[i].text;
+      var cut = used + t.length > TEASER_MAX;
+      if (cut) {
+        // Too long: end on a whole word with an ellipsis, and stop.
+        t = t.slice(0, Math.max(0, TEASER_MAX - used)).replace(/\s+\S*$/, '');
+        t = t ? t.replace(/[\s,;:]+$/, '') + '…' : '';
+      }
+      if (!t) break;
+      if (i > 0) {
+        p.appendChild(units[i].newLine ? document.createElement('br')
+          : document.createTextNode(' '));
+      }
+      p.appendChild(document.createTextNode(t));
+      used += t.length;
+      if (cut) break;
+    }
+    return p.childNodes.length ? p : null;
   }
 
   function gatePost(slugs, pick) {
@@ -548,31 +619,14 @@
 
     injectStyle();
 
-    // Locked: keep the opening section (everything up to the first
-    // <h2>), strip any player from it, drop the rest, append CTA.
+    // Locked: the teaser, then the CTA. Everything else goes, players
+    // included: their files are public URLs, so removing the player is
+    // the only client-side protection a locked song has.
     var content = document.querySelector('.gh-content');
     if (!content) return;
-    var children = Array.prototype.slice.call(content.children);
-    var sawH2 = false;
-    children.forEach(function (ch) {
-      if (!ch.parentNode) return;             // already removed
-      if (sawH2) { ch.remove(); return; }
-      if (ch.tagName && ch.tagName.toLowerCase() === 'h2') {
-        sawH2 = true;
-        ch.remove();
-        return;
-      }
-      if (ch.matches && ch.matches(PLAYER_SEL)) {
-        removePlayer(ch);
-        return;
-      }
-      var inner = ch.querySelectorAll ? ch.querySelectorAll(PLAYER_SEL) : [];
-      for (var a = 0; a < inner.length; a++) {
-        var wrap = inner[a].closest ? inner[a].closest('.kg-card') : null;
-        var target = (wrap && wrap !== ch && ch.contains(wrap)) ? wrap : inner[a];
-        if (target.parentNode) removePlayer(target);
-      }
-    });
+    var teaser = makeTeaser(teaserUnits(content));
+    while (content.firstChild) content.removeChild(content.firstChild);
+    if (teaser) content.appendChild(teaser);
 
     var cat = categoryOfPost(slugs);
     var line;
