@@ -176,7 +176,7 @@ export async function suggestionAct(request, env, id, action) {
   }
   let rec;
   try { rec = JSON.parse(v); } catch (e) { return json(500, { ok: false, message: 'Could not read it.' }); }
-  if (rec.kind !== 'video') return json(400, { ok: false, message: 'Only a video can be added. Mark a fix done.' });
+  if (rec.kind !== 'video') return json(400, { ok: false, message: 'Only a video can be added. Mark an improvement done.' });
   const first = String(rec.name || '').split(' ')[0];
   const r = await inboxAdd(env, rec.link, { tradition: rec.tradition, from: first ? 'Suggested by ' + first : 'Suggested by a visitor' });
   if (r.status >= 300) return json(r.status, { ok: false, message: r.message + ' Add it by hand, or drop it.' });
@@ -269,7 +269,7 @@ export const REVIEW_HTML = `<!DOCTYPE html>
       ? '<button class="primary" data-a="add">Add to the TV</button><button data-a="drop">Drop</button>'
       : '<button data-a="copy">Copy</button><button class="primary" data-a="drop">Done</button>';
     return '<article class="card" data-id="' + esc(s.id) + '">' +
-      '<div class="lbl">' + (s.kind === 'video' ? 'A video for' : 'A fix for') + ' &middot; ' + esc(String(s.at || '').slice(0, 10)) + '</div>' +
+      '<div class="lbl">' + (s.kind === 'video' ? 'A video for' : 'An improvement for') + ' &middot; ' + esc(String(s.at || '').slice(0, 10)) + '</div>' +
       '<h2>' + where + '</h2>' +
       (s.link ? '<div class="link"><a href="' + esc(s.link) + '" target="_blank" rel="noopener noreferrer">' + esc(s.link) + '</a></div>' : '') +
       (s.text ? '<div class="text">' + esc(s.text) + '</div>' : '') +
@@ -298,7 +298,7 @@ export const REVIEW_HTML = `<!DOCTYPE html>
       if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { msg.textContent = 'Copied. Paste it to Claude.'; });
       return;
     }
-    if (a === 'drop' && !confirm(s.kind === 'video' ? 'Drop this suggestion? It is deleted, email included.' : 'Mark this fix done? It is deleted, email included.')) return;
+    if (a === 'drop' && !confirm(s.kind === 'video' ? 'Drop this suggestion? It is deleted, email included.' : 'Mark this done? It is deleted, email included.')) return;
     [].forEach.call(c.querySelectorAll('button'), function (x) { x.disabled = true; });
     api('/suggestions/' + encodeURIComponent(id) + '/' + a, 'POST').then(function (j) {
       msg.textContent = j.message || (j.ok ? 'Done.' : 'That did not work.');
