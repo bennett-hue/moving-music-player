@@ -361,15 +361,19 @@ def build_page(data):
 def build_card():
     """The Ghost page /tv/: one HTML card. The mm theme puts page content on a paper card at most
     820px wide, which squeezed the TV into its phone layout. On this page the card loses its paper
-    and width limit, and the TV fills the window between the site header and the player bar."""
+    and width limit, the footer goes, and the TV fills the window between the site header and the
+    player bar. The page then has nothing to scroll, so the header stays put."""
     return ('<style>\n'
             '  body.page-tv .mm-pagewrap{padding:10px 0 0!important}\n'
             '  body.page-tv .mm-pagewrap .mm-wrap{max-width:1460px;'
             'padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}\n'
             '  body.page-tv .mm-page-island{max-width:none;padding:0;background:none;box-shadow:none}\n'
-            '  .tv-embed-wrap{margin:0}\n'
-            '  #tv-iframe{display:block;width:100%;height:calc(100vh - 210px);height:calc(100svh - 210px);'
-            'min-height:480px;border:0;border-radius:6px;background:#1b1814}\n'
+            '  body.page-tv .gh-content.mm-prose > .tv-embed-wrap{margin:0}\n'
+            '  body.page-tv .mm-foot{display:none}\n'
+            '  body.page-tv{padding-bottom:0!important}\n'
+            '  body.page-tv .site{min-height:0!important}\n'
+            '  #tv-iframe{display:block;width:100%;height:calc(100vh - 190px);height:calc(100svh - 190px);'
+            'min-height:360px;border:0;border-radius:6px;background:#1b1814}\n'
             '  @media (max-width:700px){body.page-tv .mm-pagewrap .mm-wrap{padding-left:0;padding-right:0}'
             '#tv-iframe{border-radius:0}}\n'
             '</style>\n'
@@ -381,11 +385,13 @@ def build_card():
             '<script data-mark="tv-iframe-forward">(function(){var i=document.getElementById("tv-iframe");if(!i)return;'
             'var s=i.getAttribute("data-src");if(location.hash){var sep=s.indexOf("?")>-1?"&":"?";'
             's+=sep+"state="+encodeURIComponent(location.hash.substring(1));}i.setAttribute("src",s);})();</script>\n'
-            # Fit the TV between the header and the player bar, at any header height.
+            # Fit the TV between the header and the player bar, at any header height. The page loses
+            # its footer and the padding it keeps for the bar, so it is no taller than the window and
+            # has nothing to scroll.
             '<script data-mark="tv-iframe-fit">(function(){var i=document.getElementById("tv-iframe");if(!i)return;'
             'var raf=0;function fit(){raf=0;var top=i.getBoundingClientRect().top+(window.scrollY||0);'
-            'var bar=document.querySelector(".mmp-bar.is-visible");var b=bar?bar.getBoundingClientRect().height:0;'
-            'i.style.height=Math.max(480,Math.round(window.innerHeight-top-b-10))+"px";}'
+            'var bar=document.querySelector(".mmp-bar.is-visible");var b=(bar?bar.getBoundingClientRect().height:0)+10;'
+            'i.style.height=Math.max(360,Math.floor(window.innerHeight-top-b))+"px";}'
             'function soon(){if(!raf)raf=requestAnimationFrame(fit);}'
             'fit();addEventListener("resize",soon);addEventListener("orientationchange",soon);'
             'setTimeout(soon,600);setTimeout(soon,2000);'
