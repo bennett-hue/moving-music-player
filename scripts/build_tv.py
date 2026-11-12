@@ -42,6 +42,7 @@ OUT_CARD = os.path.join(ROOT, 'ghost', 'tv.card.html')
 
 SITE = 'https://movingmusic.works'
 TV_WORKER_URL = 'https://mmp-sync.bennett-727.workers.dev/tv.html'
+TV_LIVE_URL = 'https://mmp-sync.bennett-727.workers.dev/tv-finds.json'  # finds plus the Send button inbox
 HOME = (44.43, -69.01)  # Belfast, Maine: the journey starts here
 
 # Short labels for the channel buttons, in the Atlas order.
@@ -56,7 +57,7 @@ SHOWS = {
     'concert': ['People in concert', atlas.DELIVERY_COLOR['concert']],
 }
 SHOWS_ORDER = {'at-work': 0, 'shared': 1, 'concert': 2, '': 3}
-PLATFORMS = ('instagram', 'facebook', 'tiktok', 'youtube')
+PLATFORMS = ('instagram', 'facebook', 'tiktok', 'youtube', 'file')
 NO_CREDIT = {'release', 'n/a', ''}
 LAND_COLS = 120
 
@@ -83,6 +84,25 @@ def parse_video(url):
     if re.search(r'\.(?:mp4|webm|m4v)(?:\?|$)', u, re.I):
         return {'p': 'file', 'k': u, 'st': 0, 'o': 'h'}
     return None
+
+
+def canonical(url, pv):
+    """One URL per video, the same as canonical() in worker/tv.js: share-tracking
+    parameters (igsh, si, mibextid, utm_*) go, so a video sent twice gets one id."""
+    if pv['p'] == 'yt':
+        v = pv['o'] == 'v'
+        out = ('https://www.youtube.com/shorts/' if v else 'https://www.youtube.com/watch?v=') + pv['k']
+        return out + ((('?t=' if v else '&t=') + str(pv['st'])) if pv['st'] else '')
+    if pv['p'] == 'ig':
+        return 'https://www.instagram.com/' + pv['k'] + '/'
+    if pv['p'] == 'tt':
+        return re.split(r'[?#]', url)[0]
+    if pv['p'] == 'fb':
+        parts = urllib.parse.urlsplit(url)
+        keep = [(k, v) for k, v in urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+                if not re.match(r'^(mibextid|rdid|share_url|sfnsn|s|fs|extid|ref|__cft__\[0\]|__tn__|utm_.*)$', k)]
+        return urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(keep), ''))
+    return url
 
 
 def item_id(pv):
@@ -233,40 +253,42 @@ def clean_label(t):
     return re.sub(r'\s*\((?:Facebook|Instagram|TikTok) video, opens elsewhere\)', '', t).strip()
 
 
+def slim_find(f):
+    """The fields the page needs; check, from, and the rest stay in the repo."""
+    keep = ('id', 'platform', 'url', 'by', 'label', 'place', 'la', 'lo', 'tradition', 'uses', 'shows',
+            'orient', 'added', 'note')
+    return {k: f[k] for k in keep if k in f and f[k] not in ('', None, [])}
+
+
 def build_data(entries, finds, ytmeta, src, hide=()):
+    """Atlas stops and videos, plus the finds as they are. The page merges the finds
+    (and the live inbox) and works out the order, so the same code serves both."""
     P = projection_constants(src)
     project = make_project(P)
-    slug_of = {atlas.slugify(e['n']): e for e in entries}
     hide = set(hide)
+    stops, items, notes, seen = [], [], [], {}
 
-    stops, items, problems = [], [], []
-    stop_index, seen = {}, {}
-
-    def add_stop(key, rec):
-        stop_index[key] = len(stops)
-        stops.append(rec)
-        return stop_index[key]
-
-    # Atlas videos, one stop per tradition that has something TV can play.
+    # Every Atlas tradition is a stop, so a find can join any of them.
     for e in entries:
         slug = atlas.slugify(e['n'])
-        playable = [(v, parse_video(v['u'])) for v in e['v']]
-        playable = [(v, pv) for v, pv in playable if pv and item_id(pv) not in hide]
-        if not playable:
-            continue
-        si = add_stop(slug, {'id': slug, 'n': e['n'], 'p': e['p'], 'la': e['la'], 'lo': e['lo'],
-                             's': e.get('s', ''), 'u': e['u'], 'atlas': 1})
-        for v, pv in playable:
+        si = len(stops)
+        x, y = project(e['la'], e['lo'])
+        stops.append({'id': slug, 'n': e['n'], 'p': e['p'], 'la': e['la'], 'lo': e['lo'],
+                      'x': round(x, 1), 'y': round(y, 1), 's': e.get('s', ''), 'u': e['u'], 'atlas': 1})
+        for v in e['v']:
+            pv = parse_video(v['u'])
+            if not pv or item_id(pv) in hide:
+                continue
             iid = item_id(pv)
             if iid in seen:
-                problems.append('video %s is on two traditions (%s, %s); TV shows it once' % (
+                notes.append('video %s is on two traditions (%s, %s); TV shows it once' % (
                     iid, stops[seen[iid]['s']]['id'], slug))
                 continue
             by, ar = '', '16:9'
             if pv['p'] == 'yt':
                 meta = ytmeta.get(pv['k'])
                 if not meta:
-                    problems.append('%s: not in tv/youtube-meta.json; run --refresh-youtube' % iid)
+                    notes.append('%s: not in tv/youtube-meta.json; run --refresh-youtube' % iid)
                 else:
                     by = credit(meta[0])
                     ar = '4:3' if meta[2] and meta[1] and meta[2] / meta[1] > 0.66 else '16:9'
@@ -282,85 +304,42 @@ def build_data(entries, finds, ytmeta, src, hide=()):
             seen[iid] = it
             items.append(it)
 
-    # Bennett's finds.
+    kept = []
     for f in finds:
-        pv = parse_video(f['url'])
-        if not pv or item_id(pv) in hide:
+        if f['id'] in hide:
             continue
-        iid = item_id(pv)
-        if iid in seen:
-            problems.append('%s is already on the Atlas (%s); the find is skipped' % (iid, stops[seen[iid]['s']]['id']))
+        if f['id'] in seen:
+            notes.append('%s is already on the Atlas (%s); the TV shows the Atlas copy' % (
+                f['id'], stops[seen[f['id']]['s']]['id']))
             continue
-        if f.get('tradition'):
-            si = stop_index[f['tradition']] if f['tradition'] in stop_index else None
-            if si is None:  # an Atlas tradition with no playable video yet: the find opens it
-                e = slug_of[f['tradition']]
-                si = add_stop(f['tradition'], {'id': f['tradition'], 'n': e['n'], 'p': e['p'], 'la': e['la'],
-                                               'lo': e['lo'], 's': e.get('s', ''), 'u': e['u'], 'atlas': 1})
-        else:
-            si = add_stop('find:' + iid, {'id': '', 'n': f['label'], 'p': f.get('place', ''), 'la': f.get('la'),
-                                         'lo': f.get('lo'), 's': '', 'u': f.get('uses', []), 'atlas': 0})
-        it = {'id': iid, 'p': pv['p'], 'k': pv['k'], 'u': f['url'], 't': f['label'], 'by': f.get('by', ''),
-              'st': pv['st'], 'ar': '9:16' if f['orient'] == 'v' else '16:9', 'sh': f.get('shows', ''),
-              's': si, 'f': 1, 'a': f['added'], 'n': f.get('note', ''), 'u2': f.get('uses', [])}
-        if f.get('tradition'):
-            it['pl'] = f.get('place', '')
-            if f.get('la') is not None:
-                it['la'], it['lo'] = f['la'], f['lo']
-        seen[iid] = it
-        items.append(it)
-
-    # Journey: nearest neighbour from Belfast, Maine, stop to stop.
-    placed = [i for i, s in enumerate(stops) if s['la'] is not None]
-    unplaced = [i for i, s in enumerate(stops) if s['la'] is None]
-    route, here, left = [], HOME, set(placed)
-    while left:
-        nxt = min(left, key=lambda i: (km(here, (stops[i]['la'], stops[i]['lo'])), i))
-        route.append(nxt)
-        left.discard(nxt)
-        here = (stops[nxt]['la'], stops[nxt]['lo'])
-    route += unplaced
-
-    by_stop = {}
-    for idx, it in enumerate(items):
-        by_stop.setdefault(it['s'], []).append(idx)
-
-    def stop_items(si):
-        return sorted(by_stop.get(si, []), key=lambda i: (-items[i]['f'], SHOWS_ORDER.get(items[i]['sh'], 3), i))
-
-    journey = [i for si in route for i in stop_items(si)]
-    finds_first = sorted([i for i in journey if items[i]['f']], key=lambda i: items[i]['a'], reverse=True)
-    newest = finds_first + [i for i in journey if not items[i]['f']]
-
-    for s in stops:  # projected position for the map
-        if s['la'] is not None:
-            x, y = project(s['la'], s['lo'])
-            s['x'], s['y'] = round(x, 1), round(y, 1)
-    for it in items:
-        if 'la' in it:
-            x, y = project(it['la'], it['lo'])
-            it['x'], it['y'] = round(x, 1), round(y, 1)
-        if 'u2' in it and not it['u2']:
-            del it['u2']
+        kept.append(slim_find(f))
 
     land = land_mask(src, P, project)
     data = {
         'built': datetime.date.today().isoformat(),
         'site': SITE,
+        'live': TV_LIVE_URL,
+        'home': list(HOME),
+        'proj': P,
         'uses': [[slug, CHIP[slug], label] for slug, label in atlas.USE_LABEL],
         'shows': SHOWS,
         'stops': stops,
         'items': items,
-        'journey': journey,
-        'newest': newest,
+        'finds': kept,
+        'hide': sorted(hide),
         'img': [P['IMGW'], P['IMGH']],
         'land': {'cols': land['cols'], 'rows': land['rows'], 'bits': land['bits']},
         'outline': outline(P, project),
     }
-    stats = {'stops': len(stops), 'items': len(items), 'finds': sum(it['f'] for it in items),
-             'land_dots': land['dots'], 'unplaced': len(unplaced),
+    used = {it['s'] for it in items}
+    stats = {'stops': len(used), 'items': len(items) + len(kept), 'finds': len(kept),
+             'unplaced': sum(1 for f in kept if f.get('la') is None), 'land_dots': land['dots'],
              'platforms': {p: sum(1 for it in items if it['p'] == p) for p in ('yt', 'ig', 'fb', 'tt', 'file')}}
-    return data, stats, problems
+    for f in kept:
+        code = (parse_video(f['url']) or {}).get('p')
+        if code:
+            stats['platforms'][code] += 1
+    return data, stats, notes
 
 
 # ---------- outputs ----------
@@ -446,8 +425,8 @@ def main():
         print('  hidden on the TV: ' + ', '.join(hidden))
     for n in notes:
         print('  note:', n)
-    print('TV: %(items)d videos at %(stops)d stops (%(finds)d finds, %(unplaced)d without a place), '
-          '%(land_dots)d land dots' % stats)
+    print('TV: %(items)d videos (%(finds)d finds, %(unplaced)d without a place), Atlas videos at %(stops)d '
+          'traditions, %(land_dots)d land dots' % stats)
     print('    by platform: ' + ', '.join('%s %d' % kv for kv in stats['platforms'].items()))
     if '--check' in sys.argv:
         return

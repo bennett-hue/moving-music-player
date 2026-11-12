@@ -732,6 +732,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
   .leaflet-popup-content a:hover { opacity: 0.75; }
   .leaflet-popup-content .tv-row { margin-top: 6px; }
   .leaflet-popup-content a.tv-link { color: #8A2F22; border-bottom-color: #8A2F22; font-weight: 600; }
+  .leaflet-popup-content .find-head { margin-top: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #8A2F22; font-weight: 700; }
+  .leaflet-popup-content .find-row { margin-top: 3px; }
+  .leaflet-popup-content .find-src { color: #888; font-size: 11px; }
 </style>
 <div class="atlas-controls">
   <h1 style="display:none">The Worksong Atlas</h1>
@@ -1080,6 +1083,7 @@ document.querySelectorAll('.fpill').forEach(function (btn) {
 });
 
 function anyMatch(entryList, activeSet) {
+  if (entryList === null) return true;  // a find with no tags yet passes the use filter
   if (activeSet.size === 0) return false;
   if (!entryList || entryList.length === 0) return activeSet.has('');
   return entryList.some(function (t) { return activeSet.has(t); });
@@ -1132,6 +1136,52 @@ document.addEventListener('click', function (ev) {
   popup.querySelectorAll('a.vid-swap').forEach(function (el) { el.removeAttribute('data-current'); });
   a.setAttribute('data-current', '1');
 });
+
+// Bennett's finds from movingmusicTV, fetched live from the worker. A find tied to
+// a tradition is listed in that tradition's popup. A find with a place of its own
+// gets a dot with a brick ring. A find without a place shows on the TV only.
+(function () {
+  if (!window.fetch) return;
+  var LIVE = 'https://mmp-sync.bennett-727.workers.dev/tv-finds.json';
+  var NAMES = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', youtube: 'YouTube', file: 'Video' };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function tvUrl(f) { return 'https://movingmusic.works/tv/#v=' + encodeURIComponent(f.id); }
+  function isNum(v) { return typeof v === 'number' && isFinite(v); }
+  fetch(LIVE).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+    if (!data || !Array.isArray(data.finds)) return;
+    var hidden = {};
+    (data.hide || []).forEach(function (h) { hidden[(h && h.id) || h] = 1; });
+    var bySlug = {};
+    markers.forEach(function (m) { if (!m._entry.find) bySlug[tvSlug(m._entry.n)] = m; });
+    data.finds.forEach(function (f) {
+      if (!f || typeof f.id !== 'string' || hidden[f.id] || !/^https:\/\//.test(f.url || '')) return;
+      var m = f.tradition && bySlug[f.tradition];
+      if (m) {
+        var html = m.getPopup().getContent();
+        if (html.indexOf('find-head') < 0) html = html.replace(/<\/div>$/, '<div class="find-head">Bennett\'s finds</div></div>');
+        html = html.replace(/<\/div>$/, '<div class="find-row"><a class="tv-link" target="_top" href="' + tvUrl(f) + '">' +
+          esc(f.label || 'Video') + '</a> <span class="find-src">' + esc(NAMES[f.platform] || '') + '</span></div></div>');
+        m.setPopupContent(html);
+        return;
+      }
+      if (!isNum(f.la) || !isNum(f.lo)) return;
+      var entry = { n: String(f.label || 'Video'), p: String(f.place || ''), d: f.shows ? [String(f.shows)] : [],
+        u: Array.isArray(f.uses) && f.uses.length ? f.uses : null, v: [], find: true };
+      var color = DELIVERY_COLOR[entry.d[0] || ''] || DELIVERY_COLOR[''];
+      var popup = '<div class="wm-popup"><strong>' + esc(entry.n) + '</strong><br><span style="color:#666;font-size:12px">' + esc(entry.p) + '</span>' +
+        (f.note ? '<div style="font-size:12.5px;color:#333;margin-top:5px">' + esc(f.note) + '</div>' : '') +
+        '<div class="tv-row"><a class="tv-link" target="_top" href="' + tvUrl(f) + '">Watch on movingmusicTV</a></div>' +
+        '<div style="margin-top:3px"><a href="' + esc(f.url) + '" target="_blank" rel="noopener noreferrer">' + esc(NAMES[f.platform] || 'Original') + ' post</a></div>' +
+        '<div class="find-head">Bennett\'s find, not a tradition on the Atlas yet</div></div>';
+      var nm = L.circleMarker(project(f.la, f.lo), { radius: 7, color: '#8A2F22', weight: 2.5, fillColor: color, fillOpacity: 0.9 })
+        .bindPopup(popup, { maxWidth: 320, minWidth: 260, autoPan: true, autoPanPaddingTopLeft: [30, 90], autoPanPaddingBottomRight: [30, 30], keepInView: true })
+        .bindTooltip(entry.n + (entry.p ? ', ' + entry.p : ''), { direction: 'top', offset: [0, -6], className: 'wm-tooltip', sticky: false });
+      nm._entry = entry;
+      markers.push(nm);
+      if (anyMatch(entry.d, activeFilters.d) && anyMatch(entry.u, activeFilters.u)) nm.addTo(map);
+    });
+  }).catch(function () {});
+})();
 
 // Deep-link: open a specific pin's popup on load.
 // The Ghost /atlas/ page passes the parent's hash via ?state=<encoded-hash>.

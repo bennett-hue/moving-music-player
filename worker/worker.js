@@ -1,5 +1,7 @@
 // Moving Music Player sync — Cloudflare Worker + KV
 //
+// movingmusicTV routes (/tv.html, /tv-finds.json, /tv-inbox) are in tv.js.
+//
 // Routes:
 //   GET  /playlist/:uuid       → stored playlist JSON (or "null")
 //   PUT  /playlist/:uuid       → stores playlist JSON for this member
@@ -26,6 +28,8 @@
 // short random shareId as the secret. Anyone with the shareId can read
 // or overwrite the entry. Acceptable for the "share my gig setlist with
 // a co-performer" use case; harden later if abuse appears.
+
+import { tvFindsGet, tvInboxPost } from './tv.js';
 
 const ALLOWED_ORIGIN = 'https://movingmusic.works';
 
@@ -90,6 +94,7 @@ async function rateLimit(env, kind, ip) {
   if (!ip) return { ok: true };
   const limiter = kind === 'pick-get' ? env.PICK_GET_LIMIT
     : kind === 'pick-post' ? env.PICK_POST_LIMIT
+    : kind === 'tv-inbox' ? env.TV_INBOX_LIMIT
     : null;
   if (!limiter) return { ok: true };
   try {
@@ -556,7 +561,7 @@ async function servePinnedPage(path, sha) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders() });
     }
@@ -572,6 +577,16 @@ export default {
     // Public route: movingmusicTV, embedded on the Ghost page /tv/.
     if (url.pathname === '/tv.html' && request.method === 'GET') {
       return serveTv(request);
+    }
+
+    // movingmusicTV live data (public) and the Send button inbox (keyed).
+    if (url.pathname === '/tv-finds.json' && request.method === 'GET') {
+      return tvFindsGet(request, env, ctx);
+    }
+    if (url.pathname === '/tv-inbox' && request.method === 'POST') {
+      const rl = await rateLimit(env, 'tv-inbox', clientIp(request));
+      if (!rl.ok) return new Response('rate limited', { status: 429, headers: { 'Retry-After': String(rl.retryAfter) } });
+      return tvInboxPost(request, env);
     }
 
     // Route picker: writes "route-<slug>" label on a Ghost member.

@@ -152,8 +152,8 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     <div class="brand">movingmusic<span class="tag">TV</span></div>
     <button class="pill small more" id="o-more" aria-expanded="false" aria-controls="ctrl">Options</button>
     <div class="ctrl" id="ctrl" role="group" aria-label="Viewing options">
-      <button class="pill small" id="o-journey" aria-pressed="true" title="Start in Maine and travel to the nearest place each time">Journey</button>
-      <button class="pill small" id="o-newest" aria-pressed="false" title="Newest finds first">Newest</button>
+      <button class="pill small" id="o-newest" aria-pressed="true" title="Newest finds first, then the journey">Newest</button>
+      <button class="pill small" id="o-journey" aria-pressed="false" title="Start in Maine and travel to the nearest place each time">Journey</button>
       <button class="pill small" id="o-work" aria-pressed="false" title="Only videos where the song is sung while the work happens">At work only</button>
       <button class="pill small" id="o-auto" aria-pressed="true" title="When a video ends, play the next one">Autoplay</button>
     </div>
@@ -178,7 +178,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
 (function () {
   'use strict';
   var TV = JSON.parse(document.getElementById('tv-data').textContent);
-  var ITEMS = TV.items, STOPS = TV.stops;
+  var ITEMS = [], STOPS = [], ORDER = { journey: [], newest: [] }, pendingData = null;
   var IMGW = TV.img[0], IMGH = TV.img[1];
   var RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var FRAMED = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
@@ -194,8 +194,103 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     return out;
   })();
 
+  // ---------- data: Atlas videos plus Bennett's finds ----------
+  // Same rules as parse_video() in scripts/build_tv.py and parseVideo() in worker/tv.js.
+  function parseVideo(url) {
+    var u = String(url || '').trim(), m;
+    if ((m = u.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*?&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/))) {
+      var st = u.match(/[?&#](?:t|start)=(\d+)/);
+      return { p: 'yt', k: m[1], st: st ? +st[1] : 0, o: /\/shorts\//.test(u) ? 'v' : 'h' };
+    }
+    if ((m = u.match(/instagram\.com\/(?:[\w.]+\/)?(reels?|p|tv)\/([\w-]+)/))) return { p: 'ig', k: (m[1].indexOf('reel') === 0 ? 'reel' : m[1]) + '/' + m[2], st: 0, o: 'v' };
+    if ((m = u.match(/tiktok\.com\/(?:@[\w.-]+\/video\/|player\/v1\/|embed\/v2\/)(\d+)/))) return { p: 'tt', k: m[1], st: 0, o: 'v' };
+    if (/(?:^|\/\/|\.)(?:facebook\.com|fb\.watch)\//.test(u)) return { p: 'fb', k: u, st: 0, o: /\/reel\//.test(u) ? 'v' : 'h' };
+    if (/\.(?:mp4|webm|m4v)(?:\?|$)/i.test(u)) return { p: 'file', k: u, st: 0, o: 'h' };
+    return null;
+  }
+  // Same projection as atlas-map.html, so a find sits where its Atlas pin would.
+  function project(lat, lon) {
+    var P = TV.proj, lon2 = ((lon - P.LAM0 + 180) % 360 + 360) % 360 - 180;
+    var lam = lon2 * Math.PI / 180, phi = lat * Math.PI / 180, a = Math.abs(phi);
+    var y = phi * (1 + a * a * (0.112579 + a * (-0.107505 + a * 0.0273759)));
+    var x = Math.log(1 + 0.11679 * Math.abs(lam)) / 0.31255;
+    if (a <= 1.36258) x *= 1.22172 + Math.sqrt(Math.max(0, 2.115292 - y * y));
+    else { var t = 4.5848 + Math.abs(y); x *= Math.sqrt(Math.abs(38.4304449 - t * t)); }
+    if (lam < 0) x = -x;
+    return [P.AX * x + P.BX, P.AY * y + P.BY];
+  }
+  function km(a, b) {
+    var r = Math.PI / 180, h = Math.pow(Math.sin((b[0] - a[0]) * r / 2), 2) +
+      Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.pow(Math.sin((b[1] - a[1]) * r / 2), 2);
+    return 2 * 6371 * Math.asin(Math.sqrt(h));
+  }
+  function isNum(v) { return typeof v === 'number' && isFinite(v); }
+  // Merge finds into the Atlas videos, then order everything. A find with an Atlas
+  // tradition joins that stop; any other find is a stop of its own.
+  function assemble(finds, hide) {
+    var hid = {};
+    (hide || []).forEach(function (h) { hid[(h && h.id) || h] = 1; });
+    var stops = TV.stops.map(function (s) { return Object.assign({}, s); });
+    var byId = {};
+    stops.forEach(function (s, i) { byId[s.id] = i; });
+    var items = TV.items.filter(function (it) { return !hid[it.id]; }).map(function (it) { return Object.assign({}, it); });
+    var seen = {};
+    items.forEach(function (it) { seen[it.id] = 1; });
+    (finds || []).forEach(function (f) {
+      if (!f || typeof f.id !== 'string' || hid[f.id] || seen[f.id]) return;
+      var pv = parseVideo(f.url);
+      if (!pv || !/^https:\/\//.test(f.url)) return;
+      seen[f.id] = 1;
+      var hasXY = isNum(f.la) && isNum(f.lo), label = String(f.label || PLAT[pv.p] + ' video');
+      var si = f.tradition && byId[f.tradition] != null ? byId[f.tradition] : -1;
+      if (si < 0) {
+        si = stops.length;
+        var st = { id: '', n: label, p: String(f.place || ''), la: hasXY ? f.la : null, lo: hasXY ? f.lo : null, s: '', u: Array.isArray(f.uses) ? f.uses : [], atlas: 0 };
+        if (hasXY) { var xy = project(f.la, f.lo); st.x = xy[0]; st.y = xy[1]; }
+        stops.push(st);
+      }
+      var it = { id: f.id, p: pv.p, k: pv.k, u: f.url, t: label, by: String(f.by || ''), st: pv.st,
+        ar: (f.orient || pv.o) === 'h' ? '16:9' : '9:16', sh: String(f.shows || ''), s: si, f: 1,
+        a: String(f.added || ''), n: String(f.note || '') };
+      if (Array.isArray(f.uses) && f.uses.length) it.u2 = f.uses;
+      if (stops[si].atlas) {
+        if (f.place) it.pl = String(f.place);
+        if (hasXY) { var q = project(f.la, f.lo); it.x = q[0]; it.y = q[1]; }
+      }
+      items.push(it);
+    });
+    // Journey: start in Belfast, go to the nearest place each time.
+    var byStop = {};
+    items.forEach(function (it, i) { (byStop[it.s] = byStop[it.s] || []).push(i); });
+    var used = Object.keys(byStop).map(Number).sort(function (a, b) { return a - b; });
+    var left = used.filter(function (si) { return stops[si].la != null; }), route = [], here = TV.home;
+    while (left.length) {
+      var best = 0, bd = Infinity;
+      for (var j = 0; j < left.length; j++) {
+        var s = stops[left[j]], d = km(here, [s.la, s.lo]);
+        if (d < bd || (d === bd && left[j] < left[best])) { bd = d; best = j; }
+      }
+      var nx = left.splice(best, 1)[0];
+      route.push(nx); here = [stops[nx].la, stops[nx].lo];
+    }
+    route = route.concat(used.filter(function (si) { return stops[si].la == null; }));
+    var rank = { 'at-work': 0, shared: 1, concert: 2 };
+    function r(i) { var v = rank[items[i].sh]; return v == null ? 3 : v; }
+    var journey = [];
+    route.forEach(function (si) {
+      byStop[si].slice().sort(function (a, b) { return (items[b].f - items[a].f) || (r(a) - r(b)) || (a - b); })
+        .forEach(function (i) { journey.push(i); });
+    });
+    var fresh = journey.filter(function (i) { return items[i].f; })
+      .sort(function (a, b) { return (items[b].a || '').localeCompare(items[a].a || ''); });
+    return { items: items, stops: stops, order: { journey: journey, newest: fresh.concat(journey.filter(function (i) { return !items[i].f; })) } };
+  }
+  function commit(d) { ITEMS = d.items; STOPS = d.stops; ORDER = d.order; }
+  function applyPending() { if (pendingData) { commit(pendingData); pendingData = null; updateFine(); } }
+  commit(assemble(TV.finds, TV.hide));
+
   // ---------- state ----------
-  var state = { channel: 'all', order: 'journey', atWork: false, autoplay: true, engaged: false, list: [], cur: -1, trail: [] };
+  var state = { channel: 'all', order: 'newest', atWork: false, autoplay: true, engaged: false, list: [], cur: -1, trail: [] };
   var live = null, pendingPlay = -1, settleTimer = 0;
 
   function uses(it) { return it.u2 || STOPS[it.s].u || []; }
@@ -206,7 +301,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   }
   function passes(it, ch) { return inChannel(it, ch) && (!state.atWork || it.sh === 'at-work'); }
   function computeList() {
-    state.list = TV[state.order].filter(function (i) { return passes(ITEMS[i], state.channel); });
+    state.list = ORDER[state.order].filter(function (i) { return passes(ITEMS[i], state.channel); });
   }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function placeOf(it) { return it.pl || STOPS[it.s].p || ''; }
@@ -225,7 +320,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     var chans = [['all', 'All', '']].concat([['finds', "Bennett's finds", '']]);
     TV.uses.forEach(function (u, n) { chans.push([u[0], u[1], String(n + 1), u[2]]); });
     var html = chans.map(function (c) {
-      var count = TV.journey.filter(function (i) { return passes(ITEMS[i], c[0]); }).length;
+      var count = ORDER.journey.filter(function (i) { return passes(ITEMS[i], c[0]); }).length;
       return '<button class="pill" data-ch="' + c[0] + '" aria-pressed="' + (state.channel === c[0]) + '"' +
         (count ? '' : ' disabled') + (c[3] ? ' title="' + esc(c[3]) + '"' : '') + '>' +
         (c[2] ? '<span class="num">' + c[2] + '</span>' : '') + esc(c[1]) + '<span class="cnt">' + count + '</span></button>';
@@ -280,6 +375,12 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   }
 
   function rebuild(startAt) {
+    if (pendingData) {  // newer finds arrived while a video was playing: use them now
+      var keepId = startAt != null && ITEMS[startAt] ? ITEMS[startAt].id : null;
+      applyPending();
+      renderChannels();
+      if (keepId) { startAt = null; for (var q = 0; q < ITEMS.length; q++) if (ITEMS[q].id === keepId) { startAt = q; break; } }
+    }
     unmount();
     computeList();
     var feed = $('feed');
@@ -657,24 +758,59 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     resizeTimer = setTimeout(function () { stripView = null; updatePanels(); var c = cardAt(state.cur); if (c) $('feed').scrollTo({ top: c.offsetTop }); }, 150);
   });
 
-  var places = {};
-  STOPS.forEach(function (s) { if (s.x != null) places[s.x + ',' + s.y] = 1; });
-  $('fine').innerHTML = ITEMS.length + ' videos from ' + Object.keys(places).length + ' places, updated ' + esc(TV.built) + '. ' +
-    'Each video plays from its original post, with credit to whoever posted it. ' +
-    'To have a video taken down, <a target="_top" href="' + TV.site + '/about/">contact Bennett</a>.';
-
-  var want = readState(), startAt = null, ch = 'all';
-  if (want.channel && (want.channel === 'finds' || TV.uses.some(function (u) { return u[0] === want.channel; }))) ch = want.channel;
-  if (want.v) {
-    for (var i = 0; i < ITEMS.length; i++) if (ITEMS[i].id === want.v) { startAt = i; break; }
-  } else if (want.tradition) {
-    for (var j = 0; j < TV.journey.length; j++) if (STOPS[ITEMS[TV.journey[j]].s].id === want.tradition) { startAt = TV.journey[j]; break; }
+  function updateFine() {
+    var places = {};
+    ITEMS.forEach(function (it) { var xy = xyOf(it); if (xy) places[Math.round(xy[0]) + ',' + Math.round(xy[1])] = 1; });
+    $('fine').innerHTML = ITEMS.length + ' videos from ' + Object.keys(places).length + ' places. ' +
+      'Each video plays from its original post, with credit to whoever posted it. ' +
+      'To have a video taken down, <a target="_top" href="' + TV.site + '/about/">contact Bennett</a>.';
   }
-  if (startAt != null && !passes(ITEMS[startAt], ch)) ch = 'all';
-  state.channel = ch;
-  renderChannels();
-  rebuild(startAt);
+
+  var want = readState();
+  function startTarget() {
+    var i;
+    if (want.v) { for (i = 0; i < ITEMS.length; i++) if (ITEMS[i].id === want.v) return i; }
+    else if (want.tradition) { for (i = 0; i < ORDER.journey.length; i++) if (STOPS[ITEMS[ORDER.journey[i]].s].id === want.tradition) return ORDER.journey[i]; }
+    return null;
+  }
+  function start() {
+    var startAt = startTarget(), ch = 'all';
+    if (want.channel && (want.channel === 'finds' || TV.uses.some(function (u) { return u[0] === want.channel; }))) ch = want.channel;
+    if (startAt != null && !passes(ITEMS[startAt], ch)) ch = 'all';
+    state.channel = ch;
+    updateFine();
+    renderChannels();
+    rebuild(startAt);
+  }
+  start();
   $('feed').focus({ preventScroll: true });
+
+  // Live finds: tv/finds.json on main plus the Send button inbox, through the worker.
+  // Until something plays, the feed redraws with them; after that they wait for
+  // the next channel or order change, so nothing jumps under a playing video.
+  if (TV.live && window.fetch) {
+    var ctl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 8000);
+    fetch(TV.live, ctl ? { signal: ctl.signal } : undefined)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        clearTimeout(timer);
+        if (!d || !Array.isArray(d.finds)) return;
+        var fresh = assemble(d.finds, d.hide);
+        var sig = function (o) { return o.order.journey.map(function (i) { var it = o.items[i]; return it.id + '|' + it.t + '|' + it.s; }).join(','); };
+        if (sig(fresh) === sig({ items: ITEMS, order: ORDER })) return;
+        if (state.engaged) { pendingData = fresh; return; }
+        var curId = state.cur >= 0 ? ITEMS[state.list[state.cur]].id : null;
+        commit(fresh);
+        var target = startTarget();
+        if (target == null && curId) { for (var i = 0; i < ITEMS.length; i++) if (ITEMS[i].id === curId) { target = i; break; } }
+        state.trail = [];
+        updateFine();
+        renderChannels();
+        rebuild(target);
+      })
+      .catch(function () { clearTimeout(timer); });
+  }
 })();
 </script>
 </body>

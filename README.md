@@ -74,6 +74,8 @@ cd worker && wrangler deploy
 
 After an Atlas data change, run `scripts/build_tv.py` too, so the TV picks up the new videos.
 
+Finds need no deploy. The Send button on Bennett's phone posts to `/tv-inbox` (`worker/tv.js`) and the video is on the TV within a minute. Filing it (`scripts/tv_intake.py add`) and committing `tv/finds.json` to `main` updates the TV and the Atlas within about five minutes.
+
 ## Roadmap
 
 - v0.1 (this) — basic queue, play/pause/skip, expanded queue, auto-advance, signup on lock
