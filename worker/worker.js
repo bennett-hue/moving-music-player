@@ -62,7 +62,7 @@ const GHOST_ADMIN_HOST = 'https://moving-music.ghost.io';
 const ATLAS_MAP_REPO = 'bennett-hue/moving-music-player';
 const ATLAS_MAP_SHA = '3323bbe';
 // Commit movingmusicTV (tv.html) is served from. Bump after each TV rebuild.
-const TV_SHA = 'PIN_ME';
+const TV_SHA = 'f23045b';
 
 function corsHeaders() {
   return {
