@@ -1,12 +1,13 @@
 <style>
-  body.page-tv .site-content{padding-top:8px!important}
-  body.page-tv .single-header{display:none!important}
-  body.page-tv .single-content{padding-top:0!important;margin-top:0!important}
-  .tv-embed-wrap { max-width: 1240px; margin: 0 auto; }
-  #tv-iframe { display: block; width: 100%; height: calc(100vh - 150px); height: calc(100svh - 150px); min-height: 520px; border: 0; border-radius: 6px; background: #1b1814; }
-  @media (max-width: 700px) { #tv-iframe { height: calc(100svh - 170px); min-height: 480px; border-radius: 0; } }
+  body.page-tv .mm-pagewrap{padding:10px 0 0!important}
+  body.page-tv .mm-pagewrap .mm-wrap{max-width:1460px;padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}
+  body.page-tv .mm-page-island{max-width:none;padding:0;background:none;box-shadow:none}
+  .tv-embed-wrap{margin:0}
+  #tv-iframe{display:block;width:100%;height:calc(100vh - 210px);height:calc(100svh - 210px);min-height:480px;border:0;border-radius:6px;background:#1b1814}
+  @media (max-width:700px){body.page-tv .mm-pagewrap .mm-wrap{padding-left:0;padding-right:0}#tv-iframe{border-radius:0}}
 </style>
 <div class="tv-embed-wrap">
   <iframe id="tv-iframe" data-src="https://mmp-sync.bennett-727.workers.dev/tv.html" title="movingmusicTV" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write; web-share" allowfullscreen></iframe>
 </div>
 <script data-mark="tv-iframe-forward">(function(){var i=document.getElementById("tv-iframe");if(!i)return;var s=i.getAttribute("data-src");if(location.hash){var sep=s.indexOf("?")>-1?"&":"?";s+=sep+"state="+encodeURIComponent(location.hash.substring(1));}i.setAttribute("src",s);})();</script>
+<script data-mark="tv-iframe-fit">(function(){var i=document.getElementById("tv-iframe");if(!i)return;var raf=0;function fit(){raf=0;var top=i.getBoundingClientRect().top+(window.scrollY||0);var bar=document.querySelector(".mmp-bar.is-visible");var b=bar?bar.getBoundingClientRect().height:0;i.style.height=Math.max(480,Math.round(window.innerHeight-top-b-10))+"px";}function soon(){if(!raf)raf=requestAnimationFrame(fit);}fit();addEventListener("resize",soon);addEventListener("orientationchange",soon);setTimeout(soon,600);setTimeout(soon,2000);if(window.MutationObserver)new MutationObserver(soon).observe(document.body,{childList:true});})();</script>

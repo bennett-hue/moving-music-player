@@ -359,14 +359,19 @@ def build_page(data):
 
 
 def build_card():
+    """The Ghost page /tv/: one HTML card. The mm theme puts page content on a paper card at most
+    820px wide, which squeezed the TV into its phone layout. On this page the card loses its paper
+    and width limit, and the TV fills the window between the site header and the player bar."""
     return ('<style>\n'
-            '  body.page-tv .site-content{padding-top:8px!important}\n'
-            '  body.page-tv .single-header{display:none!important}\n'
-            '  body.page-tv .single-content{padding-top:0!important;margin-top:0!important}\n'
-            '  .tv-embed-wrap { max-width: 1240px; margin: 0 auto; }\n'
-            '  #tv-iframe { display: block; width: 100%; height: calc(100vh - 150px); height: calc(100svh - 150px);'
-            ' min-height: 520px; border: 0; border-radius: 6px; background: #1b1814; }\n'
-            '  @media (max-width: 700px) { #tv-iframe { height: calc(100svh - 170px); min-height: 480px; border-radius: 0; } }\n'
+            '  body.page-tv .mm-pagewrap{padding:10px 0 0!important}\n'
+            '  body.page-tv .mm-pagewrap .mm-wrap{max-width:1460px;'
+            'padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}\n'
+            '  body.page-tv .mm-page-island{max-width:none;padding:0;background:none;box-shadow:none}\n'
+            '  .tv-embed-wrap{margin:0}\n'
+            '  #tv-iframe{display:block;width:100%;height:calc(100vh - 210px);height:calc(100svh - 210px);'
+            'min-height:480px;border:0;border-radius:6px;background:#1b1814}\n'
+            '  @media (max-width:700px){body.page-tv .mm-pagewrap .mm-wrap{padding-left:0;padding-right:0}'
+            '#tv-iframe{border-radius:0}}\n'
             '</style>\n'
             '<div class="tv-embed-wrap">\n'
             '  <iframe id="tv-iframe" data-src="__TV_URL__" title="movingmusicTV"'
@@ -375,7 +380,16 @@ def build_card():
             '</div>\n'
             '<script data-mark="tv-iframe-forward">(function(){var i=document.getElementById("tv-iframe");if(!i)return;'
             'var s=i.getAttribute("data-src");if(location.hash){var sep=s.indexOf("?")>-1?"&":"?";'
-            's+=sep+"state="+encodeURIComponent(location.hash.substring(1));}i.setAttribute("src",s);})();</script>'
+            's+=sep+"state="+encodeURIComponent(location.hash.substring(1));}i.setAttribute("src",s);})();</script>\n'
+            # Fit the TV between the header and the player bar, at any header height.
+            '<script data-mark="tv-iframe-fit">(function(){var i=document.getElementById("tv-iframe");if(!i)return;'
+            'var raf=0;function fit(){raf=0;var top=i.getBoundingClientRect().top+(window.scrollY||0);'
+            'var bar=document.querySelector(".mmp-bar.is-visible");var b=bar?bar.getBoundingClientRect().height:0;'
+            'i.style.height=Math.max(480,Math.round(window.innerHeight-top-b-10))+"px";}'
+            'function soon(){if(!raf)raf=requestAnimationFrame(fit);}'
+            'fit();addEventListener("resize",soon);addEventListener("orientationchange",soon);'
+            'setTimeout(soon,600);setTimeout(soon,2000);'
+            'if(window.MutationObserver)new MutationObserver(soon).observe(document.body,{childList:true});})();</script>'
             ).replace('__TV_URL__', TV_WORKER_URL)
 
 
