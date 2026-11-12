@@ -176,7 +176,8 @@ body.mm-inner.mm-chorus.mm-signed-in .mm-chorus-main .gh-content.mm-prose > p:no
 <!-- Signed-in header, added Nov 12, 2026 (build queue item 2). Paid and comped members:
      "Account" is a plain #54748D link with no pill. Free members: "Free Account" is plain
      #54748D words, and the red "Support the songbook" pill stays. To undo, delete this block.
-     Move it into chrome.css the next time the theme ships. -->
+     On phones and tablets, Account sits on the line of the site name, and Free Account sits
+     right under Support the songbook. Move it into chrome.css the next time the theme ships. -->
 <style id="mm-signed-in-header">
 .mm-head:not(.mm-head--free) .mm-sub[data-portal="account"]{background:none!important;padding-left:0!important;padding-right:0!important;border-radius:0!important;color:#54748D!important}
 .mm-head:not(.mm-head--free) .mm-sub[data-portal="account"]:hover,
@@ -185,6 +186,8 @@ body.mm-inner.mm-chorus.mm-signed-in .mm-chorus-main .gh-content.mm-prose > p:no
 .mm-head--free .mm-login{background:none!important;border-color:transparent!important;padding-left:0!important;padding-right:0!important;border-radius:0!important;color:#54748D!important}
 .mm-head--free .mm-login:hover,
 .mm-head--free .mm-login:focus-visible{color:var(--mm-red)!important;border-color:transparent!important}
+@media (max-width:1120px){.mm-head:not(.mm-head--free):has(.mm-sub[data-portal="account"]) .mm-head-inner > .mm-brand{align-self:baseline}.mm-head:not(.mm-head--free) .mm-sub[data-portal="account"]{align-self:baseline!important;padding-top:0!important;padding-bottom:0!important}}
+@media (max-width:600px){.mm-head--free .mm-head-inner{grid-template-rows:auto 1fr auto}}
 </style>
 
 <!-- Sign-up notice, added Nov 12, 2026 (build queue item 4). Ghost's "You've successfully
