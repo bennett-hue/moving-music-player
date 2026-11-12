@@ -76,24 +76,23 @@ function jsonHeaders() {
   return { ...corsHeaders(), 'Content-Type': 'application/json' };
 }
 
-// KV-backed per-IP throttle. Bucket by minute so the counter resets
-// cleanly; TTL on the key cleans the bucket. Fail open on KV errors
-// so a KV outage never blocks a legitimate pick write.
-async function rateLimit(env, kind, ip, limit, windowSec) {
+// Per-IP throttle through Cloudflare's Rate Limiting binding:
+// PICK_GET_LIMIT (60 a minute) and PICK_POST_LIMIT (10 a minute), set in
+// wrangler.toml. It replaces a KV counter that could not count bursts:
+// KV takes one write per key per second, the extra writes threw, and
+// the throttle failed open, so 62 GETs in a minute all went through
+// (Nov 11, 2026 test). It also spent a KV write on every /pick request.
+// Fails open if the binding is missing or errors, so a limiter problem
+// never blocks a legitimate pick.
+async function rateLimit(env, kind, ip) {
   if (!ip) return { ok: true };
-  if (!env.MMP_KV) return { ok: true };
-  const now = Math.floor(Date.now() / 1000);
-  const bucket = Math.floor(now / windowSec);
-  const key = 'rl:' + kind + ':' + ip + ':' + bucket;
+  const limiter = kind === 'pick-get' ? env.PICK_GET_LIMIT
+    : kind === 'pick-post' ? env.PICK_POST_LIMIT
+    : null;
+  if (!limiter) return { ok: true };
   try {
-    const cur = await env.MMP_KV.get(key);
-    const n = cur ? parseInt(cur, 10) : 0;
-    if (n >= limit) {
-      return { ok: false, retryAfter: ((bucket + 1) * windowSec) - now };
-    }
-    await env.MMP_KV.put(key, String(n + 1),
-      { expirationTtl: windowSec + 5 });
-    return { ok: true };
+    const { success } = await limiter.limit({ key: ip });
+    return success ? { ok: true } : { ok: false, retryAfter: 60 };
   } catch (e) {
     return { ok: true };
   }
@@ -370,7 +369,7 @@ async function pickGetHandler(request, env) {
     return new Response('server misconfigured: no admin key',
       { status: 500, headers: corsHeaders() });
   }
-  const rl = await rateLimit(env, 'pick-get', clientIp(request), 60, 60);
+  const rl = await rateLimit(env, 'pick-get', clientIp(request));
   if (!rl.ok) {
     return new Response('rate limited',
       { status: 429, headers: { ...corsHeaders(),
@@ -414,7 +413,7 @@ async function pickPostHandler(request, env) {
     return new Response('server misconfigured: no admin key',
       { status: 500, headers: corsHeaders() });
   }
-  const rl = await rateLimit(env, 'pick-post', clientIp(request), 10, 60);
+  const rl = await rateLimit(env, 'pick-post', clientIp(request));
   if (!rl.ok) {
     return new Response('rate limited',
       { status: 429, headers: { ...corsHeaders(),
