@@ -2,12 +2,15 @@
 //
 //   POST /tv-inbox       The "Send to movingmusicTV" button on Bennett's phone.
 //                        Body, as JSON or a form: { key, url, note, title,
-//                        page_title }. key must match the TV_INBOX_KEY secret.
-//                        note is Bennett's line: one sentence of commentary,
-//                        shown under the video as he wrote it. title and
-//                        page_title are the phone's two guesses at the post's
-//                        title (Facebook and Instagram give no other way to get
-//                        it); YouTube and TikTok titles come from their oEmbed.
+//                        page_title, page_desc }. key must match the
+//                        TV_INBOX_KEY secret. note is Bennett's line: one
+//                        sentence of commentary, shown under the video as he
+//                        wrote it. title is the share sheet's name for the
+//                        link. page_title and page_desc are the og:title and
+//                        og:description the phone read from the page itself:
+//                        Facebook and Instagram wall off this worker, so the
+//                        phone is the only place those two can be read from.
+//                        YouTube and TikTok titles come from their oEmbed.
 //                        The video is stored in KV under tvin:<id> and shows on
 //                        the TV within a minute. Sending the same
 //                        video again with a new line replaces the line.
@@ -23,7 +26,7 @@
 const REPO = 'bennett-hue/moving-music-player';
 export const TV_DATA_REF = 'main';
 // Shows in the X-MMP-Build header, so a deploy can be checked from outside.
-export const BUILD = '2026-11-12.13';
+export const BUILD = '2026-11-12.14';
 const INBOX_PREFIX = 'tvin:';
 const INBOX_TTL = 60 * 60 * 24 * 365;  // a year; Claude files each video long before
 const FINDS_CACHE_KEY = 'https://mmp-sync.internal/tv-finds.json';
@@ -288,7 +291,7 @@ export function pageTitleFromTags(tags, p) {
   if (p === 'fb') {
     const segs = tags.title.split(/\s+\|\s+/).map((x) => x.trim()).filter((x) => x && !STAT_SEG.test(x) && !SITE_SEG.test(x));
     const desc = generic(tags.description) ? '' : tags.description;
-    if (segs.length >= 2) { by = segs.pop(); title = segs.join(' | '); }
+    if (segs.length >= 2) { by = segs.pop().replace(/^by\s+/i, ''); title = segs.join(' | '); }
     else if (segs.length === 1) {
       const only = segs[0];
       const m = only.match(/^(?:(?:reels?|video|post)\s+)?by\s+(.+)$/i);
@@ -342,12 +345,16 @@ async function pageTitle(url, pv) {
   }
 }
 
-async function postTitle(env, pv, url, sent, page) {
+async function postTitle(env, pv, url, sent, page, desc) {
+  // The phone may send a match list, one per line; the first is the page's own tag.
+  const d = (x) => decodeEntities(String(x || '').split('\n')[0]).replace(/\s+/g, ' ').trim();
+  const tags = { title: d(page), description: d(desc) };
+  const fromPage = (pv.p === 'fb' || pv.p === 'ig') && (tags.title || tags.description) ? pageTitleFromTags(tags, pv.p) : null;
   const api = await oembedTitle(pv, url);
-  const phone = phoneTitle(pv, url, [sent, page]);
-  const web = !api && !phone.title ? await pageTitle(url, pv) : null;
-  let title = (api && api.title) || phone.title || (web && web.title) || '', orig = '';
-  const by = (api && api.by) || (web && web.by) || phone.by;
+  const phone = phoneTitle(pv, url, [d(sent), fromPage ? '' : d(page)]);
+  const web = !api && !phone.title && !(fromPage && fromPage.title) ? await pageTitle(url, pv) : null;
+  let title = (api && api.title) || (fromPage && fromPage.title) || phone.title || (web && web.title) || '', orig = '';
+  const by = (api && api.by) || (fromPage && fromPage.by) || (web && web.by) || phone.by;
   if (title) {
     const en = await inEnglish(env, title);
     if (en && en !== title) { orig = title; title = en; }
@@ -399,7 +406,7 @@ export async function inboxAdd(env, text, opts) {
   const prev = await env.MMP_KV.getWithMetadata(key);
   const old = prev && prev.value !== null ? (prev.metadata || {}) : null;
   const tradition = String(o.tradition || '').slice(0, 100);
-  const post = !old || !old.title ? await postTitle(env, pvc, url, o.title, o.pageTitle) : null;
+  const post = !old || !old.title ? await postTitle(env, pvc, url, o.title, o.pageTitle, o.pageDesc) : null;
 
   let meta = null;
   if (!old) {
@@ -461,7 +468,7 @@ export async function tvInboxPost(request, env) {
   let body;
   try { body = await readBody(request); } catch (e) { return reply(400, 'Could not read what was sent.'); }
   if (!body || !safeEqual(String(body.key || ''), env.TV_INBOX_KEY)) return reply(401, 'Wrong key.');
-  const r = await inboxAdd(env, body.url || body.link, { note: body.note, title: body.title, pageTitle: body.page_title, phone: true });
+  const r = await inboxAdd(env, body.url || body.link, { note: body.note, title: body.title, pageTitle: body.page_title, pageDesc: body.page_desc, phone: true });
   return reply(r.status, r.message, r.id ? { id: r.id, line: r.line || '' } : undefined);
 }
 
