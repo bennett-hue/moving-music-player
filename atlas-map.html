@@ -693,7 +693,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
 </style>
 </head>
 <body>
+<script>if (/[?&]embed=scroll(&|$)/.test(location.search)) document.documentElement.className += ' in-scroll';</script>
 <style>
+  /* Inside the Scroll (the /atlas/ page): no intro text, one-line filters, and the map fills the rest. */
+  html.in-scroll, html.in-scroll body { height: 100%; margin: 0; }
+  html.in-scroll body { display: flex; flex-direction: column; }
+  html.in-scroll .atlas-intro, html.in-scroll .atlas-controls > div[style] { display: none; }
+  html.in-scroll .atlas-topnav { max-width: none; margin: 0; padding: 8px 12px; }
+  html.in-scroll .atlas-controls { max-width: none; margin: 6px 0 8px; }
+  html.in-scroll .filter-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; margin: 4px 0; }
+  html.in-scroll .filter-row::-webkit-scrollbar { display: none; }
+  html.in-scroll .filter-row > * { flex: 0 0 auto; }
+  html.in-scroll #worksong-map { flex: 1 1 auto; height: auto; min-height: 220px; }
   .atlas-topnav { max-width: 1200px; margin: 12px auto 0; padding: 10px 12px; font-family: system-ui, -apple-system, sans-serif; font-size: 14px; border-bottom: 1px solid #e2ded4; }
   .atlas-topnav a { color: #2A8C82; margin-right: 24px; text-decoration: none; border-bottom: 1px solid transparent; }
   .atlas-topnav a:hover { border-bottom-color: #2A8C82; }
@@ -981,7 +992,9 @@ map.fitBounds(bounds);
 var DELIVERY_COLOR = { 'at-work': '#2A8C82', 'shared': '#a67c52', 'concert': '#7b6d9a', '': '#bbb' };
 var DELIVERY_LABEL = { 'at-work': 'People at work', 'shared': 'People sharing songs', 'concert': 'People in Concert' };
 
-// movingmusicTV plays YouTube, Facebook, and video-file links; a popup with one of these links to the TV.
+// The Scroll plays YouTube, Facebook, and video-file links; a popup with one of these links to it.
+// Inside the Scroll (?embed=scroll) the link asks the Scroll to play it instead of leaving the page.
+var IN_SCROLL = /[?&]embed=scroll(&|$)/.test(location.search);
 var TV_PLAYABLE = /youtu\.?be|facebook\.com|fb\.watch|\.(mp4|webm|m4v)(\?|$)/i;
 function tvSlug(s){ return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
 
@@ -1026,7 +1039,7 @@ D.forEach(function (d) {
   }
   var summaryHtml = d.s ? '<div style="font-size:12.5px;color:#333;margin-top:5px">'+d.s+'</div>' : '';
   var tvHtml = d.v.some(function (x) { return TV_PLAYABLE.test(x.u); })
-    ? '<div class="tv-row"><a class="tv-link" target="_top" href="https://movingmusic.works/tv/#tradition=' + tvSlug(d.n) + '">Watch on movingmusicTV</a></div>' : '';
+    ? '<div class="tv-row"><a class="tv-link" target="_top" data-watch-t="' + tvSlug(d.n) + '" href="https://movingmusic.works/atlas/#tradition=' + tvSlug(d.n) + '">Watch in the Scroll</a></div>' : '';
   // Viewer asks: a video for a grey dot (a tradition still seeking one), a fix for any dot.
   var sgAttr = ' data-t="' + tvSlug(d.n) + '" data-title="' + d.n.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
   var askHtml = '<div class="sg-row">' + (!primary || !d.v.length ? '<a href="#" class="sg-link sg-video" data-sg="video"' + sgAttr + '>Know a video of this? Send it</a>' : '') +
@@ -1133,7 +1146,7 @@ function sendAtlasToPlayer(btn, action) {
     startSec: parseInt(btn.dataset.vst || '0', 10) || 0,
     sourceUrl: btn.dataset.src,
   };
-  try { window.parent.postMessage(msg, '*'); } catch (e) {}
+  try { window.parent.postMessage(msg, '*'); } catch (e) {}  // inside the Scroll, the Scroll passes it up to the site
   if (action === 'play') {
     // Close the map popup so its iframe stops competing with the transport bar.
     var popup = btn.closest('.wm-popup');
@@ -1162,7 +1175,7 @@ document.addEventListener('click', function (ev) {
   a.setAttribute('data-current', '1');
 });
 
-// Bennett's finds from movingmusicTV, fetched live from the worker. A find tied to
+// Bennett's picks from the Scroll, fetched live from the worker. A find tied to
 // a tradition is listed in that tradition's popup. A find with a place of its own
 // gets a dot with a brick ring. A find without a place shows on the TV only.
 (function () {
@@ -1170,7 +1183,7 @@ document.addEventListener('click', function (ev) {
   var LIVE = 'https://mmp-sync.bennett-727.workers.dev/tv-finds.json';
   var NAMES = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', youtube: 'YouTube', file: 'Video' };
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function tvUrl(f) { return 'https://movingmusic.works/tv/#v=' + encodeURIComponent(f.id); }
+  function tvUrl(f) { return 'https://movingmusic.works/atlas/#v=' + encodeURIComponent(f.id); }
   function isNum(v) { return typeof v === 'number' && isFinite(v); }
   // Popup rows go above the viewer asks, which stay last.
   function addToPopup(html, chunk) {
@@ -1189,7 +1202,7 @@ document.addEventListener('click', function (ev) {
       if (m) {
         var html = m.getPopup().getContent();
         var credit = /^Suggested by /.test(f.from || '') ? ', ' + esc(String(f.from).replace(/^Suggested/, 'suggested')) : '';
-        if (html.indexOf('find-head') < 0) html = addToPopup(html, '<div class="find-head">Bennett\'s finds</div>');
+        if (html.indexOf('find-head') < 0) html = addToPopup(html, '<div class="find-head">Bennett\'s picks</div>');
         html = addToPopup(html, '<div class="find-row"><a class="tv-link" target="_top" href="' + tvUrl(f) + '">' +
           esc(f.label || 'Video') + '</a> <span class="find-src">' + esc(NAMES[f.platform] || '') + credit + '</span>' +
           (f.note ? '<div class="find-line">' + esc(f.note) + '</div>' : '') + '</div>');
@@ -1202,7 +1215,7 @@ document.addEventListener('click', function (ev) {
       var color = DELIVERY_COLOR[entry.d[0] || ''] || DELIVERY_COLOR[''];
       var popup = '<div class="wm-popup"><strong>' + esc(entry.n) + '</strong><br><span style="color:#666;font-size:12px">' + esc(entry.p) + '</span>' +
         (f.note ? '<div class="find-line" style="margin-top:5px">' + esc(f.note) + '</div>' : '') +
-        '<div class="tv-row"><a class="tv-link" target="_top" href="' + tvUrl(f) + '">Watch on movingmusicTV</a></div>' +
+        '<div class="tv-row"><a class="tv-link" target="_top" data-watch-v="' + esc(f.id) + '" href="' + tvUrl(f) + '">Watch in the Scroll</a></div>' +
         '<div style="margin-top:3px"><a href="' + esc(f.url) + '" target="_blank" rel="noopener noreferrer">' + esc(NAMES[f.platform] || 'Original') + ' post</a></div>' +
         '<div class="find-head">Bennett\'s find, not a tradition on the Atlas yet</div>' +
         '<div class="sg-row"><a href="#" class="sg-link" data-sg="fix" data-f="' + esc(f.id) + '" data-title="' + esc(entry.n) + '">Suggest an improvement</a></div></div>';
@@ -1345,9 +1358,7 @@ document.addEventListener('click', function (ev) {
     var m = s.match(/tradition=([^&]+)/);
     return m ? decodeURIComponent(m[1]) : null;
   }
-  var slug = parseState();
-  if (!slug) return;
-  setTimeout(function () {
+  function showTradition(slug) {
     var target = null;
     for (var i = 0; i < markers.length; i++) {
       if (slugify(markers[i]._entry.n) === slug) { target = markers[i]; break; }
@@ -1356,7 +1367,27 @@ document.addEventListener('click', function (ev) {
     if (!map.hasLayer(target)) target.addTo(map);
     map.setView(target.getLatLng(), Math.max(map.getZoom(), 0), { animate: true });
     setTimeout(function(){ target.openPopup(); }, 250);
-  }, 150);
+  }
+  var slug = parseState();
+  if (slug) setTimeout(function () { showTradition(slug); }, 150);
+
+  // Inside the Scroll: it says which tradition to show, and a "Watch in the Scroll"
+  // link tells it what to play.
+  if (!IN_SCROLL) return;
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (ev.source !== window.parent || !d || d.source !== 'mm-scroll' || d.action !== 'show') return;
+    map.invalidateSize();
+    if (d.tradition) showTradition(String(d.tradition));
+    else map.closePopup();
+  });
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[data-watch-t], a[data-watch-v]');
+    if (!a) return;
+    e.preventDefault();
+    map.closePopup();
+    try { window.parent.postMessage({ source: 'mm-atlas-map', action: 'watch', tradition: a.getAttribute('data-watch-t') || '', v: a.getAttribute('data-watch-v') || '' }, '*'); } catch (err) {}
+  });
 })();
 
 </script>

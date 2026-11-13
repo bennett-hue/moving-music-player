@@ -65,9 +65,9 @@ const GHOST_ADMIN_HOST = 'https://moving-music.ghost.io';
 
 // Repo the atlas map is served from. Bumped by editing this constant.
 const ATLAS_MAP_REPO = 'bennett-hue/moving-music-player';
-const ATLAS_MAP_SHA = 'ab8779d';
+const ATLAS_MAP_SHA = '4ff9fc4';
 // Commit movingmusicTV (tv.html) is served from. Bump after each TV rebuild.
-const TV_SHA = '63da1ec';
+const TV_SHA = '4ff9fc4';
 
 function corsHeaders() {
   return {

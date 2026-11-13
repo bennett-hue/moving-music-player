@@ -652,7 +652,8 @@ def main():
     outputs = {
         'atlas-regions.card.html': build_regions(entries),
         'atlas-uses.card.html': build_uses(entries),
-        'atlas.card.html': build_map_card(),
+        # ghost/atlas.card.html, the /atlas/ page itself, is written by scripts/build_tv.py:
+        # the page opens in the Scroll, and the map loads inside it.
     }
     for name, body in outputs.items():
         path = os.path.join(OUT, name)

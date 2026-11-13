@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>movingmusicTV</title>
+<title>Worksong Atlas</title>
 <meta name="description" content="Worksong videos from around the world, tied to the Worksong Atlas.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://i.ytimg.com">
 <link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@500;700;800&family=EB+Garamond:ital,wght@0,500;0,600;1,500&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <!--
-  movingmusicTV. Built by scripts/build_tv.py from atlas-map.html and tv/finds.json.
+  The Worksong Atlas, Scroll view (once called movingmusicTV). Built by scripts/build_tv.py from atlas-map.html and tv/finds.json.
   Edit tv/template.html and the data files, then rebuild. Do not edit tv.html by hand.
 -->
 <style>
@@ -30,13 +30,13 @@ a { color: inherit; }
 .tv { display: grid; grid-template-rows: auto auto 1fr; height: 100vh; height: 100dvh; }
 
 /* ---------- header ---------- */
-.top { position: relative; z-index: 5; padding: 10px 16px 8px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "brand cur more" "browse browse browse"; gap: 0 14px; align-items: center; }
+.top { position: relative; z-index: 5; padding: 10px 16px 8px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "brand cur view more" "browse browse browse browse"; gap: 0 8px; align-items: center; }
 .cur { grid-area: cur; min-width: 0; font-family: var(--label); font-weight: 700; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cur .cnt { font-weight: 500; margin-left: 6px; }
 .browse { display: none; position: absolute; top: 100%; left: 0; right: 0; padding: 10px 16px 12px; background: var(--paper); border-bottom: 1px solid var(--line); box-shadow: 0 6px 12px rgba(35,31,27,.12); }
 .top.open .browse { display: block; }
 .browse .chan { padding-top: 8px; }
-.brand { grid-area: brand; font-family: var(--serif); font-size: 25px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; line-height: 1; }
+.brand { grid-area: brand; font-family: var(--serif); font-size: 24px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; line-height: 1; }
 .brand .tag { display: inline-block; font-family: var(--label); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; background: var(--brick); color: var(--paper); padding: 3px 6px 2px; margin-left: 4px; transform: rotate(-3deg) translateY(-3px); box-shadow: 0 1px 1px rgba(0,0,0,.18); }
 .ctrl { display: flex; gap: 6px; flex-wrap: wrap; }
 .chan { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 8px 0 2px; mask-image: linear-gradient(to right, #000 92%, transparent); }
@@ -92,6 +92,8 @@ a { color: inherit; }
 .posttext { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 16px 16px; color: var(--paper); background: linear-gradient(to top, rgba(20,17,14,.9), rgba(20,17,14,0)); }
 .posttext .via { font-family: var(--label); font-weight: 700; font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: #d9ccb6; }
 .more { grid-area: more; }
+.view { grid-area: view; }
+.tv.m .view { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .more::after { content: " \25be"; }
 .top.open .more::after { content: " \25b4"; }
 .host, .host iframe, .host video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: transparent; }
@@ -119,6 +121,14 @@ a { color: inherit; }
 .act:hover { background: var(--ink); color: var(--paper); }
 .act.primary { background: var(--ink); color: var(--paper); }
 .act.primary:hover { background: var(--brick); border-color: var(--brick); }
+
+/* ---------- Map view: the full Atlas map takes the place of the videos ---------- */
+.feed, .mapview { grid-column: 1; grid-row: 1; }
+.mapview { position: relative; z-index: 2; min-height: 0; background: var(--paper2); }
+.mapview[hidden] { display: none; }
+.tv.m .feed { visibility: hidden; }
+.tv.m #nowmap { display: none; }
+.mapview iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
 
 /* ---------- side panel ---------- */
 .side { border-left: 1px solid var(--line); padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
@@ -163,7 +173,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
 }
 @media (max-width: 479px) {
   .cur { display: none; }
-  .top { grid-template-columns: 1fr auto; grid-template-areas: "brand more"; }
+  .top { grid-template-columns: 1fr auto auto; grid-template-areas: "brand view more"; }
 }
 @media (max-width: 979px) and (max-height: 620px) {
   .strip { height: 44px; }
@@ -190,12 +200,13 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
    the window on the right. Inside the site, the site's own header is laid over
    the top of the left column, and --site-h is its height. ---------- */
 @media (min-width: 980px) {
-  .tv { grid-template-rows: auto 1fr; grid-template-columns: 340px minmax(0, 1fr); }
+  .tv { grid-template-rows: auto 1fr; grid-template-columns: 360px minmax(0, 1fr); }
   .top { grid-column: 1; grid-row: 1; padding-top: calc(10px + var(--site-h, 0px)); }
   .main { display: contents; }
   .side { grid-column: 1; grid-row: 2; min-height: 0; border-left: 0; }
   .mapwrap { flex: 0 0 auto; }
-  .feed { grid-column: 2; grid-row: 1 / 3; min-height: 0; border-left: 1px solid var(--line); }
+  .feed, .mapview { grid-column: 2; grid-row: 1 / 3; min-height: 0; border-left: 1px solid var(--line); }
+  .tv.m .mapwrap { display: none; }
   .card { padding-top: 8px; padding-bottom: 8px; }
   .card.ar-16x9 { max-width: min(100%, calc((100cqh - 150px) * 16 / 9 + 40px)); }
   .card.ar-4x3 { max-width: min(100%, calc((100cqh - 150px) * 4 / 3 + 40px)); }
@@ -219,8 +230,9 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
 <body>
 <div class="tv" id="tv">
   <header class="top">
-    <div class="brand">movingmusic<span class="tag">TV</span></div>
+    <div class="brand">Worksong Atlas</div>
     <div class="cur" id="cur" aria-live="polite"></div>
+    <button class="pill small view" id="o-view" title="Switch between the Scroll of videos and the full map">Map</button>
     <button class="pill small more" id="o-more" aria-expanded="false" aria-controls="browse">Browse</button>
     <div class="browse" id="browse">
       <div class="ctrl" id="ctrl" role="group" aria-label="Viewing options">
@@ -232,9 +244,10 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
       <nav class="chan" id="chan" aria-label="Channels"></nav>
     </div>
   </header>
-  <div class="strip" id="strip" title="Open the Atlas at this place"><canvas id="stripmap" aria-hidden="true"></canvas><span class="pin" id="strippin"></span><span class="where" id="stripwhere"></span></div>
+  <div class="strip" id="strip" title="Open the map at this place"><canvas id="stripmap" aria-hidden="true"></canvas><span class="pin" id="strippin"></span><span class="where" id="stripwhere"></span></div>
   <div class="main">
     <section class="feed" id="feed" role="feed" aria-label="Videos" tabindex="-1"></section>
+    <section class="mapview" id="mapview" aria-label="The full map" hidden><iframe id="atlasframe" title="Worksong Atlas map" allow="fullscreen"></iframe></section>
     <aside class="side" aria-label="Where this video comes from">
       <div class="mapwrap" id="mapwrap" title="Click a dot to go there"><canvas id="map" aria-hidden="true"></canvas><span class="pin" id="pin"></span></div>
       <div class="now" id="now"></div>
@@ -379,8 +392,8 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function placeOf(it) { return it.pl || STOPS[it.s].p || ''; }
   function xyOf(it) { var s = STOPS[it.s]; return it.x != null ? [it.x, it.y] : (s.x != null ? [s.x, s.y] : null); }
-  function atlasUrl(st) { return TV.site + '/atlas/#tradition=' + st.id; }
-  function shareUrl(it) { return TV.site + '/tv/#v=' + it.id; }
+  function atlasUrl(st) { return TV.site + '/atlas/#tradition=' + st.id + '&view=map'; }
+  function shareUrl(it) { return TV.site + '/atlas/#v=' + it.id; }
   function creditLine(it) {
     var who = it.by || '';
     if ((it.p === 'ig' || it.p === 'tt') && /^@?[\w.]+$/.test(who)) who = '@' + who.replace(/^@/, '');
@@ -391,7 +404,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   // ---------- channels ----------
   function renderChannels() {
     var cnt = function (id) { return ORDER.journey.filter(function (i) { return passes(ITEMS[i], id); }).length; };
-    var chans = [['all', 'All', '', cnt('all')]].concat([['finds', "Bennett's finds", '', cnt('finds')]]);
+    var chans = [['all', 'All', '', cnt('all')]].concat([['finds', "Bennett's picks", '', cnt('finds')]]);
     TV.uses.forEach(function (u, n) { chans.push([u[0], u[1], String(n + 1), u[2]]); });
     var html = chans.map(function (c) {
       var count = c[3] != null ? c[3] : cnt(c[0]);
@@ -429,11 +442,11 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
         esc(creditLine(it)) + '</div></div>';
     }
     var acts = '';
-    if (st.atlas) acts += '<a class="act primary" target="_top" href="' + esc(atlasUrl(st)) + '">On the Atlas</a>';
+    if (st.atlas) acts += '<a class="act primary" data-a="map" target="_top" href="' + esc(atlasUrl(st)) + '">On the map</a>';
     if (FRAMED && it.p === 'yt') acts += '<button class="act" data-a="bar" title="Keep listening while you browse the site">Play in bar</button>';
     acts += '<a class="act" target="_blank" rel="noopener noreferrer" href="' + esc(it.u) + '">' + (it.p === 'file' ? 'Open video' : PLAT[it.p]) + ' &#8599;</a>';
     acts += '<button class="act" data-a="copy">Copy link</button>';
-    var tapeTitle = st.atlas ? st.n : "Bennett's finds";
+    var tapeTitle = st.atlas ? st.n : "Bennett's picks";
     var tapeSub = placeOf(it);
     return '<article class="card p-' + it.p + ' ' + ar + '" data-n="' + n + '" id="v-' + esc(it.id) + '" aria-posinset="' + (n + 1) +
       '" aria-setsize="' + total + '" aria-labelledby="t-' + n + '">' +
@@ -617,6 +630,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     var a = b.getAttribute('data-a');
     if (a === 'play') { state.engaged = true; setCur(n); mount(n); }
     else if (a === 'copy') copyText(shareUrl(it));
+    else if (a === 'map') { e.preventDefault(); openMap(STOPS[it.s].id); }
     else if (a === 'bar') {
       try {
         window.parent.postMessage({ source: 'mmp-atlas', action: 'play', videoId: it.k, label: it.t, startSec: it.st || 0, sourceUrl: it.u }, '*');
@@ -765,7 +779,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   }
   $('strip').addEventListener('click', function () {
     var it = state.cur >= 0 ? ITEMS[state.list[state.cur]] : null;
-    if (it && STOPS[it.s].atlas) window.open(atlasUrl(STOPS[it.s]), '_top');
+    openMap(it && STOPS[it.s].atlas ? STOPS[it.s].id : '');
   });
 
   function drawPostcard(cv, it) {
@@ -780,6 +794,62 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     m.g.beginPath(); m.g.arc(x, y, 7, 0, 6.2832); m.g.fillStyle = '#8A2F22'; m.g.fill();
     m.g.lineWidth = 2.5; m.g.strokeStyle = '#F3EDE1'; m.g.stroke();
   }
+
+  // ---------- Map view ----------
+  // The full Atlas map (atlas-map.html) loads in place of the videos the first
+  // time it is asked for. After that the two pages talk by message.
+  var mapOpen = false, mapLoaded = false;
+  function openMap(slug) {
+    unmount();
+    var f = $('atlasframe');
+    mapOpen = true;
+    $('tv').classList.add('m');
+    $('mapview').hidden = false;
+    $('o-view').textContent = 'Scroll';
+    if (!mapLoaded) {
+      mapLoaded = true;
+      f.src = 'atlas-map.html?embed=scroll' + (slug ? '&state=' + encodeURIComponent('tradition=' + slug) : '');
+    } else {
+      try { f.contentWindow.postMessage({ source: 'mm-scroll', action: 'show', tradition: slug || '' }, '*'); } catch (e) {}
+    }
+    updatePanels();
+  }
+  function closeMap() {
+    if (!mapOpen) return;
+    mapOpen = false;
+    $('tv').classList.remove('m');
+    $('mapview').hidden = true;
+    $('o-view').textContent = 'Map';
+    updatePanels();
+    var c = cardAt(state.cur);
+    if (c) $('feed').scrollTo({ top: c.offsetTop });
+    $('feed').focus({ preventScroll: true });
+  }
+  $('o-view').addEventListener('click', function () {
+    if (mapOpen) { closeMap(); return; }
+    var it = state.cur >= 0 ? ITEMS[state.list[state.cur]] : null;
+    openMap(it && STOPS[it.s].atlas ? STOPS[it.s].id : '');
+  });
+  function itemFor(w) {
+    var i;
+    if (w.v) { for (i = 0; i < ITEMS.length; i++) if (ITEMS[i].id === w.v) return i; }
+    else if (w.tradition) { for (i = 0; i < ORDER.journey.length; i++) if (STOPS[ITEMS[ORDER.journey[i]].s].id === w.tradition) return ORDER.journey[i]; }
+    return null;
+  }
+  window.addEventListener('message', function (ev) {
+    var d = ev.data, f = $('atlasframe');
+    if (!d || !f || ev.source !== f.contentWindow) return;
+    // The map's "Play in bar" buttons are meant for the site's player: pass them up.
+    if (d.source === 'mmp-atlas') { try { window.parent.postMessage(d, '*'); } catch (e) {} return; }
+    if (d.source !== 'mm-atlas-map' || d.action !== 'watch') return;
+    var i = itemFor({ v: String(d.v || ''), tradition: String(d.tradition || '') });
+    closeMap();
+    if (i == null) return;
+    state.engaged = true;
+    var pos = state.list.indexOf(i);
+    if (pos < 0) { setChannel('all', i); pos = state.list.indexOf(i); }
+    if (pos >= 0) { pendingPlay = pos; jump(pos, false); }
+  });
 
   // ---------- side panel ----------
   // Inside the site, tell the page how wide the left column is, so it can lay
@@ -804,7 +874,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     var now = $('now'), next = $('next');
     var ci = state.cur >= 0 ? ITEMS[state.list[state.cur]] : null, tv = $('tv');
     var wasV = tv.className;
-    tv.classList.toggle('v', !!ci && ci.ar === '9:16');
+    tv.classList.toggle('v', !mapOpen && !!ci && ci.ar === '9:16');
     // The columns just changed width. Land on the current card at once, or the
     // feed snaps back to the card it was leaving.
     if (tv.className !== wasV && ci) { var cc = cardAt(state.cur); if (cc) $('feed').scrollTo({ top: cc.offsetTop }); }
@@ -814,10 +884,12 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     now.innerHTML = '<div class="pos">' + (state.cur + 1) + ' of ' + state.list.length + '</div>' +
       '<h3>' + esc(title) + '</h3>' + (placeOf(it) && st.atlas ? '<div class="np">' + esc(placeOf(it)) + '</div>' : '') +
       (st.s ? '<p>' + esc(st.s) + '</p>' : '') +
-      (st.atlas ? '<a class="act" target="_top" href="' + esc(atlasUrl(st)) + '">Open on the Atlas</a>' : '<p>Not on the Atlas yet.</p>');
+      (st.atlas ? '<a class="act" id="nowmap" target="_top" href="' + esc(atlasUrl(st)) + '">Open on the map</a>' : '');
     var nx = state.cur + 1 < state.list.length ? ITEMS[state.list[state.cur + 1]] : null;
     var nxText = !nx ? '' : nx.s === it.s ? nx.t : STOPS[nx.s].atlas ? STOPS[nx.s].n + ', ' + (placeOf(nx) || '') : (placeOf(nx) || nx.t);
     next.innerHTML = nx ? '<span class="lbl">Next</span><button type="button" id="nextbtn">' + esc(nxText.replace(/, $/, '')) + '</button>' : '<span class="lbl">End of this channel</span>';
+    var nm = $('nowmap');
+    if (nm) nm.addEventListener('click', function (e) { e.preventDefault(); openMap(st.id); });
     var nb = $('nextbtn');
     if (nb) nb.addEventListener('click', function () { go(state.cur + 1, state.engaged); });
     $('stripwhere').textContent = placeOf(it) || title;
@@ -838,7 +910,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
       e.preventDefault();
       if (live) unmount(); else if (state.cur >= 0) { state.engaged = true; mount(state.cur); }
     }
-    else if (k === 'Escape') unmount();
+    else if (k === 'Escape') { if (mapOpen) closeMap(); else unmount(); }
     else if (/^[0-9]$/.test(k)) {
       var ch = k === '0' ? 'all' : (TV.uses[+k - 1] || [])[0];
       if (ch) setChannel(ch);
@@ -868,12 +940,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   }
 
   var want = readState();
-  function startTarget() {
-    var i;
-    if (want.v) { for (i = 0; i < ITEMS.length; i++) if (ITEMS[i].id === want.v) return i; }
-    else if (want.tradition) { for (i = 0; i < ORDER.journey.length; i++) if (STOPS[ITEMS[ORDER.journey[i]].s].id === want.tradition) return ORDER.journey[i]; }
-    return null;
-  }
+  function startTarget() { return itemFor(want); }
   function start() {
     var startAt = startTarget(), ch = 'all';
     if (want.channel && (want.channel === 'finds' || TV.uses.some(function (u) { return u[0] === want.channel; }))) ch = want.channel;
@@ -885,6 +952,8 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   }
   start();
   $('feed').focus({ preventScroll: true });
+  // A link to the map view, or to a tradition that has no video yet, opens the map.
+  if (want.view === 'map' || (want.tradition && startTarget() == null)) openMap(want.tradition || '');
 
   // Live finds: tv/finds.json on main plus the Send button inbox, through the worker.
   // Until something plays, the feed redraws with them; after that they wait for

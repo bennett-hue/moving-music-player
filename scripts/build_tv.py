@@ -10,7 +10,8 @@ Sources (edit these, never tv.html):
 
 Outputs:
     tv.html                 self-contained page, served by the worker at /tv.html
-    ghost/tv.card.html      body of the HTML card on the Ghost page /tv/
+    ghost/atlas.card.html   body of the HTML card on the Ghost page /atlas/
+    ghost/tv.card.html      body of the HTML card on the Ghost page /tv/, which forwards to /atlas/
 
 Usage:
     python3 scripts/build_tv.py                    # validate, then build
@@ -39,6 +40,7 @@ YT_META = os.path.join(TV_DIR, 'youtube-meta.json')
 TEMPLATE = os.path.join(TV_DIR, 'template.html')
 OUT_PAGE = os.path.join(ROOT, 'tv.html')
 OUT_CARD = os.path.join(ROOT, 'ghost', 'tv.card.html')
+OUT_ATLAS_CARD = os.path.join(ROOT, 'ghost', 'atlas.card.html')
 
 SITE = 'https://movingmusic.works'
 TV_WORKER_URL = 'https://mmp-sync.bennett-727.workers.dev/tv.html'
@@ -367,22 +369,23 @@ def build_page(data):
 
 
 def build_card():
-    """The Ghost page /tv/: one HTML card. The mm theme puts page content on a paper card at most
+    """The Ghost page /atlas/: one HTML card. The mm theme puts page content on a paper card at most
     820px wide, which squeezed the TV into its phone layout. On this page the card loses its paper
     and width limit, the footer goes, and the TV fills the window between the site header and the
     player bar. The page then has nothing to scroll, so the header stays put."""
     return ('<style>\n'
-            '  body.page-tv .mm-pagewrap{padding:10px 0 0!important}\n'
-            '  body.page-tv .mm-pagewrap .mm-wrap{max-width:1460px;'
+            '  body:is(.page-tv,.page-atlas) .mm-pagewrap{padding:10px 0 0!important}\n'
+            '  body:is(.page-tv,.page-atlas) .mm-pagewrap .mm-wrap{max-width:1460px;'
             'padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}\n'
-            '  body.page-tv .mm-page-island{max-width:none;padding:0;background:none;box-shadow:none}\n'
-            '  body.page-tv .gh-content.mm-prose > .tv-embed-wrap{margin:0}\n'
-            '  body.page-tv .mm-foot{display:none}\n'
-            '  body.page-tv{padding-bottom:0!important}\n'
-            '  body.page-tv .site{min-height:0!important}\n'
+            '  body:is(.page-tv,.page-atlas) .mm-page-island{max-width:none;padding:0;background:none;box-shadow:none}\n'
+            '  body:is(.page-tv,.page-atlas) .gh-content.mm-prose > .tv-embed-wrap{margin:0}\n'
+            '  body:is(.page-tv,.page-atlas) .mm-foot{display:none}\n'
+            '  body:is(.page-tv,.page-atlas) .mm-pagehead,body:is(.page-tv,.page-atlas) .mm-band{display:none}\n'
+            '  body:is(.page-tv,.page-atlas){padding-bottom:0!important}\n'
+            '  body:is(.page-tv,.page-atlas) .site{min-height:0!important}\n'
             '  #tv-iframe{display:block;width:100%;height:calc(100vh - 190px);height:calc(100svh - 190px);'
             'min-height:360px;border:0;border-radius:6px;background:#1b1814}\n'
-            '  @media (max-width:700px){body.page-tv .mm-pagewrap .mm-wrap{padding-left:0;padding-right:0}'
+            '  @media (max-width:700px){body:is(.page-tv,.page-atlas) .mm-pagewrap .mm-wrap{padding-left:0;padding-right:0}'
             '#tv-iframe{border-radius:0}}\n'
             # Wide windows: the TV covers the window down to the player bar, and the site header is
             # laid over the TV's left column, whose width the TV reports (--tv-left).
@@ -402,7 +405,7 @@ def build_card():
             '  body.tv-wide .mm-login,body.tv-wide .mm-sub{padding:3px 9px;font-size:12px;border-width:1px}\n'
             '</style>\n'
             '<div class="tv-embed-wrap">\n'
-            '  <iframe id="tv-iframe" data-src="__TV_URL__" title="movingmusicTV"'
+            '  <iframe id="tv-iframe" data-src="__TV_URL__" title="Worksong Atlas"'
             ' allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write; web-share"'
             ' allowfullscreen></iframe>\n'
             '</div>\n'
@@ -430,6 +433,12 @@ def build_card():
             'setTimeout(soon,600);setTimeout(soon,2000);'
             'if(window.MutationObserver)new MutationObserver(soon).observe(document.body,{childList:true});})();</script>'
             ).replace('__TV_URL__', TV_WORKER_URL)
+
+
+def build_forward_card():
+    """The Ghost page /tv/, the Scroll's old address: it sends the visitor on to /atlas/ with the same link."""
+    return ('<script data-mark="tv-forward">location.replace("/atlas/"+location.hash);</script>\n'
+            '<p><a href="/atlas/">The Worksong Atlas has moved here.</a></p>')
 
 
 def refresh_youtube(entries, meta):
@@ -491,9 +500,11 @@ def main():
     page = build_page(data)
     with open(OUT_PAGE, 'w', encoding='utf-8') as f:
         f.write(page)
-    with open(OUT_CARD, 'w', encoding='utf-8') as f:
+    with open(OUT_ATLAS_CARD, 'w', encoding='utf-8') as f:
         f.write(build_card() + '\n')
-    print('wrote tv.html (%d bytes) and ghost/tv.card.html' % len(page.encode('utf-8')))
+    with open(OUT_CARD, 'w', encoding='utf-8') as f:
+        f.write(build_forward_card() + '\n')
+    print('wrote tv.html (%d bytes), ghost/atlas.card.html and ghost/tv.card.html' % len(page.encode('utf-8')))
 
 
 if __name__ == '__main__':
