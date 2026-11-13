@@ -56,9 +56,17 @@ a { color: inherit; }
 .main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; grid-row: 3; }
 .feed { overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory; scrollbar-width: thin; position: relative; container: feed / size; }
 .feed:focus { outline: none; }
-.card { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; padding: 14px 20px 12px; max-width: 860px; margin: 0 auto; }
-.screen { position: relative; flex: 1 1 auto; min-height: 120px; background: var(--screen); border-radius: 8px; overflow: hidden; container-type: size; display: flex; align-items: center; justify-content: center; }
-.frame { position: relative; background: #000; overflow: hidden; }
+.card { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; justify-content: center; padding: 14px 20px 12px; margin: 0 auto; }
+/* The card is as wide as the video can be at this window height, so the video
+   fills the space and the title sits right under its left edge. 200px is room
+   for the title, place and one line. */
+.card.ar-16x9 { max-width: min(100%, 1500px, calc((100cqh - 200px) * 16 / 9 + 40px)); }
+.card.ar-4x3 { max-width: min(100%, 1500px, calc((100cqh - 200px) * 4 / 3 + 40px)); }
+.screen { position: relative; flex: 0 1 auto; width: 100%; min-height: 120px; container-type: size; display: flex; align-items: center; justify-content: center; }
+.ar-16x9 .screen { aspect-ratio: 16 / 9; }
+.ar-4x3 .screen { aspect-ratio: 4 / 3; }
+.ar-9x16 .screen { flex: 1 1 auto; }
+.frame { position: relative; background: #000; overflow: hidden; border-radius: 8px; }
 .ar-16x9 .frame { width: min(100cqw, 100cqh * 16 / 9); height: min(100cqh, 100cqw * 9 / 16); }
 .ar-4x3 .frame { width: min(100cqw, 100cqh * 4 / 3); height: min(100cqh, 100cqw * 3 / 4); }
 .ar-9x16 .frame { width: min(100cqw, 100cqh * 9 / 16); height: min(100cqh, 100cqw * 16 / 9); }
@@ -127,7 +135,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   .main { grid-template-columns: minmax(0, 1fr); }
   .side { display: none; }
   .strip { display: block; }
-  .card { padding: 10px 10px 10px; }
+  .card { padding: 10px 10px 10px; justify-content: flex-start; }
   .ti { font-size: 18.5px; }
   .sum { font-size: 13.5px; }
   .act { font-size: 11.5px; padding: 5px 8px 4px; }
@@ -156,7 +164,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
 /* A vertical video in a wide feed: the caption sits beside it, so the video gets the full height. */
 @container feed (min-aspect-ratio: 1/1) and (min-width: 560px) {
   .card.ar-9x16 { flex-direction: row; justify-content: center; gap: 22px; }
-  .card.ar-9x16 .screen { flex: 0 0 auto; height: 100%; aspect-ratio: 9 / 16; min-height: 0; }
+  .card.ar-9x16 .screen { flex: 0 0 auto; width: auto; height: 100%; aspect-ratio: 9 / 16; min-height: 0; }
   .card.ar-9x16.p-ig .screen { min-width: 326px; }
   .card.ar-9x16 .info { flex: 0 1 360px; min-width: 200px; align-self: flex-end; padding: 0 0 2px; }
   .card.ar-9x16 .plat { display: none; }  /* the caption beside names the platform */
