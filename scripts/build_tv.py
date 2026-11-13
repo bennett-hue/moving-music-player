@@ -271,7 +271,7 @@ def clean_label(t):
 def slim_find(f):
     """The fields the page needs; check, from, and the rest stay in the repo."""
     keep = ('id', 'platform', 'url', 'by', 'label', 'place', 'la', 'lo', 'tradition', 'uses', 'shows',
-            'orient', 'added', 'note')
+            'orient', 'added', 'note', 'wh')
     return {k: f[k] for k in keep if k in f and f[k] not in ('', None, [])}
 
 
