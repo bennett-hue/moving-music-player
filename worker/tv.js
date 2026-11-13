@@ -22,6 +22,8 @@
 
 const REPO = 'bennett-hue/moving-music-player';
 export const TV_DATA_REF = 'main';
+// Shows in the X-MMP-Build header, so a deploy can be checked from outside.
+export const BUILD = '2026-11-12.10';
 const INBOX_PREFIX = 'tvin:';
 const INBOX_TTL = 60 * 60 * 24 * 365;  // a year; Claude files each video long before
 const FINDS_CACHE_KEY = 'https://mmp-sync.internal/tv-finds.json';
@@ -60,6 +62,7 @@ function metaBytes(m) {
 // Shorten the line until the metadata fits in KV. Only a very long Facebook link
 // leaves less than a full line of room.
 function fitMeta(m) {
+  if ((m.pn || m.pp) && metaBytes(m) > META_MAX) { delete m.pn; delete m.pp; }
   if (m.orig && metaBytes(m) > META_MAX) delete m.orig;
   if (m.title && metaBytes(m) > META_MAX) m.title = cutLine(m.title.replace(/\u2026$/, ''), 60);
   while (m.note && metaBytes(m) > META_MAX) {
@@ -330,6 +333,13 @@ export async function inboxAdd(env, text, opts) {
     if (post && post.by && !old.by) add.by = post.by;
     if (Object.keys(add).length) meta = Object.assign({}, old, add);
   }
+  // What the phone sent, kept with the inbox copy (phone_name, phone_page in
+  // /tv-finds.json) so a missing title can be traced to the phone.
+  if (o.phone && post) {
+    const pn = cutLine(post.sent, 80), pp = cutLine(post.page, 80);
+    const base = meta || old || {};
+    if (base.pn !== pn || base.pp !== pp) meta = Object.assign({}, meta || old, { pn, pp });
+  }
   const shown = (meta || old).title, credit = (meta || old).by;
   const what = shown ? '\u201c' + cutLine(shown, 60) + '\u201d' : NAME[pvc.p] + ' video' + (credit ? ' by ' + credit : '');
   // From the Send button with no usable title: say what the phone sent, so a
@@ -347,17 +357,19 @@ export async function inboxAdd(env, text, opts) {
   try { await caches.default.delete(new Request(FINDS_CACHE_KEY)); } catch (e) {}
   const cut = meta.note && meta.note !== wrote && wrote ? ' Your line was cut to ' + meta.note.length + ' characters.' : '';
   if (!old) return { status: 201, message: 'On movingmusicTV: ' + what + (meta.note ? ', with your line.' : '.') + cut + why, id, line: meta.note };
-  if (meta.note !== old.note) return { status: 200, message: 'Line updated on ' + (shown ? '' : 'this ') + what + '.' + cut, id, line: meta.note };
+  if (meta.note !== old.note) return { status: 200, message: 'Line updated on ' + (shown ? '' : 'this ') + what + '.' + cut + why, id, line: meta.note };
   if (meta.tradition !== old.tradition) return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Now tied to its tradition.', id, line: meta.note || '' };
-  return { status: 200, message: 'Already on movingmusicTV: ' + what + '. ' + (meta.title && !old.title ? 'Title added.' : 'Credit added.'), id, line: meta.note || '' };
+  if (meta.title && !old.title) return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Title added.', id, line: meta.note || '' };
+  if (meta.by && !old.by) return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Credit added.', id, line: meta.note || '' };
+  return { status: 200, message: 'Already on movingmusicTV: ' + what + '.' + why, id, line: meta.note || '' };
 }
 
 export async function tvInboxPost(request, env) {
   const asText = new URL(request.url).searchParams.get('format') === 'text';
   const reply = (status, message, extra) => asText
-    ? new Response(message, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+    ? new Response(message, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-MMP-Build': BUILD } })
     : new Response(JSON.stringify({ ok: status < 300, message, ...(extra || {}) }),
-      { status, headers: { 'Content-Type': 'application/json' } });
+      { status, headers: { 'Content-Type': 'application/json', 'X-MMP-Build': BUILD } });
 
   if (!env.TV_INBOX_KEY) return reply(503, 'The movingmusicTV inbox is not set up yet.');
   let body;
@@ -375,7 +387,7 @@ function inboxFind(m) {
   const url = pv.p ? canonical(m.url, pv) : m.url;
   return {
     id: m.id, platform: PLATFORM[m.p] || m.p, url, by: m.by || '',
-    label: m.title || (NAME[m.p] || 'Video') + ' video', title_orig: m.orig || '', place: '', la: null, lo: null,
+    label: m.title || (NAME[m.p] || 'Video') + ' video', title_orig: m.orig || '', phone_name: m.pn || '', phone_page: m.pp || '', place: '', la: null, lo: null,
     tradition: m.tradition || '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '',
     from: m.from || 'Send button', note: m.note || '', noted: m.noted || '', inbox: true,
   };
@@ -430,6 +442,8 @@ export async function tvFindsGet(request, env, ctx) {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': `public, max-age=${FINDS_TTL}`,
       'Access-Control-Allow-Origin': '*',
+      'Access-Control-Expose-Headers': 'X-MMP-Build',
+      'X-MMP-Build': BUILD,
     },
   });
   try {
