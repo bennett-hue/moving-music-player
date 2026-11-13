@@ -184,7 +184,7 @@ export function cleanTitle(raw, p) {
     if (seg && !STAT_SEG.test(seg) && !SITE_SEG.test(seg)) keep.push(seg);
   });
   s = keep.join(' | ').replace(/(?:\s*#[^\s#]+)+$/u, '').replace(/^["\u201c]([\s\S]*)["\u201d]$/, '$1').trim();
-  if (SITE_SEG.test(s)) s = '';
+  if (SITE_SEG.test(s) || !/\p{L}/u.test(s)) s = '';  // a site name, or no words at all
   return { title: s ? cutLine(s, TITLE_MAX) : '', by: by.trim().slice(0, 60) };
 }
 
@@ -212,6 +212,7 @@ async function oembedTitle(pv, url) {
 async function postTitle(pv, url, sent) {
   const api = await oembedTitle(pv, url);
   const phone = cleanTitle(sent, pv.p);
+  if (phone.title && url.includes(phone.title)) phone.title = '';  // the phone named the link, not the post
   const title = (api && api.title) || phone.title, by = (api && api.by) || phone.by;
   return title || by ? { title, by } : null;
 }
