@@ -390,6 +390,9 @@ def build_card():
             # Wide windows: the TV covers the window down to the player bar, and the site header is
             # laid over the TV's left column, whose width the TV reports (--tv-left).
             '  body.tv-wide #tv-iframe{position:fixed;top:0;left:0;width:100vw;border-radius:0;z-index:10}\n'
+            # The site's player bar stays out of the way on this page until it is asked for: the Scroll's
+            # Browse panel has a Music player button, and Play in bar opens it.
+            '  body:is(.page-tv,.page-atlas):not(.mm-bar-open) .mmp-bar{transform:translateY(120%)!important;visibility:hidden}\n'
             # Phones: the Scroll covers the screen down to the player bar, and the site header steps aside.
             # The Scroll's Browse panel carries the site's links.
             '  body.tv-full #tv-iframe{position:fixed;top:0;left:0;width:100vw;border-radius:0;z-index:10}\n'
@@ -424,12 +427,16 @@ def build_card():
             'var raf=0,B=document.body,H=document.querySelector(".mm-head");'
             'function wide(){return B.classList.contains("tv-wide")||B.classList.contains("tv-full");}'
             'function fit(){raf=0;var top=wide()?0:i.getBoundingClientRect().top+(window.scrollY||0);'
-            'var bar=document.querySelector(".mmp-bar.is-visible");var b=(bar?bar.getBoundingClientRect().height:0)+(wide()?0:10);'
+            'var bar=B.classList.contains("mm-bar-open")?document.querySelector(".mmp-bar.is-visible"):null;var b=(bar?bar.getBoundingClientRect().height:0)+(wide()?0:10);'
             'i.style.height=Math.max(360,Math.floor(window.innerHeight-top-b))+"px";head();}'
             'function head(){try{i.contentWindow.postMessage({source:"mmtv-host",action:"head",'
             'h:B.classList.contains("tv-wide")&&H?Math.ceil(H.getBoundingClientRect().height):0},"*");}catch(e){}}'
-            'addEventListener("message",function(ev){var d=ev.data;'
-            'if(ev.source!==i.contentWindow||!d||d.source!=="mmtv"||d.action!=="layout")return;'
+            'function bar(open){B.classList.toggle("mm-bar-open",open);fit();'
+            'try{i.contentWindow.postMessage({source:"mmtv-host",action:"bar",open:open},"*");}catch(e){}}'
+            'addEventListener("message",function(ev){var d=ev.data;if(ev.source!==i.contentWindow||!d)return;'
+            'if(d.source==="mmtv"&&d.action==="bar"){bar(!B.classList.contains("mm-bar-open"));return;}'
+            'if(d.source==="mmp-atlas"&&d.action==="play"){bar(true);return;}'
+            'if(d.source!=="mmtv"||d.action!=="layout")return;'
             'var l=Math.max(0,Math.min(4000,Math.round(+d.left||0)));'
             'B.classList.toggle("tv-wide",l>0&&!!H);B.classList.toggle("tv-full",!!d.full);B.style.setProperty("--tv-left",l+"px");fit();});'
             'if(window.ResizeObserver&&H)new ResizeObserver(head).observe(H);'

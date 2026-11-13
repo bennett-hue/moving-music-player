@@ -310,6 +310,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
         <button class="pill small" id="o-journey" aria-pressed="false" title="Start in Maine and travel to the nearest place each time">Journey</button>
         <button class="pill small" id="o-work" aria-pressed="false" title="Only videos where the song is sung while the work happens">At work only</button>
         <button class="pill small" id="o-auto" aria-pressed="true" title="Start each video when it comes into view, and play the next one when it ends">Autoplay</button>
+        <button class="pill small" id="o-bar" aria-pressed="false" title="Show or hide the site's music player along the bottom" hidden>Music player</button>
       </div>
       <nav class="chan" id="chan" aria-label="Channels"></nav>
       <nav class="site" aria-label="Bennett's Songbook">
@@ -978,8 +979,17 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     // left: the width of the left column on a wide window. full: on a phone, this page wants the whole screen.
     try { window.parent.postMessage({ source: 'mmtv', action: 'layout', left: left, full: phone }, '*'); } catch (e) {}
   }
+  // The site's music player bar stays hidden on this page until asked for. The
+  // page that holds this one shows and hides it, and reports which it is.
+  if (FRAMED) {
+    $('o-bar').hidden = false;
+    $('o-bar').addEventListener('click', function () {
+      try { window.parent.postMessage({ source: 'mmtv', action: 'bar' }, '*'); } catch (e) {}
+    });
+  }
   window.addEventListener('message', function (ev) {
     var d = ev.data;
+    if (ev.source === window.parent && d && d.source === 'mmtv-host' && d.action === 'bar') { $('o-bar').setAttribute('aria-pressed', d.open ? 'true' : 'false'); return; }
     if (ev.source !== window.parent || !d || d.source !== 'mmtv-host' || d.action !== 'head') return;
     var h = Math.max(0, Math.min(320, Math.round(+d.h || 0)));
     $('tv').style.setProperty('--site-h', h + 'px');
