@@ -174,13 +174,13 @@
       "platform": "instagram",
       "url": "https://www.instagram.com/reel/Byh-l2Ogl8Q/",
       "by": "thevillagecanoe",
-      "label": "Community Worksongs Chorus at Tinder Hearth, a Voyageur paddling song",
+      "label": "Community Worksongs Chorus sings a sea shanty at Tinder Hearth",
       "place": "Brooksville, Maine",
       "la": 44.35,
       "lo": -68.74,
-      "tradition": "",
+      "tradition": "sea-shanties",
       "uses": [
-        "rowing"
+        "hauling"
       ],
       "shows": "shared",
       "orient": "v",
@@ -188,7 +188,9 @@
       "from": "Instagram saved: Worksongs",
       "note": "",
       "check": [
-        "shows"
+        "uses",
+        "shows",
+        "tradition"
       ],
       "wh": [
         500,
