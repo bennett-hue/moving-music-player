@@ -53,8 +53,8 @@ a { color: inherit; }
 .strip .pin { left: 50%; top: 50%; }
 
 /* ---------- body ---------- */
-.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; }
-.feed { overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory; scrollbar-width: thin; position: relative; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; grid-row: 3; }
+.feed { overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory; scrollbar-width: thin; position: relative; container: feed / size; }
 .feed:focus { outline: none; }
 .card { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; padding: 14px 20px 12px; max-width: 860px; margin: 0 auto; }
 .screen { position: relative; flex: 1 1 auto; min-height: 120px; background: var(--screen); border-radius: 8px; overflow: hidden; container-type: size; display: flex; align-items: center; justify-content: center; }
@@ -140,6 +140,26 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
 @media (max-width: 979px) and (max-height: 620px) {
   .strip { height: 44px; }
   .sum { -webkit-line-clamp: 1; }
+  .top { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "brand chan more" "ctrl ctrl ctrl"; gap: 0 10px; }
+  .top.open .ctrl { margin-top: 7px; }
+}
+
+/* ---------- short windows: one header row, less padding, more video ---------- */
+@media (min-width: 980px) and (max-height: 820px) {
+  .top { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "brand chan ctrl"; padding: 8px 16px 7px; }
+  .ctrl { flex-wrap: nowrap; }
+}
+@media (max-height: 820px) {
+  .card { padding-top: 8px; padding-bottom: 8px; }
+}
+
+/* A vertical video in a wide feed: the caption sits beside it, so the video gets the full height. */
+@container feed (min-aspect-ratio: 1/1) and (min-width: 560px) {
+  .card.ar-9x16 { flex-direction: row; justify-content: center; gap: 22px; }
+  .card.ar-9x16 .screen { flex: 0 0 auto; height: 100%; aspect-ratio: 9 / 16; min-height: 0; }
+  .card.ar-9x16.p-ig .screen { min-width: 326px; }
+  .card.ar-9x16 .info { flex: 0 1 360px; min-width: 200px; align-self: flex-end; padding: 0 0 2px; }
+  .card.ar-9x16 .plat { display: none; }  /* the caption beside names the platform */
 }
 @media (prefers-reduced-motion: reduce) {
   .pin, .tape, .toast { transition: none; }
@@ -311,7 +331,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   function shareUrl(it) { return TV.site + '/tv/#v=' + it.id; }
   function creditLine(it) {
     var who = it.by || '';
-    if (it.p === 'ig' || it.p === 'tt') who = who ? '@' + who.replace(/^@/, '') : '';
+    if ((it.p === 'ig' || it.p === 'tt') && /^@?[\w.]+$/.test(who)) who = '@' + who.replace(/^@/, '');
     if (it.p === 'file') return who ? 'Video from ' + who : 'Video';
     return who ? who + ' on ' + PLAT[it.p] : PLAT[it.p];
   }

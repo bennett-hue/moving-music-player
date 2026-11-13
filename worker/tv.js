@@ -1,10 +1,13 @@
 // movingmusicTV routes for the mmp-sync worker.
 //
 //   POST /tv-inbox       The "Send to movingmusicTV" button on Bennett's phone.
-//                        Body, as JSON or a form: { key, url, note }. key must
-//                        match the TV_INBOX_KEY secret. note is Bennett's line:
-//                        one sentence of commentary, shown under the video as
-//                        he wrote it. The video is stored in KV under tvin:<id>
+//                        Body, as JSON or a form: { key, url, note, title }. key
+//                        must match the TV_INBOX_KEY secret. note is Bennett's
+//                        line: one sentence of commentary, shown under the video
+//                        as he wrote it. title is the post's title as the phone
+//                        sees it (Facebook and Instagram give no other way to get
+//                        it); YouTube and TikTok titles come from their oEmbed.
+//                        The video is stored in KV under tvin:<id>
 //                        and shows on the TV within a minute. Sending the same
 //                        video again with a new line replaces the line.
 //                        Add ?format=text for a one-line reply the phone can show.
@@ -25,6 +28,7 @@ const FINDS_TTL = 60;
 const NAME = { yt: 'YouTube', ig: 'Instagram', fb: 'Facebook', tt: 'TikTok', file: 'Video' };
 const PLATFORM = { yt: 'youtube', ig: 'instagram', fb: 'facebook', tt: 'tiktok', file: 'file' };
 export const LINE_MAX = 280;
+const TITLE_MAX = 120;
 const META_MAX = 1000;  // KV metadata holds at most 1024 bytes
 
 // Bennett's line, as he wrote it, with three exceptions: whitespace collapses, an
@@ -55,11 +59,14 @@ function metaBytes(m) {
 // Shorten the line until the metadata fits in KV. Only a very long Facebook link
 // leaves less than a full line of room.
 function fitMeta(m) {
+  if (m.title && metaBytes(m) > META_MAX) m.title = cutLine(m.title.replace(/\u2026$/, ''), 60);
   while (m.note && metaBytes(m) > META_MAX) {
     const max = m.note.length - 20;
     m.note = max < 20 ? '' : cutLine(m.note.replace(/\u2026$/, ''), max);
   }
   if (m.from && metaBytes(m) > META_MAX) m.from = m.from.slice(0, 40);
+  if (m.title && metaBytes(m) > META_MAX) delete m.title;
+  if (m.by && metaBytes(m) > META_MAX) delete m.by;
   return metaBytes(m) <= META_MAX;
 }
 
@@ -148,6 +155,67 @@ async function resolveRedirects(u) {
   return cur === u ? null : cur;
 }
 
+// A post's title without the platform's clutter: view and like counts, the site
+// name, "Reel by X" (kept as the credit on Facebook), and hashtags at the end.
+// Returns { title, by }; either may be empty.
+const STAT = String.raw`[\d.,]+\s*[KMB]?\s+(?:views?|likes?|reactions?|comments?|shares?|plays?)`;
+const STAT_SEG = new RegExp('^' + STAT + '(?:\\s*[\u00b7\u2022,]\\s*' + STAT + ')*$', 'i');
+const SITE_SEG = /^(?:facebook|instagram|tiktok|youtube|reels?|watch|videos?|log ?in(?:to (?:facebook|instagram))?(?: or sign up)?(?: to (?:view|continue))?|sign up|instagram photos and videos)$/i;
+export function cleanTitle(raw, p) {
+  let s = String(raw || '').replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028\u2029\ufffc]/g, ' ').replace(/\s+/g, ' ').trim();
+  let by = '';
+  if (!s || /^https?:\/\//i.test(s) || s.length > 2000) return { title: '', by };
+  s = s.replace(/\s+[-|\u2013\u2014\u2022\u00b7]\s+(?:YouTube|TikTok|Facebook|Instagram)$/i, '');
+  s = s.replace(/^(?:YouTube|TikTok|Facebook|Instagram)\s+[-|\u2013\u2014\u2022\u00b7]\s+/i, '');
+  if (p === 'ig') {
+    // 'Name (@handle) on Instagram: "caption"': the handle is the credit.
+    const m = s.match(/^(.{0,80}?)\s+on Instagram:\s*["\u201c]([\s\S]*?)["\u201d]?$/);
+    if (m) {
+      const h = m[1].match(/\(@([\w.]{1,30})\)/);
+      if (h) by = h[1];
+      s = m[2];
+    }
+  }
+  const keep = [];
+  s.split(/\s+\|\s+/).forEach((seg, i) => {
+    seg = seg.trim();
+    const r = i > 0 && seg.match(/^(?:(?:reels?|video|post)\s+)?by\s+(.{1,60})$/i);
+    if (r) { if (p === 'fb' && !by) by = r[1]; return; }
+    if (seg && !STAT_SEG.test(seg) && !SITE_SEG.test(seg)) keep.push(seg);
+  });
+  s = keep.join(' | ').replace(/(?:\s*#[^\s#]+)+$/u, '').replace(/^["\u201c]([\s\S]*)["\u201d]$/, '$1').trim();
+  if (SITE_SEG.test(s)) s = '';
+  return { title: s ? cutLine(s, TITLE_MAX) : '', by: by.trim().slice(0, 60) };
+}
+
+// YouTube and TikTok publish titles through oEmbed; Facebook and Instagram need an
+// approved app and no longer return titles or authors, so their titles come from
+// the phone.
+async function oembedTitle(pv, url) {
+  const api = pv.p === 'yt' ? 'https://www.youtube.com/oembed?format=json&url=' +
+      encodeURIComponent('https://www.youtube.com/watch?v=' + pv.k)
+    : pv.p === 'tt' ? 'https://www.tiktok.com/oembed?url=' + encodeURIComponent(url) : '';
+  if (!api) return null;
+  try {
+    const r = await fetch(api, { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return {
+      title: cleanTitle(j.title, pv.p).title,
+      by: String((pv.p === 'tt' && j.author_unique_id) || j.author_name || '').trim().slice(0, 60),
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function postTitle(pv, url, sent) {
+  const api = await oembedTitle(pv, url);
+  const phone = cleanTitle(sent, pv.p);
+  const title = (api && api.title) || phone.title, by = (api && api.by) || phone.by;
+  return title || by ? { title, by } : null;
+}
+
 export function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
   let diff = 0;
@@ -190,19 +258,26 @@ export async function inboxAdd(env, text, opts) {
   const key = INBOX_PREFIX + id;
   const prev = await env.MMP_KV.getWithMetadata(key);
   const old = prev && prev.value !== null ? (prev.metadata || {}) : null;
-  const what = NAME[pvc.p] + ' video';
   const tradition = String(o.tradition || '').slice(0, 100);
+  const post = !old || !old.title ? await postTitle(pvc, url, o.title) : null;
 
   let meta = null;
   if (!old) {
     meta = { id, url, note: line, p: pvc.p, added: new Date().toISOString().slice(0, 10) };
     if (tradition) meta.tradition = tradition;
     if (o.from) meta.from = String(o.from).slice(0, 100);
-  } else if (line && line !== old.note) {
-    meta = Object.assign({}, old, { note: line });  // a new line; link and date stay
-  } else if (tradition && !old.tradition) {
-    meta = Object.assign({}, old, { tradition });   // already sent; now tied to a tradition
+    if (post && post.title) meta.title = post.title;
+    if (post && post.by) meta.by = post.by;
+  } else {
+    const add = {};  // a new line, a tradition, a title it lacked; link and date stay
+    if (line && line !== old.note) add.note = line;
+    if (tradition && !old.tradition) add.tradition = tradition;
+    if (post && post.title) add.title = post.title;
+    if (post && post.by && !old.by) add.by = post.by;
+    if (Object.keys(add).length) meta = Object.assign({}, old, add);
   }
+  const shown = (meta || old).title;
+  const what = shown ? '\u201c' + cutLine(shown, 60) + '\u201d' : NAME[pvc.p] + ' video';
   if (!meta) return { status: 200, message: 'Already on movingmusicTV: ' + what + '.', id, line: old.note || '' };
 
   if (meta.note && meta.note !== (old && old.note)) meta.noted = stamp();
@@ -211,8 +286,9 @@ export async function inboxAdd(env, text, opts) {
   try { await caches.default.delete(new Request(FINDS_CACHE_KEY)); } catch (e) {}
   const cut = meta.note && meta.note !== wrote && wrote ? ' Your line was cut to ' + meta.note.length + ' characters.' : '';
   if (!old) return { status: 201, message: 'On movingmusicTV: ' + what + (meta.note ? ', with your line.' : '.') + cut, id, line: meta.note };
-  if (meta.note !== old.note) return { status: 200, message: 'Line updated on this ' + what + '.' + cut, id, line: meta.note };
-  return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Now tied to its tradition.', id, line: meta.note || '' };
+  if (meta.note !== old.note) return { status: 200, message: 'Line updated on ' + (shown ? '' : 'this ') + what + '.' + cut, id, line: meta.note };
+  if (meta.tradition !== old.tradition) return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Now tied to its tradition.', id, line: meta.note || '' };
+  return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Title added.', id, line: meta.note || '' };
 }
 
 export async function tvInboxPost(request, env) {
@@ -226,18 +302,19 @@ export async function tvInboxPost(request, env) {
   let body;
   try { body = await readBody(request); } catch (e) { return reply(400, 'Could not read what was sent.'); }
   if (!body || !safeEqual(String(body.key || ''), env.TV_INBOX_KEY)) return reply(401, 'Wrong key.');
-  const r = await inboxAdd(env, body.url || body.link, { note: body.note });
+  const r = await inboxAdd(env, body.url || body.link, { note: body.note, title: body.title });
   return reply(r.status, r.message, r.id ? { id: r.id, line: r.line || '' } : undefined);
 }
 
-// The inbox copy of a video, before Claude files it: no place, tags, or credit yet.
+// The inbox copy of a video, before Claude files it: no place or tags yet, and the
+// post's own title and credit when the phone or oEmbed gave them.
 function inboxFind(m) {
   const pv = parseVideo(m.url) || {};
   // Links stored before a canonical() fix come out clean too.
   const url = pv.p ? canonical(m.url, pv) : m.url;
   return {
-    id: m.id, platform: PLATFORM[m.p] || m.p, url, by: '',
-    label: (NAME[m.p] || 'Video') + ' video', place: '', la: null, lo: null,
+    id: m.id, platform: PLATFORM[m.p] || m.p, url, by: m.by || '',
+    label: m.title || (NAME[m.p] || 'Video') + ' video', place: '', la: null, lo: null,
     tradition: m.tradition || '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '',
     from: m.from || 'Send button', note: m.note || '', noted: m.noted || '', inbox: true,
   };

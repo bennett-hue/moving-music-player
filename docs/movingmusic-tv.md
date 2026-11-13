@@ -36,15 +36,16 @@ At launch it holds 220 videos from 114 places: 210 YouTube, 8 Instagram, 1 Faceb
 
 ## Send a video
 
-The Send button is an iPhone shortcut in the share menu of every app. It takes two minutes to set up.
+The Send button is an iPhone shortcut in the share menu of every app. Claude can build it as a signed file you open on the Mac: it asks for the inbox key once and syncs to the phone through iCloud. To build it by hand:
 
 1. Open the Shortcuts app and tap +. Name the shortcut Send to movingmusicTV.
 2. Tap the info button at the bottom and turn on Show in Share Sheet. In the first block, keep only URLs and Text as input.
 3. Add the action Ask for Input. Set the prompt to: Your line (optional)
-4. Add the action Get Contents of URL with this URL: `https://mmp-sync.bennett-727.workers.dev/tv-inbox?format=text`. Open its options: Method POST, Request Body JSON. Add three text fields: `key` set to the inbox key, `url` set to the Shortcut Input variable, and `note` set to the Provided Input variable.
-5. Add the action Show Notification, set to Contents of URL.
+4. Add the action Get Name, set to the Shortcut Input variable. It gives the post's title as the share menu shows it.
+5. Add the action Get Contents of URL with this URL: `https://mmp-sync.bennett-727.workers.dev/tv-inbox?format=text`. Open its options: Method POST, Request Body JSON. Add four text fields: `key` set to the inbox key, `url` set to the Shortcut Input variable, `note` set to the Provided Input variable, and `title` set to the Name variable.
+6. Add the action Show Notification, set to Contents of URL.
 
-To send a video, tap Share in Instagram, Facebook, TikTok, or YouTube, then More or Share to, then Send to movingmusicTV. Type or dictate one sentence of commentary: what to watch or listen for. Name the place when you know it. The weekly filing often can't read Instagram or Facebook captions, so your line may be its only clue to where a video is from. For example: "Cape Coast, Ghana. Watch the caller time each line to the pull." To send a video with no line, tap Done with the box empty. The notification says "On movingmusicTV: Instagram video, with your line."
+To send a video, tap Share in Instagram, Facebook, TikTok, or YouTube, then More or Share to, then Send to movingmusicTV. Type or dictate one sentence of commentary: what to watch or listen for. Name the place when you know it. The post's title helps the weekly filing, but your line may still be its best clue to where a video is from. For example: "Cape Coast, Ghana. Watch the caller time each line to the pull." To send a video with no line, tap Done with the box empty. The notification names the video, such as "On movingmusicTV: “Pulling the seine at dawn”, with your line." With no title, it names the platform: "On movingmusicTV: Instagram video."
 
 Your line shows under the video, marked Bennett, on the TV and in the video's Atlas popup. It goes live within a minute, with no review step.
 
@@ -57,11 +58,12 @@ The key lives in the shortcut and in the worker secret `TV_INBOX_KEY`, never in 
 ## How a sent video moves
 
 1. The worker checks the key, finds the video id in the link, strips share-tracking parameters, and follows short links (vm.tiktok.com, fb.watch, facebook.com/share) to the real video. Facebook links come out as plain www.facebook.com links.
-2. It stores the video in KV as `tvin:<id>`, with the link, your line, the time of the line, and the date. The same video sent twice is stored once. A new line replaces the old one.
-3. Within a minute it is on the TV, first in Newest, under Bennett's finds, with your line under it. Its title is the platform, such as "Instagram video", until Claude files it. It has no place yet, so it has no map dot and no Atlas presence.
-4. Every Monday morning a scheduled task files the week's videos: place, coordinates, Atlas tradition, uses, what the video shows, credit. It runs `python3 scripts/tv_intake.py pull` to list what's waiting, then `python3 scripts/tv_intake.py add --url ... --label ... --place ... --la ... --lo ...` for each. Guesses go in `--check`.
-5. It runs `python3 scripts/tv_intake.py lines`, which copies your lines into `tv/finds.json` word for word, including new lines on videos filed earlier. Claude never writes or rewrites your line. If you ask Claude to change one, `add --note` stamps the change, so an older send can't overwrite it.
-6. It runs `python3 scripts/build_tv.py --check`, commits `tv/finds.json` to `main`, and pushes. Within about five minutes the filed copy replaces the inbox copy on the TV, and the Atlas picks it up.
+2. It finds the post's title. YouTube and TikTok titles and channels come from their public oEmbed. Facebook and Instagram offer titles only to approved apps, and no longer return them even then, so their titles come from the phone: the name the share menu shows, minus view counts, the site name, and trailing hashtags. "Reel by Name" on Facebook becomes the credit, and so does an Instagram handle in the title.
+3. It stores the video in KV as `tvin:<id>`, with the link, the title and credit, your line, the time of the line, and the date. The same video sent twice is stored once. A new line replaces the old one. A video stored without a title gets one when it is sent again.
+4. Within a minute it is on the TV, first in Newest, under Bennett's finds, with your line under it. Its title is the post's title, or the platform, such as "Instagram video", when there is none. It has no place yet, so it has no map dot and no Atlas presence.
+5. Every Monday morning a scheduled task files the week's videos: place, coordinates, Atlas tradition, uses, what the video shows, credit. It runs `python3 scripts/tv_intake.py pull` to list what's waiting, then `python3 scripts/tv_intake.py add --url ... --label ... --place ... --la ... --lo ...` for each. Guesses go in `--check`.
+6. It runs `python3 scripts/tv_intake.py lines`, which copies your lines into `tv/finds.json` word for word, including new lines on videos filed earlier. Claude never writes or rewrites your line. If you ask Claude to change one, `add --note` stamps the change, so an older send can't overwrite it.
+7. It runs `python3 scripts/build_tv.py --check`, commits `tv/finds.json` to `main`, and pushes. Within about five minutes the filed copy replaces the inbox copy on the TV, and the Atlas picks it up.
 
 Instagram and Facebook block captions from servers, so Claude files those from your line, or from the post itself when your Mac is on with the Claude app open.
 
