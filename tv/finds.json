@@ -8,15 +8,22 @@
       "by": "dusttodigital",
       "label": "Workers chopping corn in Serra Preta, Brazil, 2019",
       "place": "Serra Preta, Bahia, Brazil",
-      "la": -12.16, "lo": -39.33,
+      "la": -12.16,
+      "lo": -39.33,
       "tradition": "cantos-de-trabalho",
-      "uses": ["communal-work-party"],
+      "uses": [
+        "communal-work-party"
+      ],
       "shows": "at-work",
       "orient": "v",
       "added": "2026-11-12",
       "from": "Instagram saved: Worksongs",
       "note": "",
-      "check": ["la", "lo", "tradition"]
+      "check": [
+        "la",
+        "lo",
+        "tradition"
+      ]
     },
     {
       "id": "ig-Be3DJsPnGib",
@@ -25,15 +32,20 @@
       "by": "j.opoku_ofei",
       "label": "Fishermen drawing in their catch at Cape Coast",
       "place": "Cape Coast, Ghana",
-      "la": 5.11, "lo": -1.25,
+      "la": 5.11,
+      "lo": -1.25,
       "tradition": "seine-hauling-songs",
-      "uses": ["hauling"],
+      "uses": [
+        "hauling"
+      ],
       "shows": "at-work",
       "orient": "v",
       "added": "2026-11-12",
       "from": "Instagram saved: Worksongs",
       "note": "",
-      "check": ["tradition"]
+      "check": [
+        "tradition"
+      ]
     },
     {
       "id": "ig-Cbcc0huADn8",
@@ -42,15 +54,23 @@
       "by": "fosenfolkehogskole",
       "label": "Launching the fembøring for the season",
       "place": "Fosen, Trøndelag, Norway",
-      "la": 63.58, "lo": 9.97,
+      "la": 63.58,
+      "lo": 9.97,
       "tradition": "",
-      "uses": ["hauling"],
+      "uses": [
+        "hauling"
+      ],
       "shows": "at-work",
       "orient": "v",
       "added": "2026-11-12",
       "from": "Instagram saved: Worksongs",
       "note": "",
-      "check": ["la", "lo", "uses", "shows"]
+      "check": [
+        "la",
+        "lo",
+        "uses",
+        "shows"
+      ]
     },
     {
       "id": "ig-B84Z5yNJb9N",
@@ -59,15 +79,21 @@
       "by": "spelmannsarven",
       "label": "Mattias and Roald in the smithy at Rørosmartnan",
       "place": "Røros, Norway",
-      "la": 62.57, "lo": 11.38,
+      "la": 62.57,
+      "lo": 11.38,
       "tradition": "",
-      "uses": ["pounding"],
+      "uses": [
+        "pounding"
+      ],
       "shows": "concert",
       "orient": "v",
       "added": "2026-11-12",
       "from": "Instagram saved: Worksongs",
       "note": "",
-      "check": ["uses", "shows"]
+      "check": [
+        "uses",
+        "shows"
+      ]
     },
     {
       "id": "ig-BqD6s9qH9ay",
@@ -76,15 +102,22 @@
       "by": "corallinawanders",
       "label": "Friends sing, sling wood, and bring in next winter's firewood",
       "place": "",
-      "la": null, "lo": null,
+      "la": null,
+      "lo": null,
       "tradition": "",
-      "uses": ["carrying", "communal-work-party"],
+      "uses": [
+        "carrying",
+        "communal-work-party"
+      ],
       "shows": "at-work",
       "orient": "v",
       "added": "2026-11-12",
       "from": "Instagram saved: Worksongs",
       "note": "",
-      "check": ["place", "uses"]
+      "check": [
+        "place",
+        "uses"
+      ]
     },
     {
       "id": "ig-BhBpIBenS3a",
@@ -93,15 +126,24 @@
       "by": "darthiafarm",
       "label": "We All Need a Fruit, a farm work song by Steve of Fruition Seeds",
       "place": "Naples, New York",
-      "la": 42.62, "lo": -77.40,
+      "la": 42.62,
+      "lo": -77.4,
       "tradition": "",
-      "uses": ["communal-work-party"],
+      "uses": [
+        "communal-work-party"
+      ],
       "shows": "",
       "orient": "v",
       "added": "2026-11-12",
       "from": "Instagram saved: Worksongs",
       "note": "",
-      "check": ["place", "la", "lo", "uses", "shows"]
+      "check": [
+        "place",
+        "la",
+        "lo",
+        "uses",
+        "shows"
+      ]
     },
     {
       "id": "ig-Byh-l2Ogl8Q",
@@ -110,15 +152,20 @@
       "by": "thevillagecanoe",
       "label": "Community Worksongs Chorus at Tinder Hearth, a Voyageur paddling song",
       "place": "Brooksville, Maine",
-      "la": 44.35, "lo": -68.74,
+      "la": 44.35,
+      "lo": -68.74,
       "tradition": "",
-      "uses": ["rowing"],
+      "uses": [
+        "rowing"
+      ],
       "shows": "shared",
       "orient": "v",
       "added": "2026-11-12",
       "from": "Instagram saved: Worksongs",
       "note": "",
-      "check": ["shows"]
+      "check": [
+        "shows"
+      ]
     },
     {
       "id": "ig-vt02EjR8KS",
@@ -127,7 +174,8 @@
       "by": "veggiesforall",
       "label": "Edith & Bennett lead the crowd at Squash Hunger",
       "place": "Unity, Maine",
-      "la": 44.61, "lo": -69.33,
+      "la": 44.61,
+      "lo": -69.33,
       "tradition": "",
       "uses": [],
       "shows": "concert",
@@ -135,17 +183,361 @@
       "added": "2026-11-12",
       "from": "Instagram saved: Worksongs",
       "note": "",
-      "check": ["uses", "shows"]
+      "check": [
+        "uses",
+        "shows"
+      ]
+    },
+    {
+      "id": "ig-DeuY5fLM7VB",
+      "platform": "instagram",
+      "url": "https://www.instagram.com/reel/DeuY5fLM7VB/",
+      "by": "isamilo_joggingclub",
+      "label": "Come see this game @mcmagoma_shereheni enjoying the vibe of @isamilo_joggingclub",
+      "place": "Mwanza, Tanzania",
+      "la": -2.51,
+      "lo": 32.9,
+      "tradition": "mchakamchaka",
+      "uses": [
+        "walking"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "Double time clapping rhythm",
+      "check": [
+        "place",
+        "la",
+        "lo",
+        "tradition"
+      ],
+      "noted": "2026-11-13T11:59:26Z"
+    },
+    {
+      "id": "ig-DcvInkZNxg0",
+      "platform": "instagram",
+      "url": "https://www.instagram.com/reel/DcvInkZNxg0/",
+      "by": "Mwandiga Jogging Club",
+      "label": "Mwandiga Jogging Club walks 3 km with Saddam Salaya, who is walking from South Africa to Russia",
+      "place": "Kazuramimba, Kigoma, Tanzania",
+      "la": -5.01,
+      "lo": 30.03,
+      "tradition": "mchakamchaka",
+      "uses": [
+        "walking"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "Fine to just walk!",
+      "check": [
+        "label",
+        "la",
+        "lo",
+        "tradition"
+      ],
+      "noted": "2026-11-13T11:15:29Z"
+    },
+    {
+      "id": "ig-De9YxP_OlTD",
+      "platform": "instagram",
+      "url": "https://www.instagram.com/reel/De9YxP_OlTD/",
+      "by": "arumerupolisijamii_joggingclub",
+      "label": "Arumeru community police jogging club on the road behind a red flag",
+      "place": "Arumeru, Arusha, Tanzania",
+      "la": -3.37,
+      "lo": 36.85,
+      "tradition": "mchakamchaka",
+      "uses": [
+        "walking"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "Test",
+      "check": [
+        "label",
+        "la",
+        "lo",
+        "tradition"
+      ],
+      "noted": "2026-11-13T10:49:16Z"
+    },
+    {
+      "id": "ig-DfEfZk7R9oW",
+      "platform": "instagram",
+      "url": "https://www.instagram.com/reel/DfEfZk7R9oW/",
+      "by": "iamcassie_gh",
+      "label": "This is what life by the coast in Ghana looks and sounds like",
+      "place": "Ghana",
+      "la": null,
+      "lo": null,
+      "tradition": "seine-hauling-songs",
+      "uses": [
+        "hauling"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "",
+      "check": [
+        "tradition"
+      ]
+    },
+    {
+      "id": "ig-DfSIKLxynJ7",
+      "platform": "instagram",
+      "url": "https://www.instagram.com/reel/DfSIKLxynJ7/",
+      "by": "panya_phon2021",
+      "label": "A crew drives a foundation pile by hand in Thailand",
+      "place": "Thailand",
+      "la": null,
+      "lo": null,
+      "tradition": "",
+      "uses": [
+        "pounding"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "",
+      "check": [
+        "label",
+        "uses",
+        "shows"
+      ]
+    },
+    {
+      "id": "ig-DffImTYN5pt",
+      "platform": "instagram",
+      "url": "https://www.instagram.com/reel/DffImTYN5pt/",
+      "by": "ezerose_construction",
+      "label": "The Eze Ros crew shovels concrete up a building, level by level",
+      "place": "Cameroon",
+      "la": null,
+      "lo": null,
+      "tradition": "",
+      "uses": [
+        "communal-work-party"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "",
+      "check": [
+        "label",
+        "place",
+        "uses"
+      ]
+    },
+    {
+      "id": "ig-Dfl2C4JNIPm",
+      "platform": "instagram",
+      "url": "https://www.instagram.com/reel/Dfl2C4JNIPm/",
+      "by": "ezerose_construction",
+      "label": "The Eze Ros crew mixes concrete with shovels",
+      "place": "Cameroon",
+      "la": null,
+      "lo": null,
+      "tradition": "",
+      "uses": [
+        "communal-work-party"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "I love the snare sound of the shovels.",
+      "check": [
+        "label",
+        "place",
+        "uses"
+      ],
+      "noted": "2026-11-13T11:12:40Z"
+    },
+    {
+      "id": "fb-1377475762106363",
+      "platform": "facebook",
+      "url": "https://www.facebook.com/reel/1377475762106363/",
+      "by": "Emmanuel Tetteh Ashiangmor",
+      "label": "A fishing crew lines the rail and hauls the net in together",
+      "place": "Ghana",
+      "la": null,
+      "lo": null,
+      "tradition": "seine-hauling-songs",
+      "uses": [
+        "hauling"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "I love the heavy almost trance like rhythm these guys develop",
+      "check": [
+        "label",
+        "place",
+        "tradition"
+      ],
+      "noted": "2026-11-13T11:38:16Z"
+    },
+    {
+      "id": "fb-1607936451133575",
+      "platform": "facebook",
+      "url": "https://www.facebook.com/reel/1607936451133575/",
+      "by": "Emmanuel Tetteh Ashiangmor",
+      "label": "Canoe fishermen haul a net hand over hand",
+      "place": "Ghana",
+      "la": null,
+      "lo": null,
+      "tradition": "seine-hauling-songs",
+      "uses": [
+        "hauling"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "",
+      "check": [
+        "label",
+        "place",
+        "tradition"
+      ]
+    },
+    {
+      "id": "fb-1590779692690562",
+      "platform": "facebook",
+      "url": "https://www.facebook.com/reel/1590779692690562/",
+      "by": "Araf Ch",
+      "label": "A crowd hauls a squared timber down a road with ropes",
+      "place": "",
+      "la": null,
+      "lo": null,
+      "tradition": "",
+      "uses": [
+        "hauling"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "",
+      "check": [
+        "label"
+      ]
+    },
+    {
+      "id": "fb-1652453166421626",
+      "platform": "facebook",
+      "url": "https://www.facebook.com/reel/1652453166421626/",
+      "by": "Omar El-ayyachy",
+      "label": "Threshing corn in the Boussader area, near Khenifra",
+      "place": "Boussader, near Khenifra, Morocco",
+      "la": 32.94,
+      "lo": -5.67,
+      "tradition": "",
+      "uses": [
+        "pounding",
+        "communal-work-party"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "Test",
+      "check": [
+        "label",
+        "la",
+        "lo",
+        "uses",
+        "shows"
+      ],
+      "noted": "2026-11-13T10:49:51Z"
+    },
+    {
+      "id": "fb-2926260301073927",
+      "platform": "facebook",
+      "url": "https://www.facebook.com/reel/2926260301073927/",
+      "by": "Bínû Xeťtri",
+      "label": "Stacking maize on tall drying racks",
+      "place": "",
+      "la": null,
+      "lo": null,
+      "tradition": "",
+      "uses": [],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "Test",
+      "check": [
+        "label",
+        "shows"
+      ],
+      "noted": "2026-11-13T01:49:42Z"
+    },
+    {
+      "id": "fb-29768857336049817",
+      "platform": "facebook",
+      "url": "https://www.facebook.com/reel/29768857336049817/",
+      "by": "El Castillo filmaciones",
+      "label": "Only country people know what a venteada means: winnowing the wheat",
+      "place": "",
+      "la": null,
+      "lo": null,
+      "tradition": "",
+      "uses": [
+        "communal-work-party"
+      ],
+      "shows": "at-work",
+      "orient": "v",
+      "added": "2026-11-13",
+      "from": "Send button",
+      "note": "",
+      "check": [
+        "label",
+        "uses"
+      ]
     }
   ],
   "hide": [
-    {"id": "fb-1393022591134185", "why": "Facebook refuses to embed it (content owned by someone else); the Atlas still links it", "checked": "2026-11-12"}
+    {
+      "id": "fb-1393022591134185",
+      "why": "Facebook refuses to embed it (content owned by someone else); the Atlas still links it",
+      "checked": "2026-11-12"
+    }
   ],
   "skipped": [
-    {"url": "https://www.instagram.com/p/B-K2k7Sg-jk/", "by": "edithspromise", "why": "photo, not a video (waulking)"},
-    {"url": "https://www.instagram.com/p/B_2fyQSFzE1/", "by": "rootsofalba", "why": "photo, not a video (waulking)"},
-    {"url": "https://www.instagram.com/p/BYXs0UfAnyD/", "by": "incontext5", "why": "photo, not a video (hairdressers' work song project, South Dublin)"},
-    {"url": "https://www.instagram.com/p/BWn6355HsnV/", "by": "ybiggscre", "why": "photo, not a video (Northern Neck Chantey Singers)"},
-    {"url": "https://www.instagram.com/reel/BvFyVYojxMLRjjqwoqpSY4hmu_KQ1CpVV3-_JA0/", "by": "sepp9", "why": "embed returns no video; the post is private or gone"}
+    {
+      "url": "https://www.instagram.com/p/B-K2k7Sg-jk/",
+      "by": "edithspromise",
+      "why": "photo, not a video (waulking)"
+    },
+    {
+      "url": "https://www.instagram.com/p/B_2fyQSFzE1/",
+      "by": "rootsofalba",
+      "why": "photo, not a video (waulking)"
+    },
+    {
+      "url": "https://www.instagram.com/p/BYXs0UfAnyD/",
+      "by": "incontext5",
+      "why": "photo, not a video (hairdressers' work song project, South Dublin)"
+    },
+    {
+      "url": "https://www.instagram.com/p/BWn6355HsnV/",
+      "by": "ybiggscre",
+      "why": "photo, not a video (Northern Neck Chantey Singers)"
+    },
+    {
+      "url": "https://www.instagram.com/reel/BvFyVYojxMLRjjqwoqpSY4hmu_KQ1CpVV3-_JA0/",
+      "by": "sepp9",
+      "why": "embed returns no video; the post is private or gone"
+    }
   ]
 }

@@ -31,6 +31,7 @@ import datetime
 import json
 import os
 import re
+import subprocess
 import sys
 import urllib.request
 
@@ -76,7 +77,12 @@ def fetch_live():
         with urllib.request.urlopen(tv.TV_LIVE_URL, timeout=20) as r:
             return json.load(r)
     except Exception as e:  # noqa: BLE001
-        sys.exit('Could not read the live finds at %s: %s' % (tv.TV_LIVE_URL, e))
+        # Cloudflare turns Python's default client away with a 403 from some networks. curl gets through.
+        try:
+            out = subprocess.run(['curl', '-sS', '-f', '-m', '30', tv.TV_LIVE_URL], capture_output=True, check=True)
+            return json.loads(out.stdout.decode('utf-8'))
+        except Exception as e2:  # noqa: BLE001
+            sys.exit('Could not read the live finds at %s: %s; curl: %s' % (tv.TV_LIVE_URL, e, e2))
 
 
 def cmd_pull(args):
