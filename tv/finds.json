@@ -297,14 +297,14 @@
       "orient": "v",
       "added": "2026-11-13",
       "from": "Send button",
-      "note": "Test",
+      "note": "",
       "check": [
         "label",
         "la",
         "lo",
         "tradition"
       ],
-      "noted": "2026-11-13T10:49:16Z",
+      "noted": "2026-11-13T14:17:12Z",
       "wh": [
         500,
         888
@@ -510,7 +510,7 @@
       "orient": "v",
       "added": "2026-11-13",
       "from": "Send button",
-      "note": "Test",
+      "note": "",
       "check": [
         "label",
         "la",
@@ -518,7 +518,7 @@
         "uses",
         "shows"
       ],
-      "noted": "2026-11-13T10:49:51Z"
+      "noted": "2026-11-13T14:17:12Z"
     },
     {
       "id": "fb-2926260301073927",
@@ -571,6 +571,11 @@
       "id": "fb-1393022591134185",
       "why": "Facebook refuses to embed it (content owned by someone else); the Atlas still links it",
       "checked": "2026-11-12"
+    },
+    {
+      "id": "fb-2926260301073927",
+      "why": "Bennett asked to remove it; Facebook tags it as AI content",
+      "checked": "2026-11-13"
     }
   ],
   "skipped": [
