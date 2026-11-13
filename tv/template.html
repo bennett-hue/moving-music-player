@@ -75,16 +75,16 @@ a { color: inherit; }
 .ar-16x9 .frame { width: min(100cqw, 100cqh * 16 / 9); height: min(100cqh, 100cqw * 9 / 16); }
 .ar-4x3 .frame { width: min(100cqw, 100cqh * 4 / 3); height: min(100cqh, 100cqw * 3 / 4); }
 .ar-9x16 .frame { width: min(100cqw, 100cqh * 9 / 16); height: min(100cqh, 100cqw * 16 / 9); }
-/* Instagram's embed crops a reel to 4:5 and wraps it in a 54px header and a
-   footer. The card is 4:5 as well, and the iframe is shifted up (and scaled
-   down when the frame is narrower than the embed's 326px minimum) so the
-   frame shows only the video. */
-.card.p-ig .frame { width: min(100cqw, 100cqh * 4 / 5); height: min(100cqh, 100cqw * 5 / 4); }
+/* Instagram's embed puts the video in a 4:5 box under a 54px header, with a
+   footer below. A vertical reel plays letterboxed inside that box. The frame
+   stays 9:16, and the iframe is enlarged and shifted so the frame shows only
+   the video, at full length. 1.42222 is (16/9) * (4/5). */
 .live.p-ig .host { overflow: hidden; }
 .live.p-ig .host iframe {
-  --fw: min(100cqw, 100cqh * 4 / 5);
-  inset: 0 auto auto 0; width: max(var(--fw), 326px); height: calc(max(var(--fw), 326px) * 5 / 4 + 300px);
-  transform-origin: 0 0; transform: scale(min(1, tan(atan2(var(--fw), 326px)))) translateY(-54px);
+  --fw: min(100cqw, 100cqh * 9 / 16);
+  --ew: max(calc(var(--fw) * 1.42222), 326px);
+  inset: 0 auto auto 0; width: var(--ew); height: calc(var(--ew) * 5 / 4 + 300px);
+  transform-origin: 0 0; transform: scale(min(1, tan(atan2(calc(var(--fw) * 1.42222), 326px)))) translate(calc(var(--ew) * -0.148437), -54px);
 }
 .live.p-fb .frame { background: #000; }
 .poster, .postmap { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -181,46 +181,32 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
 @container feed (min-aspect-ratio: 1/1) and (min-width: 560px) {
   .card.ar-9x16 { flex-direction: row; justify-content: center; gap: 22px; }
   .card.ar-9x16 .screen { flex: 0 0 auto; width: auto; height: 100%; aspect-ratio: 9 / 16; min-height: 0; }
-  /* Instagram is 4:5, so it needs a wider feed to sit beside its caption. */
-  .card.ar-9x16.p-ig { flex-direction: column; gap: 0; }
-  .card.ar-9x16.p-ig .screen { flex: 1 1 auto; width: 100%; height: auto; aspect-ratio: auto; }
-  .card.ar-9x16.p-ig .info { flex: 0 0 auto; min-width: 0; align-self: stretch; padding: 10px 2px 0; }
-  .card.ar-9x16.p-ig .plat { display: block; }
   .card.ar-9x16 .info { flex: 0 1 360px; min-width: 200px; align-self: flex-end; padding: 0 0 2px; }
   .card.ar-9x16 .plat { display: none; }  /* the caption beside names the platform */
 }
-@container feed (min-aspect-ratio: 6/5) and (min-width: 900px) {
-  .card.ar-9x16.p-ig { flex-direction: row; gap: 22px; }
-  .card.ar-9x16.p-ig .screen { flex: 0 0 auto; width: auto; height: 100%; aspect-ratio: 4 / 5; min-height: 0; }
-  .card.ar-9x16.p-ig .info { flex: 0 1 360px; min-width: 200px; align-self: flex-end; padding: 0 0 2px; }
-  .card.ar-9x16.p-ig .plat { display: none; }
-}
-/* ---------- vertical video on a wide window: the header and player form a
-   sidebar on the left, and the Atlas takes the rest ---------- */
+
+/* ---------- wide windows: the map sits on the left, videos on the right ---------- */
 @media (min-width: 980px) {
-  .tv.v { grid-template-rows: auto 1fr; grid-template-columns: min(60%, calc((100dvh - 72px) * 0.5625 + 330px)) minmax(0, 1fr); }
+  .main { grid-template-columns: 340px minmax(0, 1fr); }
+  .side { grid-column: 1; grid-row: 1; border-left: 0; border-right: 1px solid var(--line); }
+  .feed { grid-column: 2; grid-row: 1; }
+  /* A vertical video: it runs the full height of the window on the right, with
+     one entry beside it (credit, title, Bennett's line, the Atlas text). The
+     header moves above the map, and the map takes the rest. */
+  .tv.v { grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr) min(64%, calc((100dvh - 16px) * 0.5625 + 362px)); }
   .tv.v .top { grid-column: 1; grid-row: 1; }
   .tv.v .main { display: contents; }
-  .tv.v .feed { grid-column: 1; grid-row: 2; min-height: 0; }
-  .tv.v .side { grid-column: 2; grid-row: 1 / 3; min-height: 0; }
+  .tv.v .side { grid-column: 1; grid-row: 2; min-height: 0; }
+  .tv.v .feed { grid-column: 2; grid-row: 1 / 3; min-height: 0; border-left: 1px solid var(--line); }
+  .tv.v .side { border-right: 0; }
   .tv.v .mapwrap { flex: 0 0 auto; }
-  .tv.v .card.ar-9x16 { flex-direction: row; justify-content: flex-start; gap: 22px; }
+  .tv.v .now > :not(.pos) { display: none; }
+  .tv.v .card.ar-9x16 { flex-direction: row; justify-content: flex-start; gap: 22px; padding-top: 8px; padding-bottom: 8px; }
   .tv.v .card.ar-9x16 .screen { flex: 0 1 auto; width: auto; height: 100%; aspect-ratio: 9 / 16; min-height: 0; max-width: calc(100% - 222px); }
-  .tv.v .card.ar-9x16 .info { flex: 1 1 200px; min-width: 200px; align-self: flex-end; padding: 0 0 2px; }
+  .tv.v .card.ar-9x16 .info { flex: 1 1 200px; min-width: 200px; align-self: flex-start; padding: 6px 0 0; max-height: 100%; overflow-y: auto; }
   .tv.v .card.ar-9x16 .plat { display: none; }
-  /* Instagram is 4:5. Its caption sits under the video unless the window is very wide. */
-  .tv.v.v45 { grid-template-columns: min(60%, calc((100dvh - 210px) * 0.8 + 40px)) minmax(0, 1fr); }
-  .tv.v .card.ar-9x16.p-ig { flex-direction: column; justify-content: center; gap: 0; }
-  .tv.v .card.ar-9x16.p-ig .screen { flex: 1 1 auto; width: 100%; height: auto; aspect-ratio: auto; max-width: none; }
-  .tv.v .card.ar-9x16.p-ig .info { flex: 0 0 auto; min-width: 0; align-self: stretch; padding: 10px 2px 0; }
-  .tv.v .card.ar-9x16.p-ig .plat { display: block; }
-}
-@media (min-width: 980px) and (min-aspect-ratio: 19/10) {
-  .tv.v.v45 { grid-template-columns: min(60%, calc((100dvh - 72px) * 0.8 + 330px)) minmax(0, 1fr); }
-  .tv.v .card.ar-9x16.p-ig { flex-direction: row; justify-content: flex-start; gap: 22px; }
-  .tv.v .card.ar-9x16.p-ig .screen { flex: 0 1 auto; width: auto; height: 100%; aspect-ratio: 4 / 5; min-height: 0; max-width: calc(100% - 222px); }
-  .tv.v .card.ar-9x16.p-ig .info { flex: 1 1 200px; min-width: 200px; align-self: flex-end; padding: 0 0 2px; }
-  .tv.v .card.ar-9x16.p-ig .plat { display: none; }
+  .tv.v .card.ar-9x16 .sum { display: block; -webkit-line-clamp: none; overflow: visible; }
+  .tv.v .card.ar-9x16 .ti { font-size: 24px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pin, .tape, .toast { transition: none; }
@@ -799,7 +785,6 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     var ci = state.cur >= 0 ? ITEMS[state.list[state.cur]] : null, tv = $('tv');
     var wasV = tv.className;
     tv.classList.toggle('v', !!ci && ci.ar === '9:16');
-    tv.classList.toggle('v45', !!ci && ci.ar === '9:16' && ci.p === 'ig');
     // The columns just changed width. Land on the current card at once, or the
     // feed snaps back to the card it was leaving.
     if (tv.className !== wasV && ci) { var cc = cardAt(state.cur); if (cc) $('feed').scrollTo({ top: cc.offsetTop }); }
