@@ -59,6 +59,7 @@ function metaBytes(m) {
 // Shorten the line until the metadata fits in KV. Only a very long Facebook link
 // leaves less than a full line of room.
 function fitMeta(m) {
+  if (m.orig && metaBytes(m) > META_MAX) delete m.orig;
   if (m.title && metaBytes(m) > META_MAX) m.title = cutLine(m.title.replace(/\u2026$/, ''), 60);
   while (m.note && metaBytes(m) > META_MAX) {
     const max = m.note.length - 20;
@@ -211,12 +212,45 @@ async function oembedTitle(pv, url) {
   }
 }
 
-async function postTitle(pv, url, sent) {
+// Titles show in English. Workers AI (the AI binding) translates a title in any
+// other language and hands an English one back unchanged. Without the binding,
+// or on any error or odd answer, the title stays as it came.
+const AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+export async function inEnglish(env, s) {
+  if (!s || !env || !env.AI) return s;
+  try {
+    const r = await Promise.race([
+      env.AI.run(AI_MODEL, {
+        messages: [
+          { role: 'system', content: 'You translate the title of a short social video into natural English. Keep names of people, groups, and places. If the title is already English, reply with it unchanged. Reply with the English title only: no quotes, no notes.' },
+          { role: 'user', content: s },
+        ],
+        max_tokens: 100,
+        temperature: 0,
+      }),
+      new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 6000)),
+    ]);
+    let t = String((r && r.response) || '').split('\n').map((x) => x.trim()).filter(Boolean)[0] || '';
+    t = t.replace(/^(?:english\s+)?(?:translation|title)\s*:\s*/i, '').replace(/^["\u201c']+|["\u201d']+$/g, '');
+    t = cleanLine(t);
+    if (!t || !/\p{L}/u.test(t) || t.length > s.length * 3 + 40) return s;
+    return cutLine(t, TITLE_MAX);
+  } catch (e) {
+    return s;
+  }
+}
+
+async function postTitle(env, pv, url, sent) {
   const api = await oembedTitle(pv, url);
   const phone = cleanTitle(sent, pv.p);
   if (phone.title && url.includes(phone.title)) phone.title = '';  // the phone named the link, not the post
-  const title = (api && api.title) || phone.title, by = (api && api.by) || phone.by;
-  return title || by ? { title, by } : null;
+  let title = (api && api.title) || phone.title, orig = '';
+  const by = (api && api.by) || phone.by;
+  if (title) {
+    const en = await inEnglish(env, title);
+    if (en && en !== title) { orig = title; title = en; }
+  }
+  return { title, by, orig, sent: String(sent || '').replace(/\s+/g, ' ').trim() };
 }
 
 export function safeEqual(a, b) {
@@ -262,7 +296,7 @@ export async function inboxAdd(env, text, opts) {
   const prev = await env.MMP_KV.getWithMetadata(key);
   const old = prev && prev.value !== null ? (prev.metadata || {}) : null;
   const tradition = String(o.tradition || '').slice(0, 100);
-  const post = !old || !old.title ? await postTitle(pvc, url, o.title) : null;
+  const post = !old || !old.title ? await postTitle(env, pvc, url, o.title) : null;
 
   let meta = null;
   if (!old) {
@@ -270,25 +304,32 @@ export async function inboxAdd(env, text, opts) {
     if (tradition) meta.tradition = tradition;
     if (o.from) meta.from = String(o.from).slice(0, 100);
     if (post && post.title) meta.title = post.title;
+    if (post && post.orig) meta.orig = post.orig;
     if (post && post.by) meta.by = post.by;
   } else {
     const add = {};  // a new line, a tradition, a title it lacked; link and date stay
     if (line && line !== old.note) add.note = line;
     if (tradition && !old.tradition) add.tradition = tradition;
     if (post && post.title) add.title = post.title;
+    if (post && post.title && post.orig) add.orig = post.orig;
     if (post && post.by && !old.by) add.by = post.by;
     if (Object.keys(add).length) meta = Object.assign({}, old, add);
   }
   const shown = (meta || old).title;
   const what = shown ? '\u201c' + cutLine(shown, 60) + '\u201d' : NAME[pvc.p] + ' video';
-  if (!meta) return { status: 200, message: 'Already on movingmusicTV: ' + what + '.', id, line: old.note || '' };
+  // From the Send button with no usable title: say what the phone sent, so a
+  // missing title can be traced to the phone or to the cleanup here.
+  const why = !shown && o.phone ? (post && post.sent
+    ? ' Your phone sent \u201c' + cutLine(post.sent, 50) + '\u201d, not a title.'
+    : ' Your phone sent no title.') : '';
+  if (!meta) return { status: 200, message: 'Already on movingmusicTV: ' + what + '.' + why, id, line: old.note || '' };
 
   if (meta.note && meta.note !== (old && old.note)) meta.noted = stamp();
   if (!fitMeta(meta)) return { status: 400, message: 'That link is too long to store.' };
   await env.MMP_KV.put(key, '1', { expirationTtl: INBOX_TTL, metadata: meta });
   try { await caches.default.delete(new Request(FINDS_CACHE_KEY)); } catch (e) {}
   const cut = meta.note && meta.note !== wrote && wrote ? ' Your line was cut to ' + meta.note.length + ' characters.' : '';
-  if (!old) return { status: 201, message: 'On movingmusicTV: ' + what + (meta.note ? ', with your line.' : '.') + cut, id, line: meta.note };
+  if (!old) return { status: 201, message: 'On movingmusicTV: ' + what + (meta.note ? ', with your line.' : '.') + cut + why, id, line: meta.note };
   if (meta.note !== old.note) return { status: 200, message: 'Line updated on ' + (shown ? '' : 'this ') + what + '.' + cut, id, line: meta.note };
   if (meta.tradition !== old.tradition) return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Now tied to its tradition.', id, line: meta.note || '' };
   return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Title added.', id, line: meta.note || '' };
@@ -305,7 +346,7 @@ export async function tvInboxPost(request, env) {
   let body;
   try { body = await readBody(request); } catch (e) { return reply(400, 'Could not read what was sent.'); }
   if (!body || !safeEqual(String(body.key || ''), env.TV_INBOX_KEY)) return reply(401, 'Wrong key.');
-  const r = await inboxAdd(env, body.url || body.link, { note: body.note, title: body.title });
+  const r = await inboxAdd(env, body.url || body.link, { note: body.note, title: body.title, phone: true });
   return reply(r.status, r.message, r.id ? { id: r.id, line: r.line || '' } : undefined);
 }
 
@@ -317,7 +358,7 @@ function inboxFind(m) {
   const url = pv.p ? canonical(m.url, pv) : m.url;
   return {
     id: m.id, platform: PLATFORM[m.p] || m.p, url, by: m.by || '',
-    label: m.title || (NAME[m.p] || 'Video') + ' video', place: '', la: null, lo: null,
+    label: m.title || (NAME[m.p] || 'Video') + ' video', title_orig: m.orig || '', place: '', la: null, lo: null,
     tradition: m.tradition || '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '',
     from: m.from || 'Send button', note: m.note || '', noted: m.noted || '', inbox: true,
   };
