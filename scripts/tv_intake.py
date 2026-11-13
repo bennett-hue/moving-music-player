@@ -12,7 +12,7 @@ Usage:
         List inbox videos that are not filed yet (JSON, one per line).
     python3 scripts/tv_intake.py add --url URL [--label ...] [--by ...] [--place ...]
             [--la N --lo N] [--tradition SLUG] [--uses a,b] [--shows at-work|shared|concert]
-            [--orient v|h] [--note ...] [--added YYYY-MM-DD] [--from ...] [--check field,field]
+            [--orient v|h] [--wh 500x888] [--note ...] [--added YYYY-MM-DD] [--from ...] [--check field,field]
         Add a find, or update the fields you pass on an existing one. Pass --note only
         when Bennett asks for a line change; it stamps noted, so it beats older sends.
     python3 scripts/tv_intake.py lines
@@ -110,6 +110,7 @@ def cmd_add(args):
         'tradition': args.tradition, 'uses': args.uses.split(',') if args.uses else None,
         'shows': args.shows, 'orient': args.orient, 'note': note, 'added': args.added,
         'from': getattr(args, 'from'),
+        'wh': [int(n) for n in args.wh.lower().split('x')] if args.wh else None,
         'check': [c for c in args.check.split(',') if c] if args.check is not None else None,
         'noted': stamp() if note is not None else None,
     }
@@ -129,6 +130,8 @@ def cmd_add(args):
         }
         if note:
             f['noted'] = given['noted']
+        if given['wh']:
+            f['wh'] = given['wh']
         if not f['label']:
             sys.exit('A new find needs --label (one line: what the video shows).')
         finds.append(f)
@@ -190,6 +193,7 @@ def main():
     a.add_argument('--la', type=float)
     a.add_argument('--lo', type=float)
     a.add_argument('--orient', choices=('v', 'h'))
+    a.add_argument('--wh', help='the video\'s width and height, such as 500x888; the Scroll crops an Instagram embed to this shape')
     h = sub.add_parser('hide')
     h.add_argument('--id', required=True)
     h.add_argument('--why', required=True)
