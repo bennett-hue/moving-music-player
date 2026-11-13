@@ -185,23 +185,25 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   .card.ar-9x16 .plat { display: none; }  /* the caption beside names the platform */
 }
 
-/* ---------- wide windows: the map sits on the left, videos on the right ---------- */
+/* ---------- wide windows: everything but the video sits in a left column
+   (the header, the map, the entry), and the video takes the full height of
+   the window on the right. Inside the site, the site's own header is laid over
+   the top of the left column, and --site-h is its height. ---------- */
 @media (min-width: 980px) {
-  .main { grid-template-columns: 340px minmax(0, 1fr); }
-  .side { grid-column: 1; grid-row: 1; border-left: 0; border-right: 1px solid var(--line); }
-  .feed { grid-column: 2; grid-row: 1; }
-  /* A vertical video: it runs the full height of the window on the right, with
-     one entry beside it (credit, title, Bennett's line, the Atlas text). The
-     header moves above the map, and the map takes the rest. */
-  .tv.v { grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr) min(64%, calc((100dvh - 16px) * 0.5625 + 362px)); }
-  .tv.v .top { grid-column: 1; grid-row: 1; }
-  .tv.v .main { display: contents; }
-  .tv.v .side { grid-column: 1; grid-row: 2; min-height: 0; }
-  .tv.v .feed { grid-column: 2; grid-row: 1 / 3; min-height: 0; border-left: 1px solid var(--line); }
-  .tv.v .side { border-right: 0; }
-  .tv.v .mapwrap { flex: 0 0 auto; }
+  .tv { grid-template-rows: auto 1fr; grid-template-columns: 340px minmax(0, 1fr); }
+  .top { grid-column: 1; grid-row: 1; padding-top: calc(10px + var(--site-h, 0px)); }
+  .main { display: contents; }
+  .side { grid-column: 1; grid-row: 2; min-height: 0; border-left: 0; }
+  .mapwrap { flex: 0 0 auto; }
+  .feed { grid-column: 2; grid-row: 1 / 3; min-height: 0; border-left: 1px solid var(--line); }
+  .card { padding-top: 8px; padding-bottom: 8px; }
+  .card.ar-16x9 { max-width: min(100%, calc((100cqh - 150px) * 16 / 9 + 40px)); }
+  .card.ar-4x3 { max-width: min(100%, calc((100cqh - 150px) * 4 / 3 + 40px)); }
+  /* A vertical video: one entry beside it (credit, title, Bennett's line, the
+     Atlas text), and the map takes the rest. */
+  .tv.v { grid-template-columns: minmax(340px, 1fr) min(66%, calc((100dvh - 16px) * 0.5625 + 362px)); }
   .tv.v .now > :not(.pos) { display: none; }
-  .tv.v .card.ar-9x16 { flex-direction: row; justify-content: flex-start; gap: 22px; padding-top: 8px; padding-bottom: 8px; }
+  .tv.v .card.ar-9x16 { flex-direction: row; justify-content: flex-start; gap: 22px; }
   .tv.v .card.ar-9x16 .screen { flex: 0 1 auto; width: auto; height: 100%; aspect-ratio: 9 / 16; min-height: 0; max-width: calc(100% - 222px); }
   .tv.v .card.ar-9x16 .info { flex: 1 1 200px; min-width: 200px; align-self: flex-start; padding: 6px 0 0; max-height: 100%; overflow-y: auto; }
   .tv.v .card.ar-9x16 .plat { display: none; }
@@ -780,6 +782,24 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   }
 
   // ---------- side panel ----------
+  // Inside the site, tell the page how wide the left column is, so it can lay
+  // its header over it. It answers with the header's height.
+  var toldHost = -1;
+  function tellHost() {
+    if (!FRAMED) return;
+    var wide = window.matchMedia('(min-width: 980px)').matches;
+    var left = wide ? Math.round(document.querySelector('.top').getBoundingClientRect().width) : 0;
+    if (left === toldHost) return;
+    toldHost = left;
+    try { window.parent.postMessage({ source: 'mmtv', action: 'layout', left: left }, '*'); } catch (e) {}
+  }
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (ev.source !== window.parent || !d || d.source !== 'mmtv-host' || d.action !== 'head') return;
+    var h = Math.max(0, Math.min(320, Math.round(+d.h || 0)));
+    $('tv').style.setProperty('--site-h', h + 'px');
+    drawPanel();
+  });
   function updatePanels() {
     var now = $('now'), next = $('next');
     var ci = state.cur >= 0 ? ITEMS[state.list[state.cur]] : null, tv = $('tv');
@@ -803,6 +823,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     $('stripwhere').textContent = placeOf(it) || title;
     drawPanel();
     drawStrip();
+    tellHost();
   }
 
   // ---------- keyboard ----------

@@ -8,9 +8,21 @@
   body.page-tv .site{min-height:0!important}
   #tv-iframe{display:block;width:100%;height:calc(100vh - 190px);height:calc(100svh - 190px);min-height:360px;border:0;border-radius:6px;background:#1b1814}
   @media (max-width:700px){body.page-tv .mm-pagewrap .mm-wrap{padding-left:0;padding-right:0}#tv-iframe{border-radius:0}}
+  body.tv-wide #tv-iframe{position:fixed;top:0;left:0;width:100vw;border-radius:0;z-index:10}
+  body.tv-wide .mm-head{position:fixed;top:0;left:0;width:var(--tv-left,340px);z-index:11;margin:0;padding:10px 16px 0;background:none;border:0;box-shadow:none;box-sizing:border-box}
+  body.tv-wide .mm-head-inner{display:flex!important;flex-wrap:wrap;align-items:center;gap:5px 12px;max-width:none;margin:0;padding:0}
+  body.tv-wide .mm-brand{flex:1 1 100%;gap:1px}
+  body.tv-wide .mm-lockup{gap:8px}
+  body.tv-wide .mm-lockup .l1{font-size:16px;letter-spacing:.12em}
+  body.tv-wide .mm-lockup .l2{font-size:14.5px}
+  body.tv-wide .mm-strap{font-size:12.5px;gap:0 6px}
+  body.tv-wide .mm-nav{flex:0 1 auto;margin:0;gap:3px 12px;justify-content:flex-start}
+  body.tv-wide .mm-head-inner .mm-nav{margin-top:0}
+  body.tv-wide .mm-nav a.menu{font-size:12px}
+  body.tv-wide .mm-login,body.tv-wide .mm-sub{padding:3px 9px;font-size:12px;border-width:1px}
 </style>
 <div class="tv-embed-wrap">
   <iframe id="tv-iframe" data-src="https://mmp-sync.bennett-727.workers.dev/tv.html" title="movingmusicTV" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write; web-share" allowfullscreen></iframe>
 </div>
 <script data-mark="tv-iframe-forward">(function(){var i=document.getElementById("tv-iframe");if(!i)return;var s=i.getAttribute("data-src");if(location.hash){var sep=s.indexOf("?")>-1?"&":"?";s+=sep+"state="+encodeURIComponent(location.hash.substring(1));}i.setAttribute("src",s);})();</script>
-<script data-mark="tv-iframe-fit">(function(){var i=document.getElementById("tv-iframe");if(!i)return;var raf=0;function fit(){raf=0;var top=i.getBoundingClientRect().top+(window.scrollY||0);var bar=document.querySelector(".mmp-bar.is-visible");var b=(bar?bar.getBoundingClientRect().height:0)+10;i.style.height=Math.max(360,Math.floor(window.innerHeight-top-b))+"px";}function soon(){if(!raf)raf=requestAnimationFrame(fit);}fit();addEventListener("resize",soon);addEventListener("orientationchange",soon);setTimeout(soon,600);setTimeout(soon,2000);if(window.MutationObserver)new MutationObserver(soon).observe(document.body,{childList:true});})();</script>
+<script data-mark="tv-iframe-fit">(function(){var i=document.getElementById("tv-iframe");if(!i)return;var raf=0,B=document.body,H=document.querySelector(".mm-head");function wide(){return B.classList.contains("tv-wide");}function fit(){raf=0;var top=wide()?0:i.getBoundingClientRect().top+(window.scrollY||0);var bar=document.querySelector(".mmp-bar.is-visible");var b=(bar?bar.getBoundingClientRect().height:0)+(wide()?0:10);i.style.height=Math.max(360,Math.floor(window.innerHeight-top-b))+"px";head();}function head(){try{i.contentWindow.postMessage({source:"mmtv-host",action:"head",h:wide()&&H?Math.ceil(H.getBoundingClientRect().height):0},"*");}catch(e){}}addEventListener("message",function(ev){var d=ev.data;if(ev.source!==i.contentWindow||!d||d.source!=="mmtv"||d.action!=="layout")return;var l=Math.max(0,Math.min(4000,Math.round(+d.left||0)));B.classList.toggle("tv-wide",l>0&&!!H);B.style.setProperty("--tv-left",l+"px");fit();});if(window.ResizeObserver&&H)new ResizeObserver(head).observe(H);function soon(){if(!raf)raf=requestAnimationFrame(fit);}fit();addEventListener("resize",soon);addEventListener("orientationchange",soon);setTimeout(soon,600);setTimeout(soon,2000);if(window.MutationObserver)new MutationObserver(soon).observe(document.body,{childList:true});})();</script>
