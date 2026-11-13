@@ -6,12 +6,12 @@ At launch it holds 220 videos from 114 places: 210 YouTube, 8 Instagram, 1 Faceb
 
 ## How it ties to the Atlas
 
-- Channels are the Atlas uses, numbered 1 to 10: hauling, rowing, pounding, carrying, walking, solo pacing, signaling, animal calls, work parties, devotional. Two more channels sit in front: All, and Bennett's finds.
+- Channels are the Atlas uses, numbered 1 to 10: hauling, rowing, pounding, carrying, walking, solo pacing, signaling, animal calls, work parties, devotional. Two more channels sit in front: All, and Bennett's picks.
 - Newest order, the default, puts the latest finds first and then follows the journey. Journey order starts in Belfast, Maine and goes to the nearest place each time.
 - The map follows along. It is drawn from the Atlas base map in the same projection, so a dot on the TV sits where the pin sits on the Atlas.
 - Every card from an Atlas tradition links to its pin: `/atlas/#tradition=slug`.
 - Every Atlas popup with a playable video links back: "Watch on movingmusicTV" opens `/tv/#tradition=slug`.
-- Finds reach the Atlas too, live. A find filed under a tradition is listed in that tradition's popup under "Bennett's finds". A find with a place but no tradition gets its own dot with a brick ring. A find with no place yet shows on the TV only.
+- Finds reach the Atlas too, live. A find filed under a tradition is listed in that tradition's popup under "Bennett's picks". A find with a place but no tradition gets its own dot with a brick ring. A find with no place yet shows on the TV only.
 - Inside the Ghost page, YouTube cards have "Play in bar": the video moves to the site's player bar and keeps playing while the visitor browses.
 
 ## Links
@@ -60,7 +60,7 @@ The key lives in the shortcut and in the worker secret `TV_INBOX_KEY`, never in 
 1. The worker checks the key, finds the video id in the link, strips share-tracking parameters, and follows short links (vm.tiktok.com, fb.watch, facebook.com/share) to the real video. Facebook links come out as plain www.facebook.com links.
 2. It finds the post's title. YouTube and TikTok titles and channels come from their public oEmbed. Facebook and Instagram offer titles only to approved apps, and no longer return them even then, so their titles come from the phone: the name the share menu shows, minus view counts, the site name, and trailing hashtags. "Reel by Name" on Facebook becomes the credit, and so does an Instagram handle in the title. A title in another language is put into English by Workers AI (the worker's `AI` binding); the original stays with the inbox copy as `title_orig` for the daily filing. Without the binding, or if the translation fails, the title stays as it came.
 3. It stores the video in KV as `tvin:<id>`, with the link, the title and credit, your line, the time of the line, and the date. The same video sent twice is stored once. A new line replaces the old one. A video stored without a title gets one when it is sent again.
-4. Within a minute it is on the TV, first in Newest, under Bennett's finds, with your line under it. Its title is the post's title, or the platform, such as "Instagram video", when there is none. It has no place yet, so it has no map dot and no Atlas presence.
+4. Within a minute it is on the TV, first in Newest, under Bennett's picks, with your line under it. Its title is the post's title, or the platform, such as "Instagram video", when there is none. It has no place yet, so it has no map dot and no Atlas presence.
 5. Every day a scheduled task files the day's videos: place, coordinates, Atlas tradition, uses, what the video shows, credit. It runs `python3 scripts/tv_intake.py pull` to list what's waiting, then `python3 scripts/tv_intake.py add --url ... --label ... --place ... --la ... --lo ...` for each. Guesses go in `--check`.
 6. It runs `python3 scripts/tv_intake.py lines`, which copies your lines into `tv/finds.json` word for word, including new lines on videos filed earlier. Claude never writes or rewrites your line. If you ask Claude to change one, `add --note` stamps the change, so an older send can't overwrite it.
 7. It runs `python3 scripts/build_tv.py --check`, commits `tv/finds.json` to `main`, and pushes. Within about five minutes the filed copy replaces the inbox copy on the TV, and the Atlas picks it up.

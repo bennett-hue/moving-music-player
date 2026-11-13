@@ -391,7 +391,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   // ---------- channels ----------
   function renderChannels() {
     var cnt = function (id) { return ORDER.journey.filter(function (i) { return passes(ITEMS[i], id); }).length; };
-    var chans = [['all', 'All', '', cnt('all')]].concat([['finds', "Bennett's finds", '', cnt('finds')]]);
+    var chans = [['all', 'All', '', cnt('all')]].concat([['finds', "Bennett's picks", '', cnt('finds')]]);
     TV.uses.forEach(function (u, n) { chans.push([u[0], u[1], String(n + 1), u[2]]); });
     var html = chans.map(function (c) {
       var count = c[3] != null ? c[3] : cnt(c[0]);
@@ -433,7 +433,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     if (FRAMED && it.p === 'yt') acts += '<button class="act" data-a="bar" title="Keep listening while you browse the site">Play in bar</button>';
     acts += '<a class="act" target="_blank" rel="noopener noreferrer" href="' + esc(it.u) + '">' + (it.p === 'file' ? 'Open video' : PLAT[it.p]) + ' &#8599;</a>';
     acts += '<button class="act" data-a="copy">Copy link</button>';
-    var tapeTitle = st.atlas ? st.n : "Bennett's finds";
+    var tapeTitle = st.atlas ? st.n : "Bennett's picks";
     var tapeSub = placeOf(it);
     return '<article class="card p-' + it.p + ' ' + ar + '" data-n="' + n + '" id="v-' + esc(it.id) + '" aria-posinset="' + (n + 1) +
       '" aria-setsize="' + total + '" aria-labelledby="t-' + n + '">' +

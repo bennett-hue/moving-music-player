@@ -1189,7 +1189,7 @@ document.addEventListener('click', function (ev) {
       if (m) {
         var html = m.getPopup().getContent();
         var credit = /^Suggested by /.test(f.from || '') ? ', ' + esc(String(f.from).replace(/^Suggested/, 'suggested')) : '';
-        if (html.indexOf('find-head') < 0) html = addToPopup(html, '<div class="find-head">Bennett\'s finds</div>');
+        if (html.indexOf('find-head') < 0) html = addToPopup(html, '<div class="find-head">Bennett\'s picks</div>');
         html = addToPopup(html, '<div class="find-row"><a class="tv-link" target="_top" href="' + tvUrl(f) + '">' +
           esc(f.label || 'Video') + '</a> <span class="find-src">' + esc(NAMES[f.platform] || '') + credit + '</span>' +
           (f.note ? '<div class="find-line">' + esc(f.note) + '</div>' : '') + '</div>');
