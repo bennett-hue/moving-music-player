@@ -404,7 +404,7 @@ export async function inboxAdd(env, text, opts) {
   let meta = null;
   if (!old) {
     const now = new Date().toISOString();
-    meta = { id, url, note: line, p: pvc.p, added: now.slice(0, 10), at: now.slice(0, 19) + 'Z' };
+    meta = { id, url, note: line, p: pvc.p, added: now.slice(0, 10), at: now };
     if (tradition) meta.tradition = tradition;
     if (o.from) meta.from = String(o.from).slice(0, 100);
     if (post && post.title) meta.title = post.title;
@@ -412,7 +412,7 @@ export async function inboxAdd(env, text, opts) {
     if (post && post.by) meta.by = post.by;
   } else {
     const add = {};  // a new line, a tradition, a title it lacked; link and date stay
-    if (line && line !== old.note) { add.note = line; add.at = new Date().toISOString().slice(0, 19) + 'Z'; }
+    if (line && line !== old.note) { add.note = line; add.at = new Date().toISOString(); }
     if (tradition && !old.tradition) add.tradition = tradition;
     if (post && post.title) add.title = post.title;
     if (post && post.title && post.orig) add.orig = post.orig;
