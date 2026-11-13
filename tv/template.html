@@ -30,11 +30,16 @@ a { color: inherit; }
 .tv { display: grid; grid-template-rows: auto auto 1fr; height: 100vh; height: 100dvh; }
 
 /* ---------- header ---------- */
-.top { padding: 10px 16px 8px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: auto 1fr; grid-template-areas: "brand ctrl" "chan chan"; gap: 8px 14px; align-items: center; }
+.top { position: relative; z-index: 5; padding: 10px 16px 8px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "brand cur more" "browse browse browse"; gap: 0 14px; align-items: center; }
+.cur { grid-area: cur; min-width: 0; font-family: var(--label); font-weight: 700; font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cur .cnt { font-weight: 500; margin-left: 6px; }
+.browse { display: none; position: absolute; top: 100%; left: 0; right: 0; padding: 10px 16px 12px; background: var(--paper); border-bottom: 1px solid var(--line); box-shadow: 0 6px 12px rgba(35,31,27,.12); }
+.top.open .browse { display: block; }
+.browse .chan { padding-top: 8px; }
 .brand { grid-area: brand; font-family: var(--serif); font-size: 25px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; line-height: 1; }
 .brand .tag { display: inline-block; font-family: var(--label); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; background: var(--brick); color: var(--paper); padding: 3px 6px 2px; margin-left: 4px; transform: rotate(-3deg) translateY(-3px); box-shadow: 0 1px 1px rgba(0,0,0,.18); }
-.ctrl { grid-area: ctrl; display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
-.chan { grid-area: chan; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; mask-image: linear-gradient(to right, #000 92%, transparent); }
+.ctrl { display: flex; gap: 6px; flex-wrap: wrap; }
+.chan { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 8px 0 2px; mask-image: linear-gradient(to right, #000 92%, transparent); }
 .chan::-webkit-scrollbar { display: none; }
 .pill { font-family: var(--label); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid var(--line); background: transparent; padding: 5px 11px 4px; border-radius: 999px; white-space: nowrap; cursor: pointer; line-height: 1.1; }
 .pill:hover { background: var(--paper2); }
@@ -56,9 +61,17 @@ a { color: inherit; }
 .main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; min-height: 0; grid-row: 3; }
 .feed { overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory; scrollbar-width: thin; position: relative; container: feed / size; }
 .feed:focus { outline: none; }
-.card { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; padding: 14px 20px 12px; max-width: 860px; margin: 0 auto; }
-.screen { position: relative; flex: 1 1 auto; min-height: 120px; background: var(--screen); border-radius: 8px; overflow: hidden; container-type: size; display: flex; align-items: center; justify-content: center; }
-.frame { position: relative; background: #000; overflow: hidden; }
+.card { height: 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; flex-direction: column; justify-content: center; padding: 14px 20px 12px; margin: 0 auto; }
+/* The card is as wide as the video can be at this window height, so the video
+   fills the space and the title sits right under its left edge. 200px is room
+   for the title, place and one line. */
+.card.ar-16x9 { max-width: min(100%, 1500px, calc((100cqh - 200px) * 16 / 9 + 40px)); }
+.card.ar-4x3 { max-width: min(100%, 1500px, calc((100cqh - 200px) * 4 / 3 + 40px)); }
+.screen { position: relative; flex: 0 1 auto; width: 100%; min-height: 120px; container-type: size; display: flex; align-items: center; justify-content: center; }
+.ar-16x9 .screen { aspect-ratio: 16 / 9; }
+.ar-4x3 .screen { aspect-ratio: 4 / 3; }
+.ar-9x16 .screen { flex: 1 1 auto; }
+.frame { position: relative; background: #000; overflow: hidden; border-radius: 8px; }
 .ar-16x9 .frame { width: min(100cqw, 100cqh * 16 / 9); height: min(100cqh, 100cqw * 9 / 16); }
 .ar-4x3 .frame { width: min(100cqw, 100cqh * 4 / 3); height: min(100cqh, 100cqw * 3 / 4); }
 .ar-9x16 .frame { width: min(100cqw, 100cqh * 9 / 16); height: min(100cqh, 100cqw * 16 / 9); }
@@ -68,7 +81,9 @@ a { color: inherit; }
 .postmap { background: var(--screen); }
 .posttext { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 16px 16px; color: var(--paper); background: linear-gradient(to top, rgba(20,17,14,.9), rgba(20,17,14,0)); }
 .posttext .via { font-family: var(--label); font-weight: 700; font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: #d9ccb6; }
-.more { display: none; grid-area: more; }
+.more { grid-area: more; }
+.more::after { content: " \25be"; }
+.top.open .more::after { content: " \25b4"; }
 .host, .host iframe, .host video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: transparent; }
 .host video { background: #000; }
 .play { position: absolute; z-index: 2; left: 50%; top: 50%; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%; border: 0; background: rgba(243,237,225,.94); display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.35); transition: transform .15s; }
@@ -115,6 +130,8 @@ a { color: inherit; }
 .next button:hover { color: var(--brick); }
 .next button::after { content: " \2193"; color: var(--brick); }
 .keys, .fine { font-size: 12.5px; line-height: 1.5; color: var(--muted); margin: 0; }
+.keys { display: none; }
+.tv:has(.top.open) .keys { display: block; }
 .fine { margin-top: auto; border-top: 1px solid var(--line); padding-top: 12px; }
 kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: var(--paper2); }
 
@@ -127,15 +144,16 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   .main { grid-template-columns: minmax(0, 1fr); }
   .side { display: none; }
   .strip { display: block; }
-  .card { padding: 10px 10px 10px; }
+  .card { padding: 10px 10px 10px; justify-content: flex-start; }
   .ti { font-size: 18.5px; }
   .sum { font-size: 13.5px; }
   .act { font-size: 11.5px; padding: 5px 8px 4px; }
-  .top { padding: 8px 10px 7px; grid-template-columns: 1fr auto; grid-template-areas: "brand more" "ctrl ctrl" "chan chan"; }
+  .top { padding: 8px 10px 7px; }
   .brand { font-size: 22px; }
-  .more { display: inline-block; }
-  .ctrl { display: none; justify-content: flex-start; }
-  .top.open .ctrl { display: flex; }
+}
+@media (max-width: 479px) {
+  .cur { display: none; }
+  .top { grid-template-columns: 1fr auto; grid-template-areas: "brand more"; }
 }
 @media (max-width: 979px) and (max-height: 620px) {
   .strip { height: 44px; }
@@ -145,18 +163,16 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
 }
 
 /* ---------- short windows: one header row, less padding, more video ---------- */
-@media (min-width: 980px) and (max-height: 820px) {
-  .top { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "brand chan ctrl"; padding: 8px 16px 7px; }
-  .ctrl { flex-wrap: nowrap; }
-}
 @media (max-height: 820px) {
+  .top { padding-top: 8px; padding-bottom: 7px; }
+  .browse { padding-top: 8px; padding-bottom: 8px; }
   .card { padding-top: 8px; padding-bottom: 8px; }
 }
 
 /* A vertical video in a wide feed: the caption sits beside it, so the video gets the full height. */
 @container feed (min-aspect-ratio: 1/1) and (min-width: 560px) {
   .card.ar-9x16 { flex-direction: row; justify-content: center; gap: 22px; }
-  .card.ar-9x16 .screen { flex: 0 0 auto; height: 100%; aspect-ratio: 9 / 16; min-height: 0; }
+  .card.ar-9x16 .screen { flex: 0 0 auto; width: auto; height: 100%; aspect-ratio: 9 / 16; min-height: 0; }
   .card.ar-9x16.p-ig .screen { min-width: 326px; }
   .card.ar-9x16 .info { flex: 0 1 360px; min-width: 200px; align-self: flex-end; padding: 0 0 2px; }
   .card.ar-9x16 .plat { display: none; }  /* the caption beside names the platform */
@@ -171,14 +187,17 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
 <div class="tv" id="tv">
   <header class="top">
     <div class="brand">movingmusic<span class="tag">TV</span></div>
-    <button class="pill small more" id="o-more" aria-expanded="false" aria-controls="ctrl">Options</button>
-    <div class="ctrl" id="ctrl" role="group" aria-label="Viewing options">
-      <button class="pill small" id="o-newest" aria-pressed="true" title="Newest finds first, then the journey">Newest</button>
-      <button class="pill small" id="o-journey" aria-pressed="false" title="Start in Maine and travel to the nearest place each time">Journey</button>
-      <button class="pill small" id="o-work" aria-pressed="false" title="Only videos where the song is sung while the work happens">At work only</button>
-      <button class="pill small" id="o-auto" aria-pressed="true" title="When a video ends, play the next one">Autoplay</button>
+    <div class="cur" id="cur" aria-live="polite"></div>
+    <button class="pill small more" id="o-more" aria-expanded="false" aria-controls="browse">Browse</button>
+    <div class="browse" id="browse">
+      <div class="ctrl" id="ctrl" role="group" aria-label="Viewing options">
+        <button class="pill small" id="o-newest" aria-pressed="true" title="Newest finds first, then the journey">Newest</button>
+        <button class="pill small" id="o-journey" aria-pressed="false" title="Start in Maine and travel to the nearest place each time">Journey</button>
+        <button class="pill small" id="o-work" aria-pressed="false" title="Only videos where the song is sung while the work happens">At work only</button>
+        <button class="pill small" id="o-auto" aria-pressed="true" title="When a video ends, play the next one">Autoplay</button>
+      </div>
+      <nav class="chan" id="chan" aria-label="Channels"></nav>
     </div>
-    <nav class="chan" id="chan" aria-label="Channels"></nav>
   </header>
   <div class="strip" id="strip" title="Open the Atlas at this place"><canvas id="stripmap" aria-hidden="true"></canvas><span class="pin" id="strippin"></span><span class="where" id="stripwhere"></span></div>
   <div class="main">
@@ -338,15 +357,18 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
 
   // ---------- channels ----------
   function renderChannels() {
-    var chans = [['all', 'All', '']].concat([['finds', "Bennett's finds", '']]);
+    var cnt = function (id) { return ORDER.journey.filter(function (i) { return passes(ITEMS[i], id); }).length; };
+    var chans = [['all', 'All', '', cnt('all')]].concat([['finds', "Bennett's finds", '', cnt('finds')]]);
     TV.uses.forEach(function (u, n) { chans.push([u[0], u[1], String(n + 1), u[2]]); });
     var html = chans.map(function (c) {
-      var count = ORDER.journey.filter(function (i) { return passes(ITEMS[i], c[0]); }).length;
+      var count = c[3] != null ? c[3] : cnt(c[0]);
       return '<button class="pill" data-ch="' + c[0] + '" aria-pressed="' + (state.channel === c[0]) + '"' +
         (count ? '' : ' disabled') + (c[3] ? ' title="' + esc(c[3]) + '"' : '') + '>' +
         (c[2] ? '<span class="num">' + c[2] + '</span>' : '') + esc(c[1]) + '<span class="cnt">' + count + '</span></button>';
     }).join('');
     $('chan').innerHTML = html;
+    var cur = chans.filter(function (c) { return state.channel === c[0]; })[0];
+    $('cur').innerHTML = cur ? esc(cur[1]) + '<span class="cnt">' + cur[3] + '</span>' : '';
   }
   $('chan').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-ch]');
