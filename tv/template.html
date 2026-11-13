@@ -36,6 +36,9 @@ a { color: inherit; }
 .browse { display: none; position: absolute; top: 100%; left: 0; right: 0; padding: 10px 16px 12px; background: var(--paper); border-bottom: 1px solid var(--line); box-shadow: 0 6px 12px rgba(35,31,27,.12); }
 .top.open .browse { display: block; }
 .browse .chan { padding-top: 8px; }
+.site { display: none; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-family: var(--label); font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.site a { text-decoration: none; }
+.site a:first-child { color: var(--brick); }
 .brand { grid-area: brand; font-family: var(--serif); font-size: 24px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; line-height: 1; }
 .brand .tag { display: inline-block; font-family: var(--label); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; background: var(--brick); color: var(--paper); padding: 3px 6px 2px; margin-left: 4px; transform: rotate(-3deg) translateY(-3px); box-shadow: 0 1px 1px rgba(0,0,0,.18); }
 .ctrl { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -104,6 +107,7 @@ a { color: inherit; }
 .top.open .more::after { content: " \25b4"; }
 .host, .host iframe, .host video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: transparent; }
 .host video { background: #000; }
+.sound { position: absolute; z-index: 5; left: 50%; top: 14%; transform: translateX(-50%); font-family: var(--label); font-weight: 700; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: #1b1814; background: rgba(243,237,225,.95); border: 0; border-radius: 999px; padding: 9px 16px 8px; box-shadow: 0 2px 10px rgba(0,0,0,.4); cursor: pointer; }
 .play { position: absolute; z-index: 2; left: 50%; top: 50%; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%; border: 0; background: rgba(243,237,225,.94); display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.35); transition: transform .15s; }
 .play:hover { transform: scale(1.06); }
 .play svg { width: 30px; height: 30px; fill: var(--brick); margin-left: 5px; }
@@ -228,6 +232,65 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   .tv.v .card.ar-9x16 .sum { display: block; -webkit-line-clamp: none; overflow: visible; }
   .tv.v .card.ar-9x16 .ti { font-size: 24px; }
 }
+/* ---------- phones: the video takes the whole screen, the way Instagram,
+   TikTok and YouTube Shorts do. The stage is dark. The header floats over the
+   top of the video. A tall video fills the screen, with its caption over the
+   bottom edge and its buttons in a rail on the right. A wide or square video
+   sits mid-screen with its caption under it. Inside the site, the page hides
+   its own header and lets this page cover the screen down to the player bar. ---------- */
+@media (max-width: 700px) {
+  html, body { background: #0f0d0b; }
+  .tv { display: block; position: relative; background: #0f0d0b; --th: 44px; }
+  .top { position: absolute; top: 0; left: 0; right: 0; z-index: 6; height: var(--th); padding: 9px 10px 0; border: 0; color: #f3ede1; pointer-events: none; align-items: start; }
+  .top::before { content: ""; position: absolute; inset: 0 0 -26px 0; z-index: -1; background: linear-gradient(to bottom, rgba(15,13,11,.82), rgba(15,13,11,0)); pointer-events: none; }
+  .top > * { pointer-events: auto; }
+  .brand { font-size: 21px; padding-top: 3px; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  .top > .pill { border-color: rgba(243,237,225,.6); background: rgba(15,13,11,.45); color: #f3ede1; }
+  .browse { top: var(--th); color: var(--ink); max-height: calc(100dvh - var(--th) - 20px); overflow-y: auto; }
+  .site { display: flex; }
+  .strip { display: none; }
+  .main { position: absolute; inset: 0; display: block; }
+  .feed { height: 100%; scrollbar-width: none; background: #0f0d0b; }
+  .feed::-webkit-scrollbar { display: none; }
+  .mapview { position: absolute; inset: var(--th) 0 0 0; }
+  .tv.m .top { background: var(--paper); color: var(--ink); }
+  .tv.m .top::before { display: none; }
+  .tv.m .top > .pill { border-color: var(--line); background: transparent; color: var(--ink); }
+  .tv.m .top > .pill.view { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .tv.m .brand { text-shadow: none; }
+
+  .card, .card.ar-16x9, .card.ar-4x3, .card.p-ig.ar-4x3 { position: relative; max-width: none; padding: 0; justify-content: center; color: #f3ede1; }
+  .frame { border-radius: 0; }
+  .plat { display: none; }
+  .tape { top: calc(var(--th) + 8px); left: 10px; }
+  .meta { color: #c9bda9; font-size: 11.5px; }
+  .ti { color: #f3ede1; font-size: 19px; }
+  .sum { color: #d8cdbb; font-size: 13.5px; }
+  .note { color: #f0b3a2; font-size: 15.5px; }
+  .act { border-color: rgba(243,237,225,.6); color: #f3ede1; }
+  .act.primary { background: #f3ede1; border-color: #f3ede1; color: #1b1814; }
+
+  /* wide and square videos: the caption sits under the video */
+  .card.ar-16x9 .screen, .card.ar-4x3 .screen { flex: 0 0 auto; min-height: 0; }
+  .card.ar-16x9 .info, .card.ar-4x3 .info { padding: 12px 12px 0; }
+
+  /* tall videos: full screen, caption over the bottom, buttons in a rail */
+  .card.ar-9x16 .screen { flex: 1 1 auto; width: 100%; height: 100%; min-height: 0; }
+  .card.ar-9x16 .posttext { display: none; }
+  .card.ar-9x16 .info { position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; padding: 46px 66px 14px 12px; background: linear-gradient(to top, rgba(15,13,11,.9) 40%, rgba(15,13,11,0)); pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+  .card.ar-9x16 .acts { position: absolute; right: 8px; bottom: 16px; margin: 0; flex-direction: column; flex-wrap: nowrap; gap: 10px; text-shadow: none; }
+  .card.ar-9x16 .act { pointer-events: auto; width: 48px; height: 48px; padding: 0; border-radius: 50%; display: grid; place-items: center; font-size: 0; background: rgba(15,13,11,.6); border-color: rgba(243,237,225,.55); color: #f3ede1; }
+  .card.ar-9x16 .act::before { content: attr(data-s); font-size: 10.5px; letter-spacing: .05em; }
+  .card.ar-9x16 .act.primary { background: #f3ede1; color: #1b1814; }
+  /* While it plays, the caption shrinks to the title and Bennett's line, and
+     lifts clear of the player's own controls along the bottom. */
+  .card.ar-9x16.live .info { background: linear-gradient(to top, rgba(15,13,11,.55), rgba(15,13,11,0)); padding-bottom: 62px; }
+  .card.ar-9x16.live .meta, .card.ar-9x16.live .sum { display: none; }
+  .card.ar-9x16.live .ti { font-size: 16px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .card.ar-9x16.live .note { font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .card.ar-9x16.live .acts { bottom: 66px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pin, .tape, .toast { transition: none; }
   .pin::after { animation: none; display: none; }
@@ -246,9 +309,16 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
         <button class="pill small" id="o-newest" aria-pressed="true" title="Newest finds first, then the journey">Newest</button>
         <button class="pill small" id="o-journey" aria-pressed="false" title="Start in Maine and travel to the nearest place each time">Journey</button>
         <button class="pill small" id="o-work" aria-pressed="false" title="Only videos where the song is sung while the work happens">At work only</button>
-        <button class="pill small" id="o-auto" aria-pressed="true" title="When a video ends, play the next one">Autoplay</button>
+        <button class="pill small" id="o-auto" aria-pressed="true" title="Start each video when it comes into view, and play the next one when it ends">Autoplay</button>
       </div>
       <nav class="chan" id="chan" aria-label="Channels"></nav>
+      <nav class="site" aria-label="Bennett's Songbook">
+        <a target="_top" href="https://movingmusic.works/">Bennett's Songbook</a>
+        <a target="_top" href="https://movingmusic.works/chorus/">Chorus</a>
+        <a target="_top" href="https://movingmusic.works/songbooks/">Songbooks</a>
+        <a target="_top" href="https://movingmusic.works/tag/library/">Index</a>
+        <a target="_top" href="https://movingmusic.works/about/">About</a>
+      </nav>
     </div>
   </header>
   <div class="strip" id="strip" title="Open the map at this place"><canvas id="stripmap" aria-hidden="true"></canvas><span class="pin" id="strippin"></span><span class="where" id="stripwhere"></span></div>
@@ -456,10 +526,10 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
         esc(creditLine(it)) + '</div></div>';
     }
     var acts = '';
-    if (st.atlas) acts += '<a class="act primary" data-a="map" target="_top" href="' + esc(atlasUrl(st)) + '">On the map</a>';
-    if (FRAMED && it.p === 'yt') acts += '<button class="act" data-a="bar" title="Keep listening while you browse the site">Play in bar</button>';
-    acts += '<a class="act" target="_blank" rel="noopener noreferrer" href="' + esc(it.u) + '">' + (it.p === 'file' ? 'Open video' : PLAT[it.p]) + ' &#8599;</a>';
-    acts += '<button class="act" data-a="copy">Copy link</button>';
+    if (st.atlas) acts += '<a class="act primary" data-a="map" data-s="Map" target="_top" href="' + esc(atlasUrl(st)) + '">On the map</a>';
+    if (FRAMED && it.p === 'yt') acts += '<button class="act" data-a="bar" data-s="Bar" title="Keep listening while you browse the site">Play in bar</button>';
+    acts += '<a class="act" data-s="Open" target="_blank" rel="noopener noreferrer" href="' + esc(it.u) + '">' + (it.p === 'file' ? 'Open video' : PLAT[it.p]) + ' &#8599;</a>';
+    acts += '<button class="act" data-a="copy" data-s="Link">Copy link</button>';
     var tapeTitle = st.atlas ? st.n : "Bennett's picks";
     var tapeSub = placeOf(it);
     return '<article class="card p-' + it.p + ' ' + ar + '"' + shape + ' data-n="' + n + '" id="v-' + esc(it.id) + '" aria-posinset="' + (n + 1) +
@@ -545,9 +615,11 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   }
   function maybePlay(n) {
     clearTimeout(settleTimer);
-    var want = pendingPlay === n || (state.engaged && state.autoplay);
-    if (!want || (live && live.n === n)) return;
-    settleTimer = setTimeout(function () { if (state.cur === n) { pendingPlay = -1; mount(n); } }, pendingPlay === n ? 60 : 450);
+    // With Autoplay on, each video starts as soon as it is in view, with sound.
+    // What a browser allows before the first tap is handled in mount().
+    var want = pendingPlay === n || state.autoplay;
+    if (!want || mapOpen || (live && live.n === n)) return;
+    settleTimer = setTimeout(function () { if (state.cur === n) { pendingPlay = -1; mount(n); } }, pendingPlay === n ? 60 : state.engaged ? 450 : 900);
   }
 
   // ---------- players ----------
@@ -592,7 +664,21 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
         live.yt = new YT.Player(slot, {
           host: 'https://www.youtube-nocookie.com', videoId: it.k, width: '100%', height: '100%',
           playerVars: { autoplay: 1, playsinline: 1, rel: 0, start: it.st || 0, origin: location.origin },
-          events: { onStateChange: function (e) { if (e.data === 0) ended(host); } }
+          events: {
+            onStateChange: function (e) { if (e.data === 0) ended(host); },
+            // A browser may refuse to start a video with sound before the visitor has
+            // tapped anything. If it has not started, start it silent and offer the sound.
+            onReady: function (e) {
+              var pl = e.target;
+              setTimeout(function () {
+                if (!live || live.host !== host) return;
+                var st = -1; try { st = pl.getPlayerState(); } catch (err) {}
+                if (st === 1 || st === 3) return;
+                try { pl.mute(); pl.playVideo(); } catch (err) { return; }
+                soundChip(host, function () { try { pl.unMute(); pl.setVolume(100); pl.playVideo(); } catch (err) {} });
+              }, 1600);
+            }
+          }
         });
       });
     } else if (it.p === 'tt') {
@@ -608,8 +694,20 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
       v.src = it.k; v.controls = true; v.autoplay = true; v.playsInline = true; v.preload = 'auto';
       v.addEventListener('ended', function () { ended(host); });
       live.el = host.appendChild(v);
-      var p = v.play(); if (p && p.catch) p.catch(function () {});
+      var p = v.play();
+      if (p && p.catch) p.catch(function () {
+        if (!live || live.host !== host) return;
+        v.muted = true;
+        var q = v.play(); if (q && q.catch) q.catch(function () {});
+        soundChip(host, function () { v.muted = false; var r = v.play(); if (r && r.catch) r.catch(function () {}); });
+      });
     }
+  }
+  function soundChip(host, turnOn) {
+    var b = document.createElement('button');
+    b.className = 'sound'; b.type = 'button'; b.textContent = 'Tap for sound';
+    b.addEventListener('click', function (e) { e.stopPropagation(); state.engaged = true; turnOn(); b.remove(); });
+    host.appendChild(b);
   }
   function unmount() {
     clearTimeout(settleTimer);
@@ -838,6 +936,7 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
     var c = cardAt(state.cur);
     if (c) $('feed').scrollTo({ top: c.offsetTop });
     $('feed').focus({ preventScroll: true });
+    if (state.cur >= 0) maybePlay(state.cur);
   }
   $('o-view').addEventListener('click', function () {
     if (mapOpen) { closeMap(); return; }
@@ -871,11 +970,13 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   var toldHost = -1;
   function tellHost() {
     if (!FRAMED) return;
-    var wide = window.matchMedia('(min-width: 980px)').matches;
+    var wide = window.matchMedia('(min-width: 980px)').matches, phone = window.matchMedia('(max-width: 700px)').matches;
     var left = wide ? Math.round(document.querySelector('.top').getBoundingClientRect().width) : 0;
-    if (left === toldHost) return;
-    toldHost = left;
-    try { window.parent.postMessage({ source: 'mmtv', action: 'layout', left: left }, '*'); } catch (e) {}
+    var key = left + (phone ? 'f' : '');
+    if (key === toldHost) return;
+    toldHost = key;
+    // left: the width of the left column on a wide window. full: on a phone, this page wants the whole screen.
+    try { window.parent.postMessage({ source: 'mmtv', action: 'layout', left: left, full: phone }, '*'); } catch (e) {}
   }
   window.addEventListener('message', function (ev) {
     var d = ev.data;

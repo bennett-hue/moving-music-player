@@ -390,6 +390,11 @@ def build_card():
             # Wide windows: the TV covers the window down to the player bar, and the site header is
             # laid over the TV's left column, whose width the TV reports (--tv-left).
             '  body.tv-wide #tv-iframe{position:fixed;top:0;left:0;width:100vw;border-radius:0;z-index:10}\n'
+            # Phones: the Scroll covers the screen down to the player bar, and the site header steps aside.
+            # The Scroll's Browse panel carries the site's links.
+            '  body.tv-full #tv-iframe{position:fixed;top:0;left:0;width:100vw;border-radius:0;z-index:10}\n'
+            '  body.tv-full .mm-head{display:none}\n'
+            '  body.tv-full{background:#0f0d0b}\n'
             '  body.tv-wide .mm-head{position:fixed;top:0;left:0;width:var(--tv-left,340px);z-index:11;'
             'margin:0;padding:10px 16px 0;background:none;border:0;box-shadow:none;box-sizing:border-box}\n'
             '  body.tv-wide .mm-head-inner{display:flex!important;flex-wrap:wrap;align-items:center;gap:5px 12px;'
@@ -417,16 +422,16 @@ def build_card():
             # has nothing to scroll.
             '<script data-mark="tv-iframe-fit">(function(){var i=document.getElementById("tv-iframe");if(!i)return;'
             'var raf=0,B=document.body,H=document.querySelector(".mm-head");'
-            'function wide(){return B.classList.contains("tv-wide");}'
+            'function wide(){return B.classList.contains("tv-wide")||B.classList.contains("tv-full");}'
             'function fit(){raf=0;var top=wide()?0:i.getBoundingClientRect().top+(window.scrollY||0);'
             'var bar=document.querySelector(".mmp-bar.is-visible");var b=(bar?bar.getBoundingClientRect().height:0)+(wide()?0:10);'
             'i.style.height=Math.max(360,Math.floor(window.innerHeight-top-b))+"px";head();}'
             'function head(){try{i.contentWindow.postMessage({source:"mmtv-host",action:"head",'
-            'h:wide()&&H?Math.ceil(H.getBoundingClientRect().height):0},"*");}catch(e){}}'
+            'h:B.classList.contains("tv-wide")&&H?Math.ceil(H.getBoundingClientRect().height):0},"*");}catch(e){}}'
             'addEventListener("message",function(ev){var d=ev.data;'
             'if(ev.source!==i.contentWindow||!d||d.source!=="mmtv"||d.action!=="layout")return;'
             'var l=Math.max(0,Math.min(4000,Math.round(+d.left||0)));'
-            'B.classList.toggle("tv-wide",l>0&&!!H);B.style.setProperty("--tv-left",l+"px");fit();});'
+            'B.classList.toggle("tv-wide",l>0&&!!H);B.classList.toggle("tv-full",!!d.full);B.style.setProperty("--tv-left",l+"px");fit();});'
             'if(window.ResizeObserver&&H)new ResizeObserver(head).observe(H);'
             'function soon(){if(!raf)raf=requestAnimationFrame(fit);}'
             'fit();addEventListener("resize",soon);addEventListener("orientationchange",soon);'
