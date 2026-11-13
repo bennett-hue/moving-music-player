@@ -245,12 +245,14 @@ export async function inEnglish(env, s) {
 // Facebook and Instagram, only the link itself) and the title of the page as
 // the phone opens it. The first one that reads as a title wins.
 function phoneTitle(pv, url, guesses) {
+  let by = '';  // Facebook's page title is often only "1.1K views | Reel by Name": keep the name
   for (const g of guesses) {
     const t = cleanTitle(g, pv.p);
     if (t.title && (url.includes(t.title) || /https?:\/\//i.test(t.title))) t.title = '';  // a link, not a title
-    if (t.title) return t;
+    if (t.title) return { title: t.title, by: t.by || by };
+    by = by || t.by;
   }
-  return { title: '', by: '' };
+  return { title: '', by };
 }
 
 async function postTitle(env, pv, url, sent, page) {
@@ -328,11 +330,11 @@ export async function inboxAdd(env, text, opts) {
     if (post && post.by && !old.by) add.by = post.by;
     if (Object.keys(add).length) meta = Object.assign({}, old, add);
   }
-  const shown = (meta || old).title;
-  const what = shown ? '\u201c' + cutLine(shown, 60) + '\u201d' : NAME[pvc.p] + ' video';
+  const shown = (meta || old).title, credit = (meta || old).by;
+  const what = shown ? '\u201c' + cutLine(shown, 60) + '\u201d' : NAME[pvc.p] + ' video' + (credit ? ' by ' + credit : '');
   // From the Send button with no usable title: say what the phone sent, so a
   // missing title can be traced to the phone or to the cleanup here.
-  const why = !shown && o.phone ? (post && post.page
+  const why = !shown && !credit && o.phone ? (post && post.page
     ? ' The page title was \u201c' + cutLine(post.page, 50) + '\u201d.'
     : post && post.sent
     ? ' Your phone sent \u201c' + cutLine(post.sent, 50) + '\u201d, not a title.'
@@ -347,7 +349,7 @@ export async function inboxAdd(env, text, opts) {
   if (!old) return { status: 201, message: 'On movingmusicTV: ' + what + (meta.note ? ', with your line.' : '.') + cut + why, id, line: meta.note };
   if (meta.note !== old.note) return { status: 200, message: 'Line updated on ' + (shown ? '' : 'this ') + what + '.' + cut, id, line: meta.note };
   if (meta.tradition !== old.tradition) return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Now tied to its tradition.', id, line: meta.note || '' };
-  return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Title added.', id, line: meta.note || '' };
+  return { status: 200, message: 'Already on movingmusicTV: ' + what + '. ' + (meta.title && !old.title ? 'Title added.' : 'Credit added.'), id, line: meta.note || '' };
 }
 
 export async function tvInboxPost(request, env) {
