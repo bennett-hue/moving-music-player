@@ -195,6 +195,33 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   .card.ar-9x16.p-ig .info { flex: 0 1 360px; min-width: 200px; align-self: flex-end; padding: 0 0 2px; }
   .card.ar-9x16.p-ig .plat { display: none; }
 }
+/* ---------- vertical video on a wide window: the header and player form a
+   sidebar on the left, and the Atlas takes the rest ---------- */
+@media (min-width: 980px) {
+  .tv.v { grid-template-rows: auto 1fr; grid-template-columns: min(60%, calc((100dvh - 72px) * 0.5625 + 330px)) minmax(0, 1fr); }
+  .tv.v .top { grid-column: 1; grid-row: 1; }
+  .tv.v .main { display: contents; }
+  .tv.v .feed { grid-column: 1; grid-row: 2; min-height: 0; }
+  .tv.v .side { grid-column: 2; grid-row: 1 / 3; min-height: 0; }
+  .tv.v .mapwrap { flex: 0 0 auto; }
+  .tv.v .card.ar-9x16 { flex-direction: row; justify-content: flex-start; gap: 22px; }
+  .tv.v .card.ar-9x16 .screen { flex: 0 1 auto; width: auto; height: 100%; aspect-ratio: 9 / 16; min-height: 0; max-width: calc(100% - 222px); }
+  .tv.v .card.ar-9x16 .info { flex: 1 1 200px; min-width: 200px; align-self: flex-end; padding: 0 0 2px; }
+  .tv.v .card.ar-9x16 .plat { display: none; }
+  /* Instagram is 4:5. Its caption sits under the video unless the window is very wide. */
+  .tv.v.v45 { grid-template-columns: min(60%, calc((100dvh - 210px) * 0.8 + 40px)) minmax(0, 1fr); }
+  .tv.v .card.ar-9x16.p-ig { flex-direction: column; justify-content: center; gap: 0; }
+  .tv.v .card.ar-9x16.p-ig .screen { flex: 1 1 auto; width: 100%; height: auto; aspect-ratio: auto; max-width: none; }
+  .tv.v .card.ar-9x16.p-ig .info { flex: 0 0 auto; min-width: 0; align-self: stretch; padding: 10px 2px 0; }
+  .tv.v .card.ar-9x16.p-ig .plat { display: block; }
+}
+@media (min-width: 980px) and (min-aspect-ratio: 19/10) {
+  .tv.v.v45 { grid-template-columns: min(60%, calc((100dvh - 72px) * 0.8 + 330px)) minmax(0, 1fr); }
+  .tv.v .card.ar-9x16.p-ig { flex-direction: row; justify-content: flex-start; gap: 22px; }
+  .tv.v .card.ar-9x16.p-ig .screen { flex: 0 1 auto; width: auto; height: 100%; aspect-ratio: 4 / 5; min-height: 0; max-width: calc(100% - 222px); }
+  .tv.v .card.ar-9x16.p-ig .info { flex: 1 1 200px; min-width: 200px; align-self: flex-end; padding: 0 0 2px; }
+  .tv.v .card.ar-9x16.p-ig .plat { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   .pin, .tape, .toast { transition: none; }
   .pin::after { animation: none; display: none; }
@@ -769,6 +796,13 @@ kbd { font-family: var(--label); font-weight: 700; font-size: 11px; border: 1px 
   // ---------- side panel ----------
   function updatePanels() {
     var now = $('now'), next = $('next');
+    var ci = state.cur >= 0 ? ITEMS[state.list[state.cur]] : null, tv = $('tv');
+    var wasV = tv.className;
+    tv.classList.toggle('v', !!ci && ci.ar === '9:16');
+    tv.classList.toggle('v45', !!ci && ci.ar === '9:16' && ci.p === 'ig');
+    // The columns just changed width. Land on the current card at once, or the
+    // feed snaps back to the card it was leaving.
+    if (tv.className !== wasV && ci) { var cc = cardAt(state.cur); if (cc) $('feed').scrollTo({ top: cc.offsetTop }); }
     if (state.cur < 0) { now.innerHTML = ''; next.innerHTML = ''; drawPanel(); drawStrip(); return; }
     var it = ITEMS[state.list[state.cur]], st = STOPS[it.s];
     var title = st.atlas ? st.n : (placeOf(it) || it.t);
