@@ -185,7 +185,9 @@ export function cleanTitle(raw, p) {
   });
   s = keep.join(' | ').replace(/(?:\s*#[^\s#]+)+$/u, '').replace(/^["\u201c]([\s\S]*)["\u201d]$/, '$1').trim();
   if (SITE_SEG.test(s) || !/\p{L}/u.test(s)) s = '';  // a site name, or no words at all
-  return { title: s ? cutLine(s, TITLE_MAX) : '', by: by.trim().slice(0, 60) };
+  // Same dash rule as Bennett's line, so a kept title passes build_tv.py --check.
+  s = cleanLine(s);
+  return { title: s ? cutLine(s, TITLE_MAX) : '', by: cleanLine(by).slice(0, 60) };
 }
 
 // YouTube and TikTok publish titles through oEmbed; Facebook and Instagram need an
