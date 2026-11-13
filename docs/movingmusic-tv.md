@@ -1,5 +1,8 @@
 # movingmusicTV
 
+> Nov 13, 2026: movingmusicTV is now part of the Worksong Atlas. The feed is called the Scroll. One Ghost page, `/atlas/`, holds both views: it opens in the Scroll, and the Map button loads the full map (`atlas-map.html?embed=scroll`) in place of the videos. A popup's "Watch in the Scroll" link plays that tradition. `/tv/` forwards to `/atlas/` with the same link. `/atlas/#tradition=slug` opens that tradition's first video, or the map when it has none. `/atlas/#tradition=slug&view=map` opens the map. File names, the worker routes, the Send shortcut, and the inbox keep their old "tv" names. `ghost/atlas.card.html` is now written by `scripts/build_tv.py`, and `ghost/tv.card.html` is the forwarder. Where this document says "the TV", read "the Scroll".
+
+
 movingmusicTV is a scrolling feed of worksong videos at movingmusic.works/tv/. It plays every Atlas video that can play in place, plus the videos Bennett sends from Instagram, Facebook, TikTok, and YouTube with the Send button.
 
 At launch it holds 220 videos from 114 places: 210 YouTube, 8 Instagram, 1 Facebook, and 1 video file.
