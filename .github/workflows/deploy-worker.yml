@@ -2,9 +2,9 @@
 # The worker pins the Scroll page and the Atlas map by commit, in worker/worker.js,
 # so a page change reaches visitors only when that file changes and this runs.
 #
-# Needs two repository secrets (Settings > Secrets and variables > Actions):
+# Needs one repository secret (Settings > Secrets and variables > Actions):
 #   CLOUDFLARE_API_TOKEN   a token made from Cloudflare's "Edit Cloudflare Workers" template
-#   CLOUDFLARE_ACCOUNT_ID  the account ID shown on the Workers overview page
+# The account ID below is an identifier, not a credential.
 # The worker's own secrets (TV_INBOX_KEY and the Turnstile keys) live in Cloudflare.
 # A deploy does not read or change them.
 name: Deploy worker
@@ -41,7 +41,7 @@ jobs:
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: 727ed48f9bdfea7a589525d7835ff2a0
       - name: Check the live worker
         run: |
           sleep 5
