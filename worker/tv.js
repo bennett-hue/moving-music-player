@@ -23,7 +23,7 @@
 const REPO = 'bennett-hue/moving-music-player';
 export const TV_DATA_REF = 'main';
 // Shows in the X-MMP-Build header, so a deploy can be checked from outside.
-export const BUILD = '2026-11-12.11';
+export const BUILD = '2026-11-12.12';
 const INBOX_PREFIX = 'tvin:';
 const INBOX_TTL = 60 * 60 * 24 * 365;  // a year; Claude files each video long before
 const FINDS_CACHE_KEY = 'https://mmp-sync.internal/tv-finds.json';
@@ -403,7 +403,8 @@ export async function inboxAdd(env, text, opts) {
 
   let meta = null;
   if (!old) {
-    meta = { id, url, note: line, p: pvc.p, added: new Date().toISOString().slice(0, 10) };
+    const now = new Date().toISOString();
+    meta = { id, url, note: line, p: pvc.p, added: now.slice(0, 10), at: now.slice(0, 19) + 'Z' };
     if (tradition) meta.tradition = tradition;
     if (o.from) meta.from = String(o.from).slice(0, 100);
     if (post && post.title) meta.title = post.title;
@@ -411,7 +412,7 @@ export async function inboxAdd(env, text, opts) {
     if (post && post.by) meta.by = post.by;
   } else {
     const add = {};  // a new line, a tradition, a title it lacked; link and date stay
-    if (line && line !== old.note) add.note = line;
+    if (line && line !== old.note) { add.note = line; add.at = new Date().toISOString().slice(0, 19) + 'Z'; }
     if (tradition && !old.tradition) add.tradition = tradition;
     if (post && post.title) add.title = post.title;
     if (post && post.title && post.orig) add.orig = post.orig;
@@ -473,7 +474,7 @@ function inboxFind(m) {
   return {
     id: m.id, platform: PLATFORM[m.p] || m.p, url, by: m.by || '',
     label: m.title || (NAME[m.p] || 'Video') + ' video', title_orig: m.orig || '', phone_name: m.pn || '', phone_page: m.pp || '', place: '', la: null, lo: null,
-    tradition: m.tradition || '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '',
+    tradition: m.tradition || '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '', at: m.at || '',
     from: m.from || 'Send button', note: m.note || '', noted: m.noted || '', inbox: true,
   };
 }
@@ -520,7 +521,8 @@ export async function tvFindsGet(request, env, ctx) {
       cursor = page.list_complete ? null : page.cursor;
     } while (cursor && inbox.length < 3000);
   } catch (e) {}
-  inbox.sort((a, b) => (b.added || '').localeCompare(a.added || ''));
+  const when = (x) => String(x.at || x.added || '');  // inbox items sent before 2026-11-13 have only the date
+  inbox.sort((a, b) => when(b).localeCompare(when(a)));
 
   const res = new Response(JSON.stringify({ updated: new Date().toISOString(), finds: finds.concat(inbox), hide }), {
     headers: {
