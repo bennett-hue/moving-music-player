@@ -23,7 +23,7 @@
 const REPO = 'bennett-hue/moving-music-player';
 export const TV_DATA_REF = 'main';
 // Shows in the X-MMP-Build header, so a deploy can be checked from outside.
-export const BUILD = '2026-11-12.10';
+export const BUILD = '2026-11-12.11';
 const INBOX_PREFIX = 'tvin:';
 const INBOX_TTL = 60 * 60 * 24 * 365;  // a year; Claude files each video long before
 const FINDS_CACHE_KEY = 'https://mmp-sync.internal/tv-finds.json';
@@ -258,11 +258,96 @@ function phoneTitle(pv, url, guesses) {
   return { title: '', by };
 }
 
+// Facebook and Instagram give titles through oEmbed to approved apps only, so
+// for those two the worker reads the public page's own og: tags, under a user
+// agent that names this project. A login wall, an error or a timeout returns
+// null and the title is left to the weekly filing.
+const PAGE_UA = 'movingmusicTV/1.0 (+https://movingmusic.works/tv/)';
+const PAGE_MAX = 300000;
+
+function decodeEntities(t) {
+  return String(t || '')
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
+export function ogTags(html) {
+  const tag = (name) => {
+    const a = html.match(new RegExp('<meta[^>]+(?:property|name)="' + name + '"[^>]+content="([^"]*)"', 'i'))
+      || html.match(new RegExp('<meta[^>]+content="([^"]*)"[^>]+(?:property|name)="' + name + '"', 'i'));
+    return a ? decodeEntities(a[1]).replace(/\s+/g, ' ').trim() : '';
+  };
+  return { title: tag('og:title'), description: tag('og:description') || tag('description') };
+}
+
+// Turns a page's og: tags into { title, by }. Either may be empty.
+export function pageTitleFromTags(tags, p) {
+  let title = '', by = '';
+  const generic = (t) => !t || !/\p{L}/u.test(t) || /^(?:log ?in(?:to)?|sign up|facebook|instagram)\b/i.test(t) || /log in or sign up|create an account or log in/i.test(t);
+  if (p === 'fb') {
+    const segs = tags.title.split(/\s+\|\s+/).map((x) => x.trim()).filter((x) => x && !STAT_SEG.test(x) && !SITE_SEG.test(x));
+    const desc = generic(tags.description) ? '' : tags.description;
+    if (segs.length >= 2) { by = segs.pop(); title = segs.join(' | '); }
+    else if (segs.length === 1) {
+      const only = segs[0];
+      const m = only.match(/^(?:(?:reels?|video|post)\s+)?by\s+(.+)$/i);
+      if (m) by = m[1];
+      else if (desc && (desc.startsWith(only.slice(0, 20)) || only.startsWith(desc.slice(0, 20)))) title = only;
+      else by = only;
+    }
+    if (!title && desc) title = desc;
+  } else if (p === 'ig') {
+    const t = tags.title.match(/^(.*?)\s+on Instagram(?::\s*["\u201c]([\s\S]*?)["\u201d]?)?$/i);
+    if (t) {
+      const h = t[1].match(/\(@([\w.]{1,30})\)/);
+      by = h ? h[1] : t[1];
+      title = t[2] || '';
+    }
+    const d = tags.description.match(/^[\d.,KMB]+\s+likes?,\s+[\d.,KMB]+\s+comments?\s+-\s+([\w.]{1,30})\s+on\s+[^:]{4,30}(?::\s*["\u201c]([\s\S]*?)["\u201d]?\.?)?$/i);
+    if (d) {
+      by = d[1];
+      if (!title) title = d[2] || '';
+    }
+  }
+  title = title.replace(/(?:\s*#[^\s#]+)+$/u, '').replace(/\s+/g, ' ').trim();
+  if (generic(title)) title = '';
+  return { title: cutLine(cleanLine(title), TITLE_MAX), by: cleanLine(by).slice(0, 60) };
+}
+
+async function pageTitle(url, pv) {
+  if (pv.p !== 'fb' && pv.p !== 'ig') return null;
+  try {
+    const r = await fetch(url, {
+      redirect: 'follow',
+      headers: { 'User-Agent': PAGE_UA, 'Accept': 'text/html', 'Accept-Language': 'en-US,en;q=0.8' },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok || !r.body) return null;
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let html = '', bytes = 0;
+    while (bytes < PAGE_MAX) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.length;
+      html += dec.decode(value, { stream: true });
+      if (/<\/head>/i.test(html)) break;
+    }
+    reader.cancel().catch(() => {});
+    const t = pageTitleFromTags(ogTags(html), pv.p);
+    return t.title || t.by ? t : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function postTitle(env, pv, url, sent, page) {
   const api = await oembedTitle(pv, url);
   const phone = phoneTitle(pv, url, [sent, page]);
-  let title = (api && api.title) || phone.title, orig = '';
-  const by = (api && api.by) || phone.by;
+  const web = !api && !phone.title ? await pageTitle(url, pv) : null;
+  let title = (api && api.title) || phone.title || (web && web.title) || '', orig = '';
+  const by = (api && api.by) || (web && web.by) || phone.by;
   if (title) {
     const en = await inEnglish(env, title);
     if (en && en !== title) { orig = title; title = en; }
