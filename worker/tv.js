@@ -1,14 +1,15 @@
 // movingmusicTV routes for the mmp-sync worker.
 //
 //   POST /tv-inbox       The "Send to movingmusicTV" button on Bennett's phone.
-//                        Body, as JSON or a form: { key, url, note, title }. key
-//                        must match the TV_INBOX_KEY secret. note is Bennett's
-//                        line: one sentence of commentary, shown under the video
-//                        as he wrote it. title is the post's title as the phone
-//                        sees it (Facebook and Instagram give no other way to get
+//                        Body, as JSON or a form: { key, url, note, title,
+//                        page_title }. key must match the TV_INBOX_KEY secret.
+//                        note is Bennett's line: one sentence of commentary,
+//                        shown under the video as he wrote it. title and
+//                        page_title are the phone's two guesses at the post's
+//                        title (Facebook and Instagram give no other way to get
 //                        it); YouTube and TikTok titles come from their oEmbed.
-//                        The video is stored in KV under tvin:<id>
-//                        and shows on the TV within a minute. Sending the same
+//                        The video is stored in KV under tvin:<id> and shows on
+//                        the TV within a minute. Sending the same
 //                        video again with a new line replaces the line.
 //                        Add ?format=text for a one-line reply the phone can show.
 //   GET  /tv-finds.json  Everything the TV and the Atlas show beyond the Atlas
@@ -240,17 +241,29 @@ export async function inEnglish(env, s) {
   }
 }
 
-async function postTitle(env, pv, url, sent) {
+// The phone sends two guesses: the name the share menu gives the item (from
+// Facebook and Instagram, only the link itself) and the title of the page as
+// the phone opens it. The first one that reads as a title wins.
+function phoneTitle(pv, url, guesses) {
+  for (const g of guesses) {
+    const t = cleanTitle(g, pv.p);
+    if (t.title && (url.includes(t.title) || /https?:\/\//i.test(t.title))) t.title = '';  // a link, not a title
+    if (t.title) return t;
+  }
+  return { title: '', by: '' };
+}
+
+async function postTitle(env, pv, url, sent, page) {
   const api = await oembedTitle(pv, url);
-  const phone = cleanTitle(sent, pv.p);
-  if (phone.title && url.includes(phone.title)) phone.title = '';  // the phone named the link, not the post
+  const phone = phoneTitle(pv, url, [sent, page]);
   let title = (api && api.title) || phone.title, orig = '';
   const by = (api && api.by) || phone.by;
   if (title) {
     const en = await inEnglish(env, title);
     if (en && en !== title) { orig = title; title = en; }
   }
-  return { title, by, orig, sent: String(sent || '').replace(/\s+/g, ' ').trim() };
+  const said = (x) => String(x || '').replace(/\s+/g, ' ').trim();
+  return { title, by, orig, sent: said(sent), page: said(page) };
 }
 
 export function safeEqual(a, b) {
@@ -296,7 +309,7 @@ export async function inboxAdd(env, text, opts) {
   const prev = await env.MMP_KV.getWithMetadata(key);
   const old = prev && prev.value !== null ? (prev.metadata || {}) : null;
   const tradition = String(o.tradition || '').slice(0, 100);
-  const post = !old || !old.title ? await postTitle(env, pvc, url, o.title) : null;
+  const post = !old || !old.title ? await postTitle(env, pvc, url, o.title, o.pageTitle) : null;
 
   let meta = null;
   if (!old) {
@@ -319,7 +332,9 @@ export async function inboxAdd(env, text, opts) {
   const what = shown ? '\u201c' + cutLine(shown, 60) + '\u201d' : NAME[pvc.p] + ' video';
   // From the Send button with no usable title: say what the phone sent, so a
   // missing title can be traced to the phone or to the cleanup here.
-  const why = !shown && o.phone ? (post && post.sent
+  const why = !shown && o.phone ? (post && post.page
+    ? ' The page title was \u201c' + cutLine(post.page, 50) + '\u201d.'
+    : post && post.sent
     ? ' Your phone sent \u201c' + cutLine(post.sent, 50) + '\u201d, not a title.'
     : ' Your phone sent no title.') : '';
   if (!meta) return { status: 200, message: 'Already on movingmusicTV: ' + what + '.' + why, id, line: old.note || '' };
@@ -346,7 +361,7 @@ export async function tvInboxPost(request, env) {
   let body;
   try { body = await readBody(request); } catch (e) { return reply(400, 'Could not read what was sent.'); }
   if (!body || !safeEqual(String(body.key || ''), env.TV_INBOX_KEY)) return reply(401, 'Wrong key.');
-  const r = await inboxAdd(env, body.url || body.link, { note: body.note, title: body.title, phone: true });
+  const r = await inboxAdd(env, body.url || body.link, { note: body.note, title: body.title, pageTitle: body.page_title, phone: true });
   return reply(r.status, r.message, r.id ? { id: r.id, line: r.line || '' } : undefined);
 }
 
