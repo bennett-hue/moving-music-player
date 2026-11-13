@@ -100,9 +100,17 @@ def canonical(url, pv):
         return re.split(r'[?#]', url)[0]
     if pv['p'] == 'fb':
         parts = urllib.parse.urlsplit(url)
+        # Share links resolve to m.facebook.com; the embed plays www links.
+        host = parts.netloc
+        if parts.hostname and re.search(r'(?:^|\.)facebook\.com$', parts.hostname):
+            host = 'www.facebook.com'
+        reel = re.search(r'/reel/(\d+)', parts.path)
+        if reel:
+            return 'https://www.facebook.com/reel/' + reel.group(1) + '/'
+        # Keep only the parameters that name a video or post; the rest is share tracking.
         keep = [(k, v) for k, v in urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
-                if not re.match(r'^(mibextid|rdid|share_url|sfnsn|s|fs|extid|ref|__cft__\[0\]|__tn__|utm_.*)$', k)]
-        return urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(keep), ''))
+                if re.match(r'^(v|story_fbid|id|fbid|set|type)$', k)]
+        return urllib.parse.urlunsplit((parts.scheme, host, parts.path, urllib.parse.urlencode(keep), ''))
     return url
 
 
