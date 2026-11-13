@@ -18,12 +18,12 @@
 // Ids match item_id() in scripts/build_tv.py, so once Claude files a video in
 // tv/finds.json with its place, tradition, and tags, that copy replaces the
 // bare inbox copy everywhere. A line sent after filing is newer than the filed
-// line (noted is later), so it shows until the weekly filing copies it over.
+// line (noted is later), so it shows until the daily filing copies it over.
 
 const REPO = 'bennett-hue/moving-music-player';
 export const TV_DATA_REF = 'main';
 // Shows in the X-MMP-Build header, so a deploy can be checked from outside.
-export const BUILD = '2026-11-12.11';
+export const BUILD = '2026-11-12.13';
 const INBOX_PREFIX = 'tvin:';
 const INBOX_TTL = 60 * 60 * 24 * 365;  // a year; Claude files each video long before
 const FINDS_CACHE_KEY = 'https://mmp-sync.internal/tv-finds.json';
@@ -261,7 +261,7 @@ function phoneTitle(pv, url, guesses) {
 // Facebook and Instagram give titles through oEmbed to approved apps only, so
 // for those two the worker reads the public page's own og: tags, under a user
 // agent that names this project. A login wall, an error or a timeout returns
-// null and the title is left to the weekly filing.
+// null and the title is left to the daily filing.
 const PAGE_UA = 'movingmusicTV/1.0 (+https://movingmusic.works/tv/)';
 const PAGE_MAX = 300000;
 
@@ -403,7 +403,8 @@ export async function inboxAdd(env, text, opts) {
 
   let meta = null;
   if (!old) {
-    meta = { id, url, note: line, p: pvc.p, added: new Date().toISOString().slice(0, 10) };
+    const now = new Date().toISOString();
+    meta = { id, url, note: line, p: pvc.p, added: now.slice(0, 10), at: now };
     if (tradition) meta.tradition = tradition;
     if (o.from) meta.from = String(o.from).slice(0, 100);
     if (post && post.title) meta.title = post.title;
@@ -411,7 +412,7 @@ export async function inboxAdd(env, text, opts) {
     if (post && post.by) meta.by = post.by;
   } else {
     const add = {};  // a new line, a tradition, a title it lacked; link and date stay
-    if (line && line !== old.note) add.note = line;
+    if (line && line !== old.note) { add.note = line; add.at = new Date().toISOString(); }
     if (tradition && !old.tradition) add.tradition = tradition;
     if (post && post.title) add.title = post.title;
     if (post && post.title && post.orig) add.orig = post.orig;
@@ -473,7 +474,7 @@ function inboxFind(m) {
   return {
     id: m.id, platform: PLATFORM[m.p] || m.p, url, by: m.by || '',
     label: m.title || (NAME[m.p] || 'Video') + ' video', title_orig: m.orig || '', phone_name: m.pn || '', phone_page: m.pp || '', place: '', la: null, lo: null,
-    tradition: m.tradition || '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '',
+    tradition: m.tradition || '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '', at: m.at || '',
     from: m.from || 'Send button', note: m.note || '', noted: m.noted || '', inbox: true,
   };
 }
@@ -508,7 +509,7 @@ export async function tvFindsGet(request, env, ctx) {
         if (!m || !m.id || hidden.has(m.id)) continue;
         if (at.has(m.id)) {
           // Filed already. A line Bennett sent after the filing wins until the
-          // weekly filing copies it into tv/finds.json.
+          // daily filing copies it into tv/finds.json.
           const i = at.get(m.id), f = finds[i];
           if (m.note && m.noted && m.noted > String(f.noted || '') && m.note !== f.note) {
             finds[i] = Object.assign({}, f, { note: m.note, noted: m.noted });
@@ -520,7 +521,8 @@ export async function tvFindsGet(request, env, ctx) {
       cursor = page.list_complete ? null : page.cursor;
     } while (cursor && inbox.length < 3000);
   } catch (e) {}
-  inbox.sort((a, b) => (b.added || '').localeCompare(a.added || ''));
+  const when = (x) => String(x.at || x.added || '');  // inbox items sent before 2026-11-13 have only the date
+  inbox.sort((a, b) => when(b).localeCompare(when(a)));
 
   const res = new Response(JSON.stringify({ updated: new Date().toISOString(), finds: finds.concat(inbox), hide }), {
     headers: {

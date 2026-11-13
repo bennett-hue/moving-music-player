@@ -45,7 +45,7 @@ The Send button is an iPhone shortcut in the share menu of every app. Claude can
 5. Add the action Get Contents of URL with this URL: `https://mmp-sync.bennett-727.workers.dev/tv-inbox?format=text`. Open its options: Method POST, Request Body JSON. Add four text fields: `key` set to the inbox key, `url` set to the Shortcut Input variable, `note` set to the Provided Input variable, and `title` set to the Name variable.
 6. Add the action Show Notification, set to Contents of URL.
 
-To send a video, tap Share in Instagram, Facebook, TikTok, or YouTube, then More or Share to, then Send to movingmusicTV. Type or dictate one sentence of commentary: what to watch or listen for. Name the place when you know it. The post's title helps the weekly filing, but your line may still be its best clue to where a video is from. For example: "Cape Coast, Ghana. Watch the caller time each line to the pull." To send a video with no line, tap Done with the box empty. The notification names the video, such as "On movingmusicTV: “Pulling the seine at dawn”, with your line." With no title, it names the platform and says what the phone sent: "On movingmusicTV: Instagram video. Your phone sent no title."
+To send a video, tap Share in Instagram, Facebook, TikTok, or YouTube, then More or Share to, then Send to movingmusicTV. Type or dictate one sentence of commentary: what to watch or listen for. Name the place when you know it. The post's title helps the daily filing, but your line may still be its best clue to where a video is from. For example: "Cape Coast, Ghana. Watch the caller time each line to the pull." To send a video with no line, tap Done with the box empty. The notification names the video, such as "On movingmusicTV: “Pulling the seine at dawn”, with your line." With no title, it names the platform and says what the phone sent: "On movingmusicTV: Instagram video. Your phone sent no title."
 
 Your line shows under the video, marked Bennett, on the TV and in the video's Atlas popup. It goes live within a minute, with no review step.
 
@@ -58,10 +58,10 @@ The key lives in the shortcut and in the worker secret `TV_INBOX_KEY`, never in 
 ## How a sent video moves
 
 1. The worker checks the key, finds the video id in the link, strips share-tracking parameters, and follows short links (vm.tiktok.com, fb.watch, facebook.com/share) to the real video. Facebook links come out as plain www.facebook.com links.
-2. It finds the post's title. YouTube and TikTok titles and channels come from their public oEmbed. Facebook and Instagram offer titles only to approved apps, and no longer return them even then, so their titles come from the phone: the name the share menu shows, minus view counts, the site name, and trailing hashtags. "Reel by Name" on Facebook becomes the credit, and so does an Instagram handle in the title. A title in another language is put into English by Workers AI (the worker's `AI` binding); the original stays with the inbox copy as `title_orig` for the weekly filing. Without the binding, or if the translation fails, the title stays as it came.
+2. It finds the post's title. YouTube and TikTok titles and channels come from their public oEmbed. Facebook and Instagram offer titles only to approved apps, and no longer return them even then, so their titles come from the phone: the name the share menu shows, minus view counts, the site name, and trailing hashtags. "Reel by Name" on Facebook becomes the credit, and so does an Instagram handle in the title. A title in another language is put into English by Workers AI (the worker's `AI` binding); the original stays with the inbox copy as `title_orig` for the daily filing. Without the binding, or if the translation fails, the title stays as it came.
 3. It stores the video in KV as `tvin:<id>`, with the link, the title and credit, your line, the time of the line, and the date. The same video sent twice is stored once. A new line replaces the old one. A video stored without a title gets one when it is sent again.
 4. Within a minute it is on the TV, first in Newest, under Bennett's finds, with your line under it. Its title is the post's title, or the platform, such as "Instagram video", when there is none. It has no place yet, so it has no map dot and no Atlas presence.
-5. Every Monday morning a scheduled task files the week's videos: place, coordinates, Atlas tradition, uses, what the video shows, credit. It runs `python3 scripts/tv_intake.py pull` to list what's waiting, then `python3 scripts/tv_intake.py add --url ... --label ... --place ... --la ... --lo ...` for each. Guesses go in `--check`.
+5. Every day a scheduled task files the day's videos: place, coordinates, Atlas tradition, uses, what the video shows, credit. It runs `python3 scripts/tv_intake.py pull` to list what's waiting, then `python3 scripts/tv_intake.py add --url ... --label ... --place ... --la ... --lo ...` for each. Guesses go in `--check`.
 6. It runs `python3 scripts/tv_intake.py lines`, which copies your lines into `tv/finds.json` word for word, including new lines on videos filed earlier. Claude never writes or rewrites your line. If you ask Claude to change one, `add --note` stamps the change, so an older send can't overwrite it.
 7. It runs `python3 scripts/build_tv.py --check`, commits `tv/finds.json` to `main`, and pushes. Within about five minutes the filed copy replaces the inbox copy on the TV, and the Atlas picks it up.
 
@@ -84,12 +84,12 @@ Visitors can help fill the Atlas. Nothing they send goes public until you add it
 
 To review, open `https://mmp-sync.bennett-727.workers.dev/review.html` on your phone. The first time, enter the inbox key from your Send button shortcut; the page remembers it.
 
-- A video has Add to the TV and Drop. Add puts it in the Send button inbox, tied to its tradition and credited with the sender's first name: "suggested by Ana" in the Atlas popup. The Monday filing gives it a place and a label. To add your line, send it with the Send button.
+- A video has Add to the TV and Drop. Add puts it in the Send button inbox, tied to its tradition and credited with the sender's first name: "suggested by Ana" in the Atlas popup. The daily filing gives it a place and a label. To add your line, send it with the Send button.
 - A link that is not YouTube, Instagram, Facebook, or TikTok can't be added in one tap. Add it by hand with Claude, or drop it.
 - An improvement has Copy and Done. Copy it to Claude, then mark it done.
 - Add, Drop, and Done delete the suggestion, email included.
 
-The Monday filing tells you how many suggestions wait, with the link. It sees only the count: `python3 scripts/tv_intake.py suggestions`.
+The daily filing tells you how many suggestions wait, with the link. It sees only the count: `python3 scripts/tv_intake.py suggestions`.
 
 The asks stay hidden until Takt sets the two Turnstile secrets.
 

@@ -6,7 +6,7 @@
 //   POST /suggest                 One suggestion. Checked by Cloudflare Turnstile,
 //                                 rate limited, stored privately in KV as sugg:<id>.
 //                                 Nothing about it is public.
-//   GET  /suggest-count           { pending }. Public, no content. The Monday filing
+//   GET  /suggest-count           { pending }. Public, no content. The daily filing
 //                                 reads it.
 //   GET  /review.html             Bennett's review page. It asks for the inbox key once.
 //   GET  /suggestions             Every waiting suggestion. Needs the inbox key.
@@ -181,7 +181,7 @@ export async function suggestionAct(request, env, id, action) {
   const r = await inboxAdd(env, rec.link, { tradition: rec.tradition, from: first ? 'Suggested by ' + first : 'Suggested by a visitor' });
   if (r.status >= 300) return json(r.status, { ok: false, message: r.message + ' Add it by hand, or drop it.' });
   await env.MMP_KV.delete(key);
-  return json(200, { ok: true, id: r.id, message: 'Added. It is on the TV and the Atlas within a minute. The Monday filing gives it a place and credit.' });
+  return json(200, { ok: true, id: r.id, message: 'Added. It is on the TV and the Atlas within a minute. The daily filing gives it a place and credit.' });
 }
 
 export function reviewPage() {
