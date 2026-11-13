@@ -349,7 +349,7 @@ export async function inboxAdd(env, text, opts) {
   if (!old) return { status: 201, message: 'On movingmusicTV: ' + what + (meta.note ? ', with your line.' : '.') + cut + why, id, line: meta.note };
   if (meta.note !== old.note) return { status: 200, message: 'Line updated on ' + (shown ? '' : 'this ') + what + '.' + cut, id, line: meta.note };
   if (meta.tradition !== old.tradition) return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Now tied to its tradition.', id, line: meta.note || '' };
-  return { status: 200, message: 'Already on movingmusicTV: ' + what + '. Title added.', id, line: meta.note || '' };
+  return { status: 200, message: 'Already on movingmusicTV: ' + what + '. ' + (meta.title && !old.title ? 'Title added.' : 'Credit added.'), id, line: meta.note || '' };
 }
 
 export async function tvInboxPost(request, env) {
