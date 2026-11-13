@@ -100,9 +100,17 @@ def canonical(url, pv):
         return re.split(r'[?#]', url)[0]
     if pv['p'] == 'fb':
         parts = urllib.parse.urlsplit(url)
+        # Share links resolve to m.facebook.com; the embed plays www links.
+        host = parts.netloc
+        if parts.hostname and re.search(r'(?:^|\.)facebook\.com$', parts.hostname):
+            host = 'www.facebook.com'
+        reel = re.search(r'/reel/(\d+)', parts.path)
+        if reel:
+            return 'https://www.facebook.com/reel/' + reel.group(1) + '/'
+        # Keep only the parameters that name a video or post; the rest is share tracking.
         keep = [(k, v) for k, v in urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
-                if not re.match(r'^(mibextid|rdid|share_url|sfnsn|s|fs|extid|ref|__cft__\[0\]|__tn__|utm_.*)$', k)]
-        return urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, urllib.parse.urlencode(keep), ''))
+                if re.match(r'^(v|story_fbid|id|fbid|set|type)$', k)]
+        return urllib.parse.urlunsplit((parts.scheme, host, parts.path, urllib.parse.urlencode(keep), ''))
     return url
 
 
@@ -359,14 +367,23 @@ def build_page(data):
 
 
 def build_card():
+    """The Ghost page /tv/: one HTML card. The mm theme puts page content on a paper card at most
+    820px wide, which squeezed the TV into its phone layout. On this page the card loses its paper
+    and width limit, the footer goes, and the TV fills the window between the site header and the
+    player bar. The page then has nothing to scroll, so the header stays put."""
     return ('<style>\n'
-            '  body.page-tv .site-content{padding-top:8px!important}\n'
-            '  body.page-tv .single-header{display:none!important}\n'
-            '  body.page-tv .single-content{padding-top:0!important;margin-top:0!important}\n'
-            '  .tv-embed-wrap { max-width: 1240px; margin: 0 auto; }\n'
-            '  #tv-iframe { display: block; width: 100%; height: calc(100vh - 150px); height: calc(100svh - 150px);'
-            ' min-height: 520px; border: 0; border-radius: 6px; background: #1b1814; }\n'
-            '  @media (max-width: 700px) { #tv-iframe { height: calc(100svh - 170px); min-height: 480px; border-radius: 0; } }\n'
+            '  body.page-tv .mm-pagewrap{padding:10px 0 0!important}\n'
+            '  body.page-tv .mm-pagewrap .mm-wrap{max-width:1460px;'
+            'padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px))}\n'
+            '  body.page-tv .mm-page-island{max-width:none;padding:0;background:none;box-shadow:none}\n'
+            '  body.page-tv .gh-content.mm-prose > .tv-embed-wrap{margin:0}\n'
+            '  body.page-tv .mm-foot{display:none}\n'
+            '  body.page-tv{padding-bottom:0!important}\n'
+            '  body.page-tv .site{min-height:0!important}\n'
+            '  #tv-iframe{display:block;width:100%;height:calc(100vh - 190px);height:calc(100svh - 190px);'
+            'min-height:360px;border:0;border-radius:6px;background:#1b1814}\n'
+            '  @media (max-width:700px){body.page-tv .mm-pagewrap .mm-wrap{padding-left:0;padding-right:0}'
+            '#tv-iframe{border-radius:0}}\n'
             '</style>\n'
             '<div class="tv-embed-wrap">\n'
             '  <iframe id="tv-iframe" data-src="__TV_URL__" title="movingmusicTV"'
@@ -375,7 +392,18 @@ def build_card():
             '</div>\n'
             '<script data-mark="tv-iframe-forward">(function(){var i=document.getElementById("tv-iframe");if(!i)return;'
             'var s=i.getAttribute("data-src");if(location.hash){var sep=s.indexOf("?")>-1?"&":"?";'
-            's+=sep+"state="+encodeURIComponent(location.hash.substring(1));}i.setAttribute("src",s);})();</script>'
+            's+=sep+"state="+encodeURIComponent(location.hash.substring(1));}i.setAttribute("src",s);})();</script>\n'
+            # Fit the TV between the header and the player bar, at any header height. The page loses
+            # its footer and the padding it keeps for the bar, so it is no taller than the window and
+            # has nothing to scroll.
+            '<script data-mark="tv-iframe-fit">(function(){var i=document.getElementById("tv-iframe");if(!i)return;'
+            'var raf=0;function fit(){raf=0;var top=i.getBoundingClientRect().top+(window.scrollY||0);'
+            'var bar=document.querySelector(".mmp-bar.is-visible");var b=(bar?bar.getBoundingClientRect().height:0)+10;'
+            'i.style.height=Math.max(360,Math.floor(window.innerHeight-top-b))+"px";}'
+            'function soon(){if(!raf)raf=requestAnimationFrame(fit);}'
+            'fit();addEventListener("resize",soon);addEventListener("orientationchange",soon);'
+            'setTimeout(soon,600);setTimeout(soon,2000);'
+            'if(window.MutationObserver)new MutationObserver(soon).observe(document.body,{childList:true});})();</script>'
             ).replace('__TV_URL__', TV_WORKER_URL)
 
 

@@ -56,7 +56,7 @@ The key lives in the shortcut and in the worker secret `TV_INBOX_KEY`, never in 
 
 ## How a sent video moves
 
-1. The worker checks the key, finds the video id in the link, strips share-tracking parameters, and follows short links (vm.tiktok.com, fb.watch, facebook.com/share) to the real video.
+1. The worker checks the key, finds the video id in the link, strips share-tracking parameters, and follows short links (vm.tiktok.com, fb.watch, facebook.com/share) to the real video. Facebook links come out as plain www.facebook.com links.
 2. It stores the video in KV as `tvin:<id>`, with the link, your line, the time of the line, and the date. The same video sent twice is stored once. A new line replaces the old one.
 3. Within a minute it is on the TV, first in Newest, under Bennett's finds, with your line under it. Its title is the platform, such as "Instagram video", until Claude files it. It has no place yet, so it has no map dot and no Atlas presence.
 4. Every Monday morning a scheduled task files the week's videos: place, coordinates, Atlas tradition, uses, what the video shows, credit. It runs `python3 scripts/tv_intake.py pull` to list what's waiting, then `python3 scripts/tv_intake.py add --url ... --label ... --place ... --la ... --lo ...` for each. Guesses go in `--check`.

@@ -109,8 +109,13 @@ export function canonical(url, pv) {
   if (pv.p === 'fb') {
     try {
       const u = new URL(url);
+      // Share links resolve to m.facebook.com; the embed plays www links.
+      if (/(?:^|\.)facebook\.com$/.test(u.hostname)) u.hostname = 'www.facebook.com';
+      const reel = u.pathname.match(/\/reel\/(\d+)/);
+      if (reel) return 'https://www.facebook.com/reel/' + reel[1] + '/';
+      // Keep only the parameters that name a video or post; the rest is share tracking.
       [...u.searchParams.keys()].forEach((k) => {
-        if (/^(mibextid|rdid|share_url|sfnsn|s|fs|extid|ref|__cft__\[0\]|__tn__|utm_.*)$/.test(k)) u.searchParams.delete(k);
+        if (!/^(v|story_fbid|id|fbid|set|type)$/.test(k)) u.searchParams.delete(k);
       });
       u.hash = '';
       return u.toString();
@@ -228,8 +233,10 @@ export async function tvInboxPost(request, env) {
 // The inbox copy of a video, before Claude files it: no place, tags, or credit yet.
 function inboxFind(m) {
   const pv = parseVideo(m.url) || {};
+  // Links stored before a canonical() fix come out clean too.
+  const url = pv.p ? canonical(m.url, pv) : m.url;
   return {
-    id: m.id, platform: PLATFORM[m.p] || m.p, url: m.url, by: '',
+    id: m.id, platform: PLATFORM[m.p] || m.p, url, by: '',
     label: (NAME[m.p] || 'Video') + ' video', place: '', la: null, lo: null,
     tradition: m.tradition || '', uses: [], shows: '', orient: pv.o || 'v', added: m.added || '',
     from: m.from || 'Send button', note: m.note || '', noted: m.noted || '', inbox: true,
