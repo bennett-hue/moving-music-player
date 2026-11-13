@@ -18,12 +18,12 @@
 // Ids match item_id() in scripts/build_tv.py, so once Claude files a video in
 // tv/finds.json with its place, tradition, and tags, that copy replaces the
 // bare inbox copy everywhere. A line sent after filing is newer than the filed
-// line (noted is later), so it shows until the weekly filing copies it over.
+// line (noted is later), so it shows until the daily filing copies it over.
 
 const REPO = 'bennett-hue/moving-music-player';
 export const TV_DATA_REF = 'main';
 // Shows in the X-MMP-Build header, so a deploy can be checked from outside.
-export const BUILD = '2026-11-12.12';
+export const BUILD = '2026-11-12.13';
 const INBOX_PREFIX = 'tvin:';
 const INBOX_TTL = 60 * 60 * 24 * 365;  // a year; Claude files each video long before
 const FINDS_CACHE_KEY = 'https://mmp-sync.internal/tv-finds.json';
@@ -261,7 +261,7 @@ function phoneTitle(pv, url, guesses) {
 // Facebook and Instagram give titles through oEmbed to approved apps only, so
 // for those two the worker reads the public page's own og: tags, under a user
 // agent that names this project. A login wall, an error or a timeout returns
-// null and the title is left to the weekly filing.
+// null and the title is left to the daily filing.
 const PAGE_UA = 'movingmusicTV/1.0 (+https://movingmusic.works/tv/)';
 const PAGE_MAX = 300000;
 
@@ -509,7 +509,7 @@ export async function tvFindsGet(request, env, ctx) {
         if (!m || !m.id || hidden.has(m.id)) continue;
         if (at.has(m.id)) {
           // Filed already. A line Bennett sent after the filing wins until the
-          // weekly filing copies it into tv/finds.json.
+          // daily filing copies it into tv/finds.json.
           const i = at.get(m.id), f = finds[i];
           if (m.note && m.noted && m.noted > String(f.noted || '') && m.note !== f.note) {
             finds[i] = Object.assign({}, f, { note: m.note, noted: m.noted });
